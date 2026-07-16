@@ -1,0 +1,42 @@
+[environment]
+python-version = "3.12"
+
+# source & excludes
+[src]
+include = ["src/decisionpy", "tests"]
+# Note: ty automatically respects .gitignore
+exclude = [
+    ".venv/**",
+    "build/**",
+    "dist/**",
+]
+respect-ignore-files = true
+
+[terminal]
+output-format = "full"
+error-on-warning = false
+
+[rules]
+# Core safety - undefined names and wrong assignments
+unresolved-reference = "error"
+invalid-assignment = "error"
+
+# Callable safety
+call-non-callable = "error"
+
+# Return type safety
+invalid-return-type = "error"
+
+# Function argument safety
+missing-argument = "error"
+unknown-argument = "error"
+invalid-argument-type = "error"
+
+# Optional: enable for stricter checking
+# possibly-unresolved-reference = "warn"
+# deprecated = "warn"
+# redundant-cast = "warn"
+
+[analysis]
+# Disable support for `type: ignore` comments
+respect-type-ignore-comments = false
