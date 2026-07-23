@@ -19,10 +19,10 @@ v0 scope
 Chance nodes only — i.e. a Bayesian network. Each node is emitted as::
 
     fn = node.dist(**resolved_parents)
-    value = numpyro.sample(name, fn)                     # unobserved, continuous
-    value = numpyro.sample(name, fn, obs=data[name])     # observed
+    value = numpyro.sample(name, fn)  # unobserved, continuous
+    value = numpyro.sample(name, fn, obs=data[name])  # observed
     value = numpyro.sample(name, fn, infer={"enumerate": "parallel"})
-        # unobserved, discrete — marginalised analytically during inference
+    # unobserved, discrete — marginalised analytically during inference
 
 Unobserved discrete nodes are detected automatically via ``node.is_discrete``
 and annotated with ``infer={"enumerate": "parallel"}`` so that NumPyro's NUTS
@@ -116,9 +116,7 @@ def to_model(
             if name in observed:
                 values[name] = numpyro.sample(name, fn, obs=observed[name])
             elif node.is_discrete:
-                values[name] = numpyro.sample(
-                    name, fn, infer={"enumerate": "parallel"}
-                )
+                values[name] = numpyro.sample(name, fn, infer={"enumerate": "parallel"})
             else:
                 values[name] = numpyro.sample(name, fn)
         return values
