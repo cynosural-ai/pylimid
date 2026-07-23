@@ -3,6 +3,13 @@
 Design note covering how a `ChanceNode`'s conditional distribution should be
 expressed, and the representation chosen as canonical.
 
+> **Scope.** This note settles the *distribution representation* (callable vs.
+> CPT). The node's *mutability model* — editable fields, optional `dist`,
+> `UNCONFIGURED`/`STALE`/`CONSISTENT` states — is a separate concern settled in
+> [`diagram.md`](./diagram.md). The examples
+> below show construction for clarity but the node is mutable in practice:
+> `parents` and `dist` may be set or changed after construction.
+
 ---
 
 ## The decision
@@ -15,12 +22,12 @@ provided as a thin convenience layer that desugars into the same callable.
 # canonical — one form for every case (discrete, continuous, mixed)
 ChanceNode(
     name="wet_grass",
-    parents=["rain"],
+    parents=("rain",),
     dist=lambda rain: dist.Categorical(probs=P[rain]),
 )
 
 # sugar — builds the callable from a dict-keyed table
-ChanceNode.from_cpt(name="wet_grass", parents=["rain"], table={...})
+ChanceNode.from_cpt(name="wet_grass", parents=("rain",), table={...})
 ```
 
 One internal representation, two ergonomic surfaces. No second node type, no
@@ -177,13 +184,15 @@ It is a desugaring step, not a separate node type. All downstream code
 
 ---
 
-## Open question
+## Resolved: parent `states` access for `from_cpt`
 
-`from_cpt` for multi-parent tables requires the parent `states` lists in order
-to map string tuple keys → integer indices. This means either:
+`from_cpt` for multi-parent tables needs the parent `states` lists to map
+string tuple keys → integer indices. The earlier open question was whether the
+builder would have diagram-scoped access to parent nodes.
 
-- the builder has access to the parent nodes (diagram-scoped construction), or
-- parent state lists are passed explicitly to `from_cpt`.
-
-Left open until the node construction API (registry vs. construct-then-wire)
-is settled — see the general design discussion.
+**Resolved by the mutable-diagram design** (see
+[`diagram.md`](./diagram.md)): `from_cpt` is
+offered as a method on `InfluenceDiagram`, not on the bare node, so it has
+direct access to the registered parent nodes and their `states`. The bare-node
+`ChanceNode.from_cpt` form shown in the examples above is illustrative; the
+real entry point is diagram-scoped.

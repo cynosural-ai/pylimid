@@ -3,6 +3,15 @@
 Design note covering how a `DecisionNode` should be represented under the hood
 in the NumPyro backend, and how discrete, continuous, and mixed decisions compose.
 
+> **Related.** The chance-node distribution representation is settled in
+> [`chance_node.md`](./chance_node.md) (callable-primary, CPT as sugar). The
+> mutability and validation model that governs *all* nodes — including the
+> `UNCONFIGURED`/`STALE`/`CONSISTENT` consistency states and the
+> editing-vs-inference gate — is settled in
+> [`diagram.md`](./diagram.md). A `DecisionNode`
+> inherits that model: it may be added before its information set is fully
+> wired, and its policy is configured after structure is in place.
+
 ---
 
 ## What "solving a LIMID" means here

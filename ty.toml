@@ -38,5 +38,8 @@ invalid-argument-type = "error"
 # redundant-cast = "warn"
 
 [analysis]
-# Disable support for `type: ignore` comments
+# Disable support for `type: ignore` comments.
+# NOTE: `ty: ignore[rule]` is still honored even with this disabled, so prefer it
+# when a type error must be suppressed (e.g. tests that deliberately pass a
+# wrong type). See https://docs.astral.sh/ty for the directive syntax.
 respect-type-ignore-comments = false
