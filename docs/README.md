@@ -22,6 +22,11 @@ The docs split into two kinds:
    — commits to the **mutable workspace** as the library's sole container and
    retires the build-once alternative.
 
+3. **[`23_07_2026_unified_inference_architecture.md`](./ADR/23_07_2026_unified_inference_architecture.md)**
+   — commits to a unified `inference/` package with two public verbs (`infer`,
+   `solve`) and auto-dispatch across graph-native and PPL engines. Retires the
+   separate `backend/` directory.
+
 ## Living design notes
 
 Read in this order:
@@ -44,6 +49,17 @@ Read in this order:
    dispatch abstraction for mixed. Inherits the consistency model from
    `diagram.md`.
 
+4. **[`backend_numpyro.md`](./backend_numpyro.md)** — the NumPyro translator:
+   turns a validated `Snapshot` into a NumPyro model. Chance nodes only in v0
+   (a Bayesian network), forward / prior-predictive sampling. Optional `numpyro`
+   extra so the graph layer stays zero-dep.
+
+5. **[`inference_strategy.md`](./inference_strategy.md)** — analysis of
+   inference backends for the full influence diagram roadmap: variable
+   elimination, Gibbs, NumPyro (NUTS/SVI). Decision: keep VE + Gibbs for
+   exact/approximate discrete, grow NumPyro as the primary engine for
+   mixed-type + gradient-based decision optimization.
+
 ## Status of each decision
 
 | Topic                | Status      | Where                              |
@@ -53,16 +69,25 @@ Read in this order:
 | Build-once vs. mutable (commit) | Settled — mutable | `ADR/17_07_2026_mutability_design_decision.md` |
 | Chance-node distribution form | Settled | `chance_node.md`             |
 | Decision-node solving strategy | Settled (v0 = B) | `decision_node.md`    |
-| NumPyro translator   | Not started | —                                  |
+| NumPyro translator   | v0 — chance-only, forward sampling | `backend_numpyro.md` |
+| Inference strategy   | Settled — VE + Gibbs for discrete, NumPyro for mixed-type | `inference_strategy.md` |
+| Unified inference API | Settled — `infer()` / `solve()` with auto-dispatch | `ADR/23_07_2026_unified_inference_architecture.md` |
 | `from_cpt` sugar     | Deferred    | `chance_node.md` (resolved q)      |
 | Parametric learning (`fit`) | Deferred | `diagram.md`                 |
 
 ## Code status
 
-`src/decisionpy/graph/` implements the mutable workspace:
+`src/decisionpy/` implements the mutable workspace and a first inference engine:
 
-- `chance_node.py` + `diagram.py` — the mutable node and container (see
-  `diagram.md`). Both are exported from `decisionpy.graph`.
+- `graph/chance_node.py` + `graph/diagram.py` — the mutable node and container
+  (see `diagram.md`). Both are exported from `decisionpy.graph`.
+- `inference/ve/` — exact discrete inference via variable elimination
+  (see `inference_strategy.md`).
+- `inference/numpyro/` — NumPyro bridge: translates a `Snapshot` into a NumPyro
+  model, with forward sampling, MCMC, and SVI helpers. Optional `numpyro` extra;
+  not imported by `decisionpy.graph`.
+- `inference/engine.py` — unified ``infer()`` entry-point with auto-dispatch.
+- Planned: Gibbs sampling under `inference/` (see `inference_strategy.md`).
 
 The build-once prototype that preceded this design has been removed; see
 [`ADR/17_07_2026_mutability_design_decision.md`](./ADR/17_07_2026_mutability_design_decision.md).
