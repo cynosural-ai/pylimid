@@ -3,7 +3,7 @@ python-version = "3.12"
 
 # source & excludes
 [src]
-include = ["src/decisionpy", "tests"]
+include = ["decisionpy", "tests"]
 # Note: ty automatically respects .gitignore
 exclude = [
     ".venv/**",
