@@ -24,7 +24,7 @@ from __future__ import annotations
 from typing import Any
 
 from decisionpy.graph.diagram import Snapshot
-from decisionpy.inference._numpyro_model import to_model
+from decisionpy.inference.numpyro.model import to_model
 
 __all__ = ["forward_sample", "to_model"]
 

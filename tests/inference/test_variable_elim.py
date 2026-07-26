@@ -9,7 +9,7 @@ import pytest
 
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import InfluenceDiagram
-from decisionpy.inference.variable_elim import query
+from decisionpy.inference.ve import query
 
 
 # --- helpers ----------------------------------------------------------------

@@ -81,11 +81,12 @@ Read in this order:
 
 - `graph/chance_node.py` + `graph/diagram.py` — the mutable node and container
   (see `diagram.md`). Both are exported from `decisionpy.graph`.
-- `inference/variable_elim.py` — exact discrete inference via variable
-  elimination (see `inference_strategy.md`).
-- `inference/_numpyro_model.py` + `inference/numpyro.py` — NumPyro bridge:
-  translates a `Snapshot` into a NumPyro model, with forward sampling, MCMC,
-  and SVI helpers. Optional `numpyro` extra; not imported by `decisionpy.graph`.
+- `inference/ve/` — exact discrete inference via variable elimination
+  (see `inference_strategy.md`).
+- `inference/numpyro/` — NumPyro bridge: translates a `Snapshot` into a NumPyro
+  model, with forward sampling, MCMC, and SVI helpers. Optional `numpyro` extra;
+  not imported by `decisionpy.graph`.
+- `inference/engine.py` — unified ``infer()`` entry-point with auto-dispatch.
 - Planned: Gibbs sampling under `inference/` (see `inference_strategy.md`).
 
 The build-once prototype that preceded this design has been removed; see

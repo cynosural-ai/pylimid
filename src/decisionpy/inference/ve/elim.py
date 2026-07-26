@@ -20,7 +20,7 @@ Example
 -------
 
 >>> from decisionpy.graph import ChanceNode, InfluenceDiagram
->>> from decisionpy.inference.variable_elim import query
+>>> from decisionpy.inference.ve import query
 >>> import numpyro.distributions as dist
 >>> d = InfluenceDiagram()
 >>> d.add_node(ChanceNode("rain",  states=("no","yes"),
@@ -37,7 +37,7 @@ from __future__ import annotations
 
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import Snapshot
-from decisionpy.inference._factor import Factor
+from decisionpy.inference.ve.factor import Factor
 
 __all__ = ["query"]
 

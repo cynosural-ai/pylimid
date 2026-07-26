@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from decisionpy.inference.variable_elim import query as dp_query
+from decisionpy.inference.ve import query as dp_query
 from validation._fixtures import (
     FourNodeAsia,
     ThreeNodeChain,
