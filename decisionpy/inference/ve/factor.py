@@ -7,8 +7,11 @@ its variables to a non-negative number.
 .. doctest::
 
     >>> f_rain = Factor(variables=["rain"], card=(2,), values=[0.8, 0.2])
-    >>> f_wet = Factor(variables=["rain", "wet_grass"], card=(2, 2),
-    ...                values=[[0.80, 0.20], [0.05, 0.95]])
+    >>> f_wet = Factor(
+    ...     variables=["rain", "wet_grass"],
+    ...     card=(2, 2),
+    ...     values=[[0.80, 0.20], [0.05, 0.95]],
+    ... )
     >>> joint = f_rain * f_wet
     >>> joint.variables
     ['rain', 'wet_grass']
@@ -34,6 +37,7 @@ class Factor:
         card: Sequence[int],
         values: Sequence[float],
     ) -> None:
+        """Create a factor over *variables* with given *card* and *values*."""
         self.variables = tuple(variables)
         self.card = tuple(card)
         flat = _flatten(values)
@@ -47,6 +51,7 @@ class Factor:
     # -- representation -------------------------------------------------------
 
     def __repr__(self) -> str:
+        """Return a compact representation."""
         return f"Factor({self.variables}, card={self.card})"
 
     # -- core operations ------------------------------------------------------
@@ -176,7 +181,9 @@ class Factor:
         new_card = tuple(self.card[i] for i in old_idx)
         all_cards = {v: self.card_of(v) for v in self.variables}
         new_values: list[float] = []
-        for assignment in _assignments(target_order, {v: all_cards[v] for v in target_order}):
+        for assignment in _assignments(
+            target_order, {v: all_cards[v] for v in target_order}
+        ):
             old_lookup = {v: assignment[target_order.index(v)] for v in target_order}
             old_tuple = tuple(old_lookup.get(v, 0) for v in self.variables)
             new_values.append(self[old_tuple])
@@ -188,21 +195,23 @@ class Factor:
         """Cardinality of *variable* (from another factor or precomputed)."""
         try:
             return self.card[self.variables.index(variable)]
-        except ValueError:
-            raise KeyError(variable)
+        except ValueError as exc:
+            raise KeyError(variable) from exc
 
     def __getitem__(self, key: tuple[int, ...]) -> float:
         """Flat-index lookup: ``factor[0, 1, 0]``."""
         assert len(key) == len(self.variables)
         idx = 0
-        for k, c in zip(key, self.card):
+        for k, c in zip(key, self.card, strict=True):
             idx = idx * c + k
         return self.values[idx]
 
     def to_dict(self) -> dict[tuple, float]:
         """All assignments → value (useful for testing / debugging)."""
         result: dict[tuple, float] = {}
-        for assignment in _assignments(self.variables, {v: self.card_of(v) for v in self.variables}):
+        for assignment in _assignments(
+            self.variables, {v: self.card_of(v) for v in self.variables}
+        ):
             result[assignment] = self[assignment]
         return result
 

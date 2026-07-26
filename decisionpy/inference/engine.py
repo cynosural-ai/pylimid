@@ -11,8 +11,6 @@ Unified inference entry-point.
 
 from __future__ import annotations
 
-from typing import Any
-
 from decisionpy.graph.diagram import InfluenceDiagram
 
 __all__ = ["InferenceError", "infer"]
@@ -68,11 +66,11 @@ def _choose_engine(snapshot) -> str:
         return "ve"
     try:
         import numpyro  # noqa: F401
-    except ImportError:
+    except ImportError as exc:
         raise InferenceError(
             "Diagram has continuous nodes and the numpyro extra is not "
             "installed. Install with: pip install decisionpy[numpyro]"
-        )
+        ) from exc
     return "numpyro"
 
 
@@ -92,7 +90,6 @@ def _infer_ve(snapshot, query, observed) -> dict[str, list[float]]:
 
 def _infer_numpyro(snapshot, query, observed) -> dict[str, list[float]]:
     import jax
-    import numpyro
     from numpyro.infer import MCMC, NUTS
 
     from decisionpy.inference.numpyro.model import to_model
@@ -116,9 +113,7 @@ def _infer_numpyro(snapshot, query, observed) -> dict[str, list[float]]:
             if name in posterior:
                 result[name] = [float(x) for x in posterior[name]]
             else:
-                result[name] = _infer_numpyro_discrete(model, snapshot, [name])[
-                    name
-                ]
+                result[name] = _infer_numpyro_discrete(model, snapshot, [name])[name]
         return result
 
 
@@ -144,9 +139,7 @@ def _infer_numpyro_discrete(model, snapshot, query) -> dict[str, list[float]]:
     for name in query:
         node = _find_node(snapshot, name)
         card = len(node.states)
-        counts = jnp.bincount(
-            jnp.array(values[name], dtype=jnp.int32), length=card
-        )
+        counts = jnp.bincount(jnp.array(values[name], dtype=jnp.int32), length=card)
         probs = counts / counts.sum()
         result[name] = [float(p) for p in probs]
     return result

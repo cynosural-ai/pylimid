@@ -5,7 +5,8 @@ Internal module.  Public convenience functions that wrap this are in
 :mod:`decisionpy.inference.numpyro`.
 
 This is the bridge between the backend-agnostic graph layer and a concrete
-probabilistic programming system. It consumes a :class:`~decisionpy.graph.diagram.Snapshot`
+probabilistic programming system. It consumes a
+:class:`~decisionpy.graph.diagram.Snapshot`
 and returns a plain NumPyro model function the caller feeds to ``numpyro.infer``
 (e.g. ``Predictive``, ``MCMC``, ``SVI``).
 
@@ -73,13 +74,12 @@ def to_model(
         values: dict[str, Any] = {}
         for name, node in nodes:
             parent_values = {parent: values[parent] for parent in node.parents}
+            assert node.dist is not None
             fn = node.dist(**parent_values)
             if name in observed:
                 values[name] = numpyro.sample(name, fn, obs=observed[name])
             elif node.is_discrete:
-                values[name] = numpyro.sample(
-                    name, fn, infer={"enumerate": "parallel"}
-                )
+                values[name] = numpyro.sample(name, fn, infer={"enumerate": "parallel"})
             else:
                 values[name] = numpyro.sample(name, fn)
         return values

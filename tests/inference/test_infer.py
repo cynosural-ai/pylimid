@@ -38,9 +38,7 @@ def _rain_wet_grass() -> InfluenceDiagram:
 
 def _continuous_diagram() -> InfluenceDiagram:
     diag = InfluenceDiagram()
-    diag.add_node(
-        ChanceNode(name="x", dist=lambda: dist.Normal(loc=5.0, scale=2.0))
-    )
+    diag.add_node(ChanceNode(name="x", dist=lambda: dist.Normal(loc=5.0, scale=2.0)))
     return diag
 
 
@@ -70,8 +68,6 @@ def test_auto_with_observed():
 def test_auto_continuous_requires_numpyro():
     result = infer(_continuous_diagram(), ["x"], engine="numpyro")
     assert "x" in result
-    # MCMC returns posterior mean ≈ 5.0 for Normal(5, 2) with no observation
-    x_vals = result["x"]
 
 
 # --- explicit engine selection -----------------------------------------------
@@ -79,9 +75,7 @@ def test_auto_continuous_requires_numpyro():
 
 def test_explicit_ve():
     result = infer(_rain_wet_grass(), ["wet_grass"], engine="ve")
-    expected = ve_query(
-        _rain_wet_grass().snapshot(), variables=["wet_grass"]
-    )
+    expected = ve_query(_rain_wet_grass().snapshot(), variables=["wet_grass"])
     assert result["wet_grass"] == pytest.approx(expected["wet_grass"])
 
 
@@ -116,9 +110,7 @@ def test_probabilities_sum_to_one():
 
 
 def test_probabilities_sum_to_one_with_observed():
-    result = infer(
-        _rain_wet_grass(), ["rain"], observed={"wet_grass": 1}
-    )
+    result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1})
     assert sum(result["rain"]) == pytest.approx(1.0)
 
 

@@ -16,17 +16,27 @@ Algorithm (for a single query variable)
 5. Multiply and normalise the remaining factors (which now span only query
    variables).
 
-Example
+Example:
 -------
-
 >>> from decisionpy.graph import ChanceNode, InfluenceDiagram
 >>> from decisionpy.inference.ve import query
 >>> import numpyro.distributions as dist
 >>> d = InfluenceDiagram()
->>> d.add_node(ChanceNode("rain",  states=("no","yes"),
-...            dist=lambda: dist.Categorical(probs=jnp.array([0.8, 0.2]))))
->>> d.add_node(ChanceNode("wet_grass", parents=("rain",), states=("dry","wet"),
-...            dist=lambda rain: dist.Categorical(probs=cpt[rain])))
+>>> d.add_node(
+...     ChanceNode(
+...         "rain",
+...         states=("no", "yes"),
+...         dist=lambda: dist.Categorical(probs=jnp.array([0.8, 0.2])),
+...     )
+... )
+>>> d.add_node(
+...     ChanceNode(
+...         "wet_grass",
+...         parents=("rain",),
+...         states=("dry", "wet"),
+...         dist=lambda rain: dist.Categorical(probs=cpt[rain]),
+...     )
+... )
 >>> query(d.snapshot(), variables=["rain"])  # prior
 {'rain': [0.8, 0.2]}
 >>> query(d.snapshot(), variables=["rain"], observed={"wet_grass": 1})
@@ -61,9 +71,9 @@ def query(
     _check_discrete(snapshot)
 
     # 1. Build initial factor list (CPTs).
-    node_map = {name: node for name, node in snapshot.nodes}
+    node_map = dict(snapshot.nodes)
     factors: list[Factor] = []
-    for name, node in snapshot.nodes:
+    for _name, node in snapshot.nodes:
         factors.append(_cpt(node, node_map))
 
     # Condition: for each observed variable, slice its dimension in EVERY factor
@@ -93,10 +103,7 @@ def query(
 
     # 4. Multiply remaining factors.
     if not factors:
-        return {
-            v: _point_mass(v, observed, node_map)
-            for v in variables
-        }
+        return {v: _point_mass(v, observed, node_map) for v in variables}
     joint = factors.pop(0)
     for f in factors:
         joint = joint * f
@@ -106,7 +113,8 @@ def query(
     result: dict[str, list[float]] = {}
     for v in variables:
         if v in observed:
-            card = len(node_map[v].states)  # type: ignore[arg-type]
+            assert node_map[v].states is not None
+            card = len(node_map[v].states)  # ty: ignore[invalid-argument-type]
             point = [0.0] * card
             point[observed[v]] = 1.0
             result[v] = point
@@ -122,8 +130,14 @@ def query(
 def _cpt(node: ChanceNode, node_map: dict[str, ChanceNode]) -> Factor:
     """Build the CPT factor P(*node* | parents(*node*))."""
     parent_vars = list(node.parents)
-    parent_cards = [len(node_map[p].states) for p in parent_vars]  # type: ignore[arg-type]
-    node_card = len(node.states)  # type: ignore[arg-type]
+    parent_cards: list[int] = []
+    for p in parent_vars:
+        assert node_map[p].states is not None
+        parent_cards.append(
+            len(node_map[p].states)  # ty: ignore[invalid-argument-type]
+        )
+    assert node.states is not None
+    node_card = len(node.states)
     all_vars = parent_vars + [node.name]
     all_cards = parent_cards + [node_card]
 
@@ -131,7 +145,7 @@ def _cpt(node: ChanceNode, node_map: dict[str, ChanceNode]) -> Factor:
 
     values: list[float] = []
     for parent_vals in product(*[range(c) for c in parent_cards]):
-        kwargs = dict(zip(node.parents, parent_vals))
+        kwargs = dict(zip(node.parents, parent_vals, strict=True))
         prob_vec = _extract_probs(node, kwargs, node_card)
         if prob_vec is None:
             raise RuntimeError(
@@ -150,6 +164,7 @@ def _extract_probs(
     card: int,
 ) -> list[float] | None:
     """Call ``node.dist(**parent_kwargs)`` and extract probability vector."""
+    assert node.dist is not None
     dist = node.dist(**parent_kwargs)
     probs = getattr(dist, "probs", None)
     if probs is not None:
@@ -178,8 +193,9 @@ def _point_mass(
     observed: dict[str, int],
     node_map: dict[str, ChanceNode],
 ) -> list[float]:
-    """Return a point-mass vector for *var*: [0,...,1,...,0] at its (possibly observed) value."""
-    card = len(node_map[var].states)  # type: ignore[arg-type]
+    """Return a point-mass vector for *var*: [0,...,1,...,0] at its observed value."""
+    assert node_map[var].states is not None
+    card = len(node_map[var].states)  # ty: ignore[invalid-argument-type]
     point = [0.0] * card
     if var in observed:
         point[observed[var]] = 1.0
