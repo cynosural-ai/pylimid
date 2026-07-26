@@ -11,7 +11,6 @@ from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import InfluenceDiagram
 from decisionpy.inference.ve import query
 
-
 # --- helpers ----------------------------------------------------------------
 
 
@@ -71,7 +70,9 @@ def test_prior_child() -> None:
 
 def test_prior_joint() -> None:
     """Querying both variables returns both marginals in one call."""
-    result = query(_rain_wet_grass_diagram().snapshot(), variables=["rain", "wet_grass"])
+    result = query(
+        _rain_wet_grass_diagram().snapshot(), variables=["rain", "wet_grass"]
+    )
     assert result["rain"] == pytest.approx([0.8, 0.2])
     assert result["wet_grass"] == pytest.approx([0.65, 0.35])
 
@@ -87,7 +88,8 @@ def test_prior_empty_diagram() -> None:
 
 
 def test_posterior_rain_given_wet() -> None:
-    """P(rain | wet_grass=wet) — hand-computed.
+    """
+    P(rain | wet_grass=wet) — hand-computed.
 
     P(yes|wet) = P(wet|yes)*P(yes) / P(wet) = 0.95*0.2 / 0.35 ≈ 0.5429
     P(no|wet)  = 1 - 0.5429 ≈ 0.4571
@@ -150,7 +152,7 @@ def test_posterior_irrelevant_evidence() -> None:
 
 
 def test_chain_three_nodes() -> None:
-    """a → b → c. Hand-check P(c) and P(a | c=c1)."""
+    """A → b → c. Hand-check P(c) and P(a | c=c1)."""
     # a ~ [0.4, 0.6]
     # b|a: [[0.7, 0.3], [0.2, 0.8]]
     # c|b: [[0.9, 0.1], [0.5, 0.5]]
@@ -207,7 +209,7 @@ def test_chain_three_nodes() -> None:
 
 
 def test_converging_parents() -> None:
-    """a → c ← b (v-structure). Check explaining-away P(a | b=b1, c=c0)."""
+    """A → c ← b (v-structure). Check explaining-away P(a | b=b1, c=c0)."""
     diag = InfluenceDiagram()
     diag.add_node(
         ChanceNode(
@@ -227,8 +229,8 @@ def test_converging_parents() -> None:
     # Rows: a0, a1; Cols: b0, b1
     cpt_c = jnp.array(
         [
-            [[0.95, 0.05], [0.30, 0.70]],   # a=a0: [b=b0, b=b1]
-            [[0.20, 0.80], [0.01, 0.99]],   # a=a1
+            [[0.95, 0.05], [0.30, 0.70]],  # a=a0: [b=b0, b=b1]
+            [[0.20, 0.80], [0.01, 0.99]],  # a=a1
         ]
     )
     diag.add_node(
@@ -290,7 +292,9 @@ def test_single_node_observed() -> None:
 
 def test_prior_sums_to_one() -> None:
     """Every marginal should sum to 1.0."""
-    result = query(_rain_wet_grass_diagram().snapshot(), variables=["rain", "wet_grass"])
+    result = query(
+        _rain_wet_grass_diagram().snapshot(), variables=["rain", "wet_grass"]
+    )
     assert math.isclose(sum(result["rain"]), 1.0)
     assert math.isclose(sum(result["wet_grass"]), 1.0)
 
@@ -306,7 +310,9 @@ def test_posterior_sums_to_one() -> None:
 
 def test_query_all_variables() -> None:
     """Querying all variables returns correct marginals for each."""
-    result = query(_rain_wet_grass_diagram().snapshot(), variables=["rain", "wet_grass"])
+    result = query(
+        _rain_wet_grass_diagram().snapshot(), variables=["rain", "wet_grass"]
+    )
     assert result["rain"] == pytest.approx([0.8, 0.2])
     assert result["wet_grass"] == pytest.approx([0.65, 0.35])
 

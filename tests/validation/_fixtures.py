@@ -67,7 +67,11 @@ class BNFixture:
 
             # Build a JAX/numpy array the dist lambda can index into.
             shape = parent_cards + [var_card]
-            arr = jnp.array(rows_data).reshape(shape) if parent_cards else jnp.array(rows_data[0])
+            arr = (
+                jnp.array(rows_data).reshape(shape)
+                if parent_cards
+                else jnp.array(rows_data[0])
+            )
 
             if not parents:
                 node = ChanceNode(
@@ -83,6 +87,7 @@ class BNFixture:
                     def fn(**kwargs):
                         idx = tuple(kwargs[p] for p in _parents)
                         return dist.Categorical(probs=_arr[idx])
+
                     return fn
 
                 node = ChanceNode(

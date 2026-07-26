@@ -1,5 +1,4 @@
-"""Tests for :mod:`decisionpy.inference.numpyro` and
-:mod:`decisionpy.inference._numpyro_model`."""
+"""Tests for the NumPyro inference backend."""
 
 from __future__ import annotations
 
@@ -263,6 +262,7 @@ def test_posterior_continuous_hierarchical() -> None:
 def test_posterior_mixed_discrete_continuous() -> None:
     """
     Mixed BN: rain (discrete) -> height (continuous).
+
     Observe height=175; infer P(rain=yes | height=175).
 
     height | rain=no  ~ Normal(170, 5)

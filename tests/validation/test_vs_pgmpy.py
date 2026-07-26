@@ -1,4 +1,5 @@
-"""Validate decisionpy VE against pgmpy exact inference.
+"""
+Validate decisionpy VE against pgmpy exact inference.
 
 Each test builds the same Bayesian network in both libraries and checks
 that priors and posteriors agree to high precision (absolute tolerance 1e-6).
@@ -9,14 +10,14 @@ Expected runtime: ~2-3 seconds (pgmpy import is slow).
 from __future__ import annotations
 
 import pytest
-
-from decisionpy.inference.ve import query as dp_query
 from validation._fixtures import (
     FourNodeAsia,
     ThreeNodeChain,
     TwoNodeRainWet,
     VStructure,
 )
+
+from decisionpy.inference.ve import query as dp_query
 
 # -- shared fixture factory ---------------------------------------------------
 
