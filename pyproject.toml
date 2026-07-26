@@ -6,6 +6,15 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
 
+[project.optional-dependencies]
+# NumPyro backend. Optional so the graph layer stays importable with zero
+# runtime dependencies; install with `pip install decisionpy[numpyro]`.
+numpyro = [
+    "numpyro>=0.15",
+    "jax>=0.4",
+    "funsor>=0.4",
+]
+
 [dependency-groups]
 dev = [
     "pre-commit>=3.1.1",
@@ -17,9 +26,17 @@ lint = [
 test = [
     "pytest>=8.4.0",
 ]
+backend = [
+    "numpyro>=0.15",
+    "jax>=0.4",
+    "funsor>=0.4",
+]
+validation = [
+    "pgmpy>=0.1",
+]
 
 [tool.uv]
-default-groups = ["dev", "lint", "test"]
+default-groups = ["dev", "lint", "test", "backend", "validation"]
 
 [build-system]
 requires = ["hatchling"]

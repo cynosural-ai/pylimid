@@ -71,7 +71,7 @@ def _empty_diagram() -> InfluenceDiagram:
 
 
 def _continuous_hierarchical_diagram() -> InfluenceDiagram:
-    """mu ~ Normal(0, 10); height ~ Normal(mu, 5)."""
+    """Mu ~ Normal(0, 10); height ~ Normal(mu, 5)."""
     diag = InfluenceDiagram()
     diag.add_node(
         ChanceNode(
