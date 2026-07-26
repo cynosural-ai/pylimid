@@ -1,4 +1,5 @@
-"""Tests for :mod:`decisionpy.backend.numpyro`."""
+"""Tests for :mod:`decisionpy.inference.numpyro` and
+:mod:`decisionpy.inference._numpyro_model`."""
 
 from __future__ import annotations
 
@@ -10,10 +11,9 @@ import pytest
 from numpyro.contrib.funsor import infer_discrete
 from numpyro.infer import MCMC, NUTS, Predictive
 
-from decisionpy.backend import numpyro as numpyro_backend  # noqa: F401
-from decisionpy.backend.numpyro import to_model
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import InfluenceDiagram
+from decisionpy.inference._numpyro_model import to_model
 
 # Skip the whole module when the numpyro extra is not installed. The heavy
 # imports above already fail in that case, so the guard is belt-and-braces.

@@ -81,12 +81,12 @@ Read in this order:
 
 - `graph/chance_node.py` + `graph/diagram.py` — the mutable node and container
   (see `diagram.md`). Both are exported from `decisionpy.graph`.
-- `backend/numpyro.py` — translates a validated `Snapshot` into a NumPyro model
-  (see `backend_numpyro.md`). Optional `numpyro` extra; not imported by
-  `decisionpy.graph`. **Will migrate to `inference/` per
-  `ADR/23_07_2026_unified_inference_architecture.md`.**
-- Planned: graph-native variable elimination and Gibbs sampling under
-  `inference/` (see `inference_strategy.md`).
+- `inference/variable_elim.py` — exact discrete inference via variable
+  elimination (see `inference_strategy.md`).
+- `inference/_numpyro_model.py` + `inference/numpyro.py` — NumPyro bridge:
+  translates a `Snapshot` into a NumPyro model, with forward sampling, MCMC,
+  and SVI helpers. Optional `numpyro` extra; not imported by `decisionpy.graph`.
+- Planned: Gibbs sampling under `inference/` (see `inference_strategy.md`).
 
 The build-once prototype that preceded this design has been removed; see
 [`ADR/17_07_2026_mutability_design_decision.md`](./ADR/17_07_2026_mutability_design_decision.md).
