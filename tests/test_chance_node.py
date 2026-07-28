@@ -4,7 +4,8 @@ from typing import Any
 
 import pytest
 
-from decisionpy.graph.chance_node import ChanceNode, Consistency
+from decisionpy.graph.chance_node import ChanceNode
+from decisionpy.graph.node import Consistency
 
 # --- helpers ----------------------------------------------------------------
 

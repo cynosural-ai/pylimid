@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -85,16 +85,12 @@ backend = [
 ]
 dev = [
     { name = "pre-commit" },
-]
-lint = [
     { name = "ruff" },
     { name = "ty" },
 ]
 test = [
-    { name = "pytest" },
-]
-validation = [
     { name = "pgmpy" },
+    { name = "pytest" },
 ]
 
 [package.metadata]
@@ -111,13 +107,15 @@ backend = [
     { name = "jax", specifier = ">=0.4" },
     { name = "numpyro", specifier = ">=0.15" },
 ]
-dev = [{ name = "pre-commit", specifier = ">=3.1.1" }]
-lint = [
+dev = [
+    { name = "pre-commit", specifier = ">=3.1.1" },
     { name = "ruff", specifier = ">=0.11.9" },
     { name = "ty", specifier = "==0.0.14" },
 ]
-test = [{ name = "pytest", specifier = ">=8.4.0" }]
-validation = [{ name = "pgmpy", specifier = ">=0.1" }]
+test = [
+    { name = "pgmpy", specifier = ">=0.1" },
+    { name = "pytest", specifier = ">=8.4.0" },
+]
 
 [[package]]
 name = "distlib"

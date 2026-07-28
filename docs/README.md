@@ -46,15 +46,21 @@ Read in this order:
 3. **[`decision_node.md`](./decision_node.md)** — settles the *solving
    strategy*: intervention-scan (Strategy B) for v0 discrete decisions,
    policy-as-parameters (Strategy A) for continuous, composed by a per-node
-   dispatch abstraction for mixed. Inherits the consistency model from
-   `diagram.md`.
+   dispatch abstraction for mixed. Includes the `DecisionNode` *representation*
+   in `graph/` (information set, action space, consistency model). Solving
+   itself is the next milestone.
 
-4. **[`backend_numpyro.md`](./backend_numpyro.md)** — the NumPyro translator:
+4. **[`utility_node.md`](./utility_node.md)** — the `UtilityNode` *representation*:
+   a callable `values(parent_assignments) -> float`, no dist/states, always a
+   sink (enforced eagerly + defensively). Inherits the consistency model from
+   `diagram.md`. Like decisions, expected-utility *solving* is deferred.
+
+5. **[`backend_numpyro.md`](./backend_numpyro.md)** — the NumPyro translator:
    turns a validated `Snapshot` into a NumPyro model. Chance nodes only in v0
    (a Bayesian network), forward / prior-predictive sampling. Optional `numpyro`
    extra so the graph layer stays zero-dep.
 
-5. **[`inference_strategy.md`](./inference_strategy.md)** — analysis of
+6. **[`inference_strategy.md`](./inference_strategy.md)** — analysis of
    inference backends for the full influence diagram roadmap: variable
    elimination, Gibbs, NumPyro (NUTS/SVI). Decision: keep VE + Gibbs for
    exact/approximate discrete, grow NumPyro as the primary engine for
@@ -68,7 +74,9 @@ Read in this order:
 | Mutable workspace + validation gate | Settled | `diagram.md` |
 | Build-once vs. mutable (commit) | Settled — mutable | `ADR/17_07_2026_mutability_design_decision.md` |
 | Chance-node distribution form | Settled | `chance_node.md`             |
-| Decision-node solving strategy | Settled (v0 = B) | `decision_node.md`    |
+| Decision-node representation | Settled — graph layer | `decision_node.md` |
+| Utility-node representation | Settled — graph layer | `utility_node.md` |
+| Decision-node solving strategy | Settled (v0 = B); implementation deferred | `decision_node.md` |
 | NumPyro translator   | v0 — chance-only, forward sampling | `backend_numpyro.md` |
 | Inference strategy   | Settled — VE + Gibbs for discrete, NumPyro for mixed-type | `inference_strategy.md` |
 | Unified inference API | Settled — `infer()` / `solve()` with auto-dispatch | `ADR/23_07_2026_unified_inference_architecture.md` |
@@ -79,15 +87,24 @@ Read in this order:
 
 `src/decisionpy/` implements the mutable workspace and a first inference engine:
 
-- `graph/chance_node.py` + `graph/diagram.py` — the mutable node and container
-  (see `diagram.md`). Both are exported from `decisionpy.graph`.
+- `graph/node.py` — the shared `Node` base: `name`/`parents`, field validation,
+  and the `UNCONFIGURED`/`STALE`/`CONSISTENT` consistency gate that every node
+  type inherits. Also defines `NodeKind` and `Consistency`.
+- `graph/chance_node.py`, `graph/decision_node.py`, `graph/utility_node.py` —
+  the three node types, all subclassing `Node`. A diagram with only chance
+  nodes is a Bayesian network; adding a decision or utility node makes it an
+  influence diagram (see `diagram.md`, `decision_node.md`, `utility_node.md`).
+- `graph/diagram.py` — the mutable container, `Snapshot`, and validation
+  (see `diagram.md`). Exports `Node`, `NodeKind`, `Consistency`, and the three
+  node types from `decisionpy.graph`.
 - `inference/ve/` — exact discrete inference via variable elimination
   (see `inference_strategy.md`).
 - `inference/numpyro/` — NumPyro bridge: translates a `Snapshot` into a NumPyro
   model, with forward sampling, MCMC, and SVI helpers. Optional `numpyro` extra;
   not imported by `decisionpy.graph`.
 - `inference/engine.py` — unified ``infer()`` entry-point with auto-dispatch.
-- Planned: Gibbs sampling under `inference/` (see `inference_strategy.md`).
+- Planned: `solve()` for influence diagrams (intervention-scan / policy
+  optimization — see `decision_node.md`); Gibbs sampling under `inference/`.
 
 The build-once prototype that preceded this design has been removed; see
 [`ADR/17_07_2026_mutability_design_decision.md`](./ADR/17_07_2026_mutability_design_decision.md).

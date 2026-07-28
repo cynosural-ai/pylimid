@@ -1,6 +1,6 @@
 # Mutable influence diagram — design principles
 
-Design note for the container in `diagram.py` and the node in `chance_node.py`.
+Design note for the container in `diagram.py` and the node base in `node.py`.
 Captures *why* the container behaves the way it does, not the API reference
 (which lives in the module docstrings).
 
@@ -8,7 +8,8 @@ Captures *why* the container behaves the way it does, not the API reference
 > and validation model here governs every node type. See
 > [`README.md`](./README.md) for the doc index and reading order. The
 > node-specific notes ([`chance_node.md`](./chance_node.md),
-> [`decision_node.md`](./decision_node.md)) build on the principles below.
+> [`decision_node.md`](./decision_node.md), [`utility_node.md`](./utility_node.md))
+> build on the principles below.
 
 ---
 
@@ -70,13 +71,21 @@ not fix them one raise at a time. Structured records (`kind`, `node`,
 
 ---
 
-## Principle 4 — acyclicity is enforced eagerly on the happy path, defensively elsewhere
+## Principle 4 — structural invariants are enforced eagerly on the happy path, defensively elsewhere
 
-A cycle is never a useful intermediate state, unlike a dangling parent. So
-`add_edge` rejects an edge that would close a cycle before applying it. But a
-node is independently mutable through its own `add_parent`, which bypasses the
-diagram, so `validate()` runs a defensive cycle check as the backstop. Two
-layers because there are two mutation paths; neither alone is sufficient.
+Two structural invariants are "never a useful intermediate state" and get this
+two-layer treatment:
+
+- **Acyclicity.** A cycle is never useful. `add_edge` rejects an edge that
+  would close a cycle before applying it. But a node is independently mutable
+  through its own `add_parent`, which bypasses the diagram, so `validate()`
+  runs a defensive cycle check as the backstop.
+- **Utility nodes are sinks.** A payoff with a child is never valid. `add_edge`
+  rejects an edge whose parent is a utility node (read via `node.is_sink`).
+  The same direct-mutation bypass applies, so `validate()` reports any utility
+  node that has nonetheless acquired a child as `ProblemKind.UTILITY_NOT_SINK`.
+
+Two layers because there are two mutation paths; neither alone is sufficient.
 
 ---
 
