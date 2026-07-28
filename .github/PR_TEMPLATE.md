@@ -1,3 +1,9 @@
+<!-- 
+General notes:
+
+ * Dont break lines at 80 characters, let lines flow and the viewer will adjust 
+-->
+
 ## Summary
 
 <!-- What does this PR do? One or two sentences. -->
