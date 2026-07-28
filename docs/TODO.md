@@ -9,8 +9,6 @@ Cuanto menos codigo mejor, seguir el zen de Python
 
 Hablar con LLMs para brainstorming sobre como reducir el codigo y hacerlo mas entendible
 
-Correr pre-commit y asegurarnos que esta al dia
-
 ------
 
 ## Funcionalidades
