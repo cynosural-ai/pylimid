@@ -26,6 +26,13 @@ Acyclicity is enforced *eagerly* on :meth:`add_edge` (a cycle is never a useful
 intermediate state) and *defensively* in :meth:`validate` (a node can be
 mutated directly through its own ``add_parent``, bypassing the diagram, so
 :meth:`validate` is the robust backstop).
+
+Three node kinds live in one container: chance, decision, and utility (see
+:class:`~decisionpy.graph.node.NodeKind`). They share the ``parents`` field, so
+topological ordering and cycle prevention work uniformly across them. Utility
+nodes are *sinks* — :meth:`add_edge` rejects an edge giving one a child (eager,
+alongside the cycle check), and :meth:`validate` reports any utility node that
+nonetheless has children (defensive backstop, the same two-layer treatment).
 """
 
 from __future__ import annotations
@@ -33,7 +40,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from decisionpy.graph.chance_node import ChanceNode, Consistency, DistFactory
+from decisionpy.graph.chance_node import ChanceNode, DistFactory
+from decisionpy.graph.node import Consistency, Node
 
 
 class ProblemKind(Enum):
@@ -42,14 +50,18 @@ class ProblemKind(Enum):
 
     :var DANGLING_PARENT: A node lists a parent that is not in the diagram.
     :var CYCLE: The graph contains a cycle.
-    :var UNCONFIGURED: A node has no ``dist`` set; inference cannot run on it.
-    :var STALE: A node's ``dist`` signature does not match its parents.
+    :var UNCONFIGURED: A node's configurable field (``dist`` / ``values`` /
+        action ``states``) is unset; inference cannot run on it.
+    :var STALE: A node's configurable field signature does not match its parents.
+    :var UTILITY_NOT_SINK: A utility node has acquired a child — a payoff must
+        be terminal.
     """
 
     DANGLING_PARENT = "dangling_parent"
     CYCLE = "cycle"
     UNCONFIGURED = "unconfigured"
     STALE = "stale"
+    UTILITY_NOT_SINK = "utility_not_sink"
 
 
 @dataclass(frozen=True)
@@ -78,7 +90,7 @@ class Snapshot:
     down the shape it needs.
     """
 
-    nodes: tuple[tuple[str, ChanceNode], ...]
+    nodes: tuple[tuple[str, Node], ...]
     order: tuple[str, ...]
 
 
@@ -86,9 +98,9 @@ class InfluenceDiagram:
     """
     A mutable directed acyclic graph of nodes representing an influence diagram.
 
-    Currently supports chance nodes only; decision and utility nodes will be
-    added in later milestones. A Bayesian network is simply an
-    :class:`InfluenceDiagram` containing only chance nodes.
+    Currently supports chance, decision, and utility nodes. A Bayesian network
+    is simply an :class:`InfluenceDiagram` containing only chance nodes; the
+    moment a decision or utility node is added it becomes an influence diagram.
 
     Nodes are registered by name. Unlike a build-once container, a node may be
     added before its parents exist, edges may be wired and unwired freely, and
@@ -98,11 +110,11 @@ class InfluenceDiagram:
 
     def __init__(self) -> None:
         """Initialize an empty diagram."""
-        self._nodes: dict[str, ChanceNode] = {}
+        self._nodes: dict[str, Node] = {}
 
     # --- registration -------------------------------------------------------
 
-    def add_node(self, node: ChanceNode) -> None:
+    def add_node(self, node: Node) -> None:
         """
         Register a node in the diagram.
 
@@ -110,14 +122,14 @@ class InfluenceDiagram:
         — dangling references are tolerated during construction and caught by
         :meth:`validate`.
 
-        :param ChanceNode node: The node to add.
+        :param Node node: The node to add.
         :raises ValueError: If a node with this name is already registered.
         """
         if node.name in self._nodes:
             raise ValueError(f"A node named {node.name!r} is already in the diagram.")
         self._nodes[node.name] = node
 
-    def remove_node(self, name: str) -> ChanceNode:
+    def remove_node(self, name: str) -> Node:
         """
         Remove ``name`` from the diagram and scrub it from every survivor's parents.
 
@@ -142,20 +154,28 @@ class InfluenceDiagram:
         Both endpoints must already be in the diagram (use :meth:`add_node`
         first). The child's parent set is updated through its own
         ``add_parent``, so the child's field validation runs — and its
-        ``dist`` may become stale as a result, which is expected.
+        ``dist`` / ``values`` may become stale as a result, which is expected.
 
         Cycle prevention: if a path ``child -> ... -> parent`` already exists,
         adding ``parent -> child`` would close a cycle, and the call is
-        rejected. Idempotent: a duplicate edge is a no-op.
+        rejected. Utility-sink prevention: an edge whose *child* is a utility
+        node is rejected, since a payoff must be terminal. Both are eager
+        checks (a cycle and a utility-with-child are never useful intermediate
+        states). Idempotent: a duplicate edge is a no-op.
 
         :raises KeyError: If either endpoint is not in the diagram.
         :raises ValueError: If the edge would create a cycle (including a
-            self-loop).
+            self-loop), or if the child is a sink node (utility).
         """
         if parent not in self._nodes:
             raise KeyError(f"Parent {parent!r} is not in the diagram.")
         if child not in self._nodes:
             raise KeyError(f"Child {child!r} is not in the diagram.")
+        if self._nodes[parent].is_sink:
+            raise ValueError(
+                f"Node {parent!r} is a utility node and cannot have children "
+                f"(rejected edge {parent!r} -> {child!r})."
+            )
         if parent == child:
             raise ValueError(f"Node {parent!r} cannot be its own parent.")
         if parent in self._nodes[child].parents:
@@ -180,8 +200,20 @@ class InfluenceDiagram:
     # --- distribution / state mutators --------------------------------------
 
     def set_dist(self, name: str, dist: DistFactory | None) -> None:
-        """Set the distribution factory on node ``name`` (field-validated)."""
-        self._nodes[name].dist = dist
+        """
+        Set the distribution factory on chance node ``name`` (field-validated).
+
+        :raises TypeError: If ``name`` is not a chance node. Decision nodes
+            carry an action ``states`` instead, and utility nodes a ``values``
+            function — set those directly on the node.
+        """
+        node = self._nodes[name]
+        if not isinstance(node, ChanceNode):
+            raise TypeError(
+                f"`set_dist` applies to chance nodes only; {name!r} is a "
+                f"{node.kind.value} node."
+            )
+        node.dist = dist
 
     # --- topology -----------------------------------------------------------
 
@@ -257,7 +289,10 @@ class InfluenceDiagram:
                         )
                     )
 
-        # Per-node consistency: inference needs a configured, matching dist.
+        # Per-node consistency: inference needs every node CONSISTENT. The
+        # wording is owned by the node (its configurable field differs by kind
+        # — `dist`, `values`, action `states`), so the message comes from the
+        # node's own `consistency_message`.
         for name, node in self._nodes.items():
             state = node.consistency
             if state is Consistency.UNCONFIGURED:
@@ -265,7 +300,7 @@ class InfluenceDiagram:
                     DiagramProblem(
                         kind=ProblemKind.UNCONFIGURED,
                         node=name,
-                        message=f"Node {name!r} has no `dist` configured.",
+                        message=node.consistency_message(state),
                     )
                 )
             elif state is Consistency.STALE:
@@ -273,9 +308,24 @@ class InfluenceDiagram:
                     DiagramProblem(
                         kind=ProblemKind.STALE,
                         node=name,
+                        message=node.consistency_message(state),
+                    )
+                )
+
+        # Defensive utility-sink check: `add_edge` rejects a utility child
+        # eagerly, but a node can be mutated directly via its own `add_parent`
+        # (bypassing the diagram), so a utility node may nonetheless appear as
+        # some other node's parent. This is the backstop, mirroring the cycle
+        # check below.
+        for name, node in self._nodes.items():
+            if node.is_sink and self.children_of(name):
+                problems.append(
+                    DiagramProblem(
+                        kind=ProblemKind.UTILITY_NOT_SINK,
+                        node=name,
                         message=(
-                            f"Node {name!r}'s `dist` signature does not match "
-                            f"its parents {node.parents!r}."
+                            f"Utility node {name!r} must be terminal but has "
+                            f"children {self.children_of(name)!r}."
                         ),
                     )
                 )
@@ -317,7 +367,7 @@ class InfluenceDiagram:
         """Whether a node named ``name`` is registered."""
         return name in self._nodes
 
-    def __getitem__(self, name: str) -> ChanceNode:
+    def __getitem__(self, name: str) -> Node:
         """Return the node registered under ``name``; raises ``KeyError`` if absent."""
         return self._nodes[name]
 

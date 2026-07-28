@@ -71,9 +71,18 @@ def query(
     _check_discrete(snapshot)
 
     # 1. Build initial factor list (CPTs).
-    node_map = dict(snapshot.nodes)
-    factors: list[Factor] = []
+    #
+    # VE is a chance-node engine (a discrete Bayesian network). ``_check_discrete``
+    # above guarantees every node ``is_discrete``, which only chance nodes can be —
+    # but the snapshot carries the ``Node`` base type, so narrow to ``ChanceNode``
+    # for the chance-specific CPT logic. This is a type narrowing, not a behavior
+    # change: a diagram with decisions / utilities routes to ``solve()``, not here.
+    node_map: dict[str, ChanceNode] = {}
     for _name, node in snapshot.nodes:
+        assert isinstance(node, ChanceNode)
+        node_map[_name] = node
+    factors: list[Factor] = []
+    for _name, node in node_map.items():
         factors.append(_cpt(node, node_map))
 
     # Condition: for each observed variable, slice its dimension in EVERY factor

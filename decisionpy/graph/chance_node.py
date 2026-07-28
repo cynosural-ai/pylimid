@@ -2,39 +2,38 @@
 Chance node — a random variable conditioned on its parents.
 
 Implements the mutable node design settled in ``docs/chance_node.md`` and
-``docs/diagram_mutable_design.md``; see
-``docs/17_07_2026_mutability_design_decision.md`` for the decision that makes
-this the library's sole node container.
+``docs/diagram.md``; see ``docs/17_07_2026_mutability_design_decision.md`` for
+the decision that makes this the library's sole node container model.
 
-Mutable by design
------------------
-The node is a workspace value that may be edited incrementally — add a parent,
-set the distribution, swap states — by an external author: a script, a UI, or
-an LLM driving the diagram over a tool interface. Because of that, a node is
-allowed to exist in an *inconsistent* state: its ``dist`` may be unset, or its
-signature may not yet match its parents after an edge change.
-
-Two layers of checking reflect this:
-
-- **Field-level validation** runs on every assignment (including during
-  construction). A bad value — empty name, duplicate parent, non-callable dist
-  — is rejected the moment it is set.
-- **Cross-field consistency** (``dist`` signature vs ``parents``) is *not*
-  enforced on assignment. It is queryable via :attr:`ChanceNode.consistency`
-  and gated explicitly via :meth:`ChanceNode.validate`, which is the checkpoint
-  inference runs against. Editing pauses wherever it likes; inference requires
-  a ``CONSISTENT`` node.
+A chance node is ``P(name | parents)`` — a random variable whose distribution
+depends on its parents (a causal / statistical dependency, as distinct from a
+decision node's information set). It inherits the shared mutable-node contract
+from :class:`~decisionpy.graph.node.Node`: field-level validation on every
+assignment, and the :attr:`~decisionpy.graph.node.Consistency` gate (optional
+``dist``, derived consistency) for cross-field checking.
 
 The ``dist`` callable receives resolved parent values as **keyword arguments**
 (keyed by parent name), so it is tied to parent *names*, which are stable,
 rather than parent *order*, which is incidental.
+
+Re-exported here for back-comat: :class:`~decisionpy.graph.node.Consistency`
+now lives on :mod:`decisionpy.graph.node` but is re-exported here so existing
+``from decisionpy.graph.chance_node import Consistency`` imports keep working.
 """
 
-import inspect
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any
+
+from decisionpy.graph.node import (
+    Consistency,  # noqa: F401 — re-exported for back-comat
+    Node,
+    NodeKind,
+    _signature_matches,
+)
+from decisionpy.graph.node import (
+    Consistency as _Consistency,
+)
 
 #: Factory returning a distribution object given resolved parent values.
 #:
@@ -43,26 +42,8 @@ from typing import Any
 DistFactory = Callable[..., Any]
 
 
-class Consistency(Enum):
-    """
-    State of the ``parents`` / ``dist`` relationship on a chance node.
-
-    :var UNCONFIGURED: ``dist`` is ``None`` — structure exists, the
-        distribution has not yet been supplied.
-    :var STALE: ``dist`` is set but its signature does not match ``parents`` —
-        typically because a parent was added or removed since ``dist`` was
-        last configured.
-    :var CONSISTENT: ``dist`` is set and accepts ``parents`` as keyword
-        arguments — the node is ready to be translated / inferred.
-    """
-
-    UNCONFIGURED = "unconfigured"
-    STALE = "stale"
-    CONSISTENT = "consistent"
-
-
 @dataclass
-class ChanceNode:
+class ChanceNode(Node):
     """
     A random variable in an influence diagram: ``P(name | parents)``.
 
@@ -70,7 +51,8 @@ class ChanceNode:
     (including during construction), so a bad value is rejected at the moment
     it is set rather than later. Cross-field consistency (``dist`` signature
     vs ``parents``) is *not* enforced on assignment — it is queryable via
-    :attr:`consistency` and gated via :meth:`validate`.
+    :attr:`~decisionpy.graph.node.Node.consistency` and gated via
+    :meth:`~decisionpy.graph.node.Node.validate`.
 
     :param str name: Identifier for the node.
     :param tuple[str, ...] parents: Names of the nodes this one conditionally
@@ -83,112 +65,51 @@ class ChanceNode:
         through the graph are integer indices into this tuple.
     """
 
-    name: str
-    parents: tuple[str, ...] = field(default=(), kw_only=True)
     dist: DistFactory | None = field(default=None, kw_only=True)
     states: tuple[str, ...] | None = field(default=None, kw_only=True)
 
     def __setattr__(self, key: str, value: Any) -> None:
-        """
-        Validate a known-field assignment, then apply it.
-
-        Unknown attributes pass through unchanged so internal helpers and
-        future fields do not break.
-        """
-        if key == "name":
-            _validate_name(value)
-        elif key == "parents":
-            # ``name`` is declared before ``parents`` and is therefore assigned
-            # first by the generated ``__init__``; ``getattr`` covers the
-            # pre-name-assignment edge case defensively.
-            _validate_parents(getattr(self, "name", ""), value)
-        elif key == "dist":
+        """Validate ``dist`` / ``states`` (chance-specific) then defer to base."""
+        if key == "dist":
             _validate_dist(value)
         elif key == "states":
             _validate_states(value)
-        object.__setattr__(self, key, value)
+        super().__setattr__(key, value)
 
-    # --- mutation helpers ---------------------------------------------------
-
-    def add_parent(self, name: str) -> None:
-        """
-        Append ``name`` to :attr:`parents` if it is not already present.
-
-        Going through the ``parents`` setter ensures the same validation runs
-        as on construction.
-        """
-        if name in self.parents:
-            return
-        self.parents = (*self.parents, name)
-
-    def remove_parent(self, name: str) -> None:
-        """Remove ``name`` from :attr:`parents`; no-op if absent."""
-        self.parents = tuple(p for p in self.parents if p != name)
-
-    # --- consistency --------------------------------------------------------
+    # --- kind / structure ---------------------------------------------------
 
     @property
-    def consistency(self) -> Consistency:
-        """
-        The current ``parents`` / ``dist`` consistency state.
-
-        Computed on demand from the live field values, never stored, so it
-        always reflects the latest edits.
-        """
-        if self.dist is None:
-            return Consistency.UNCONFIGURED
-        if _signature_matches(self.dist, self.parents):
-            return Consistency.CONSISTENT
-        return Consistency.STALE
-
-    def validate(self) -> None:
-        """
-        Raise ``ValueError`` unless the node is :attr:`Consistency.CONSISTENT`.
-
-        This is the gate inference consumes. Editing never calls it
-        automatically — an inconsistent node is a legitimate intermediate
-        state while a UI or LLM is building the diagram.
-        """
-        state = self.consistency
-        if state is Consistency.UNCONFIGURED:
-            raise ValueError(f"Node {self.name!r} has no `dist` configured yet.")
-        if state is Consistency.STALE:
-            raise ValueError(
-                f"Node {self.name!r}'s `dist` signature does not match its "
-                f"parents {self.parents!r}; reconfigure `dist` after changing "
-                f"the parent set."
-            )
+    def kind(self) -> NodeKind:
+        """``NodeKind.CHANCE``."""
+        return NodeKind.CHANCE
 
     @property
     def is_discrete(self) -> bool:
         """Whether the node has a declared set of discrete states."""
         return self.states is not None
 
+    # --- consistency --------------------------------------------------------
 
-# --- field validators -------------------------------------------------------
+    def _compute_consistency(self) -> _Consistency:
+        if self.dist is None:
+            return _Consistency.UNCONFIGURED
+        if _signature_matches(self.dist, self.parents):
+            return _Consistency.CONSISTENT
+        return _Consistency.STALE
 
-
-def _validate_name(name: Any) -> None:
-    if not isinstance(name, str) or not name.strip():
-        raise ValueError(f"`name` must be a non-empty string, got {name!r}.")
-
-
-def _validate_parents(name: str, parents: Any) -> None:
-    if not isinstance(parents, tuple):
-        raise TypeError(
-            f"`parents` for {name!r} must be a tuple, got {type(parents).__name__}."
+    def consistency_message(self, state: _Consistency) -> str:
+        """Chance-node wording for a non-CONSISTENT state (see base)."""
+        if state is _Consistency.UNCONFIGURED:
+            return f"Node {self.name!r} has no `dist` configured yet."
+        # STALE is the only remaining non-CONSISTENT state.
+        return (
+            f"Node {self.name!r}'s `dist` signature does not match its "
+            f"parents {self.parents!r}; reconfigure `dist` after changing "
+            f"the parent set."
         )
-    if not all(isinstance(p, str) and p.strip() for p in parents):
-        raise ValueError(
-            f"`parents` for {name!r} must all be non-empty strings, got {parents!r}."
-        )
-    seen: set[str] = set()
-    for parent in parents:
-        if parent == name:
-            raise ValueError(f"Node {name!r} cannot list itself among its parents.")
-        if parent in seen:
-            raise ValueError(f"`parents` for {name!r} contains duplicate {parent!r}.")
-        seen.add(parent)
+
+
+# --- chance-specific field validators ---------------------------------------
 
 
 def _validate_dist(dist: Any) -> None:
@@ -215,27 +136,3 @@ def _validate_states(states: Any) -> None:
         raise ValueError(f"`states` must all be non-empty strings, got {states!r}.")
     if len(set(states)) != len(states):
         raise ValueError(f"`states` must be unique, got {states!r}.")
-
-
-def _signature_matches(dist: DistFactory, parent_names: tuple[str, ...]) -> bool:
-    """
-    Whether ``dist`` accepts ``parent_names`` as keyword arguments.
-
-    A ``**kwargs``-only callable matches any parent set (bind accepts
-    arbitrary kwargs). A callable whose parameters do not line up with
-    ``parent_names`` — missing a parent, or carrying an extra parameter —
-    fails ``bind`` and is reported as stale.
-
-    A callable that cannot be introspected (some builtins, C extensions) is
-    conservatively reported as not matching. Callers that want to bypass
-    signature checking should accept ``**kwargs``.
-    """
-    try:
-        sig = inspect.signature(dist)
-    except (TypeError, ValueError):
-        return False
-    try:
-        sig.bind(**dict.fromkeys(parent_names))
-    except TypeError:
-        return False
-    return True

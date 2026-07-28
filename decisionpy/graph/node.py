@@ -1,0 +1,292 @@
+"""
+Node base — the shared contract for every node in an influence diagram.
+
+Implements the mutable node design settled in ``docs/diagram.md`` and
+``docs/chance_node.md``; see ``docs/17_07_2026_mutability_design_decision.md``
+for the decision that makes this the library's sole node container model.
+
+The seven principles in ``docs/diagram.md`` govern *every* node type. They are
+captured once here, on the base, so that :class:`ChanceNode`,
+:class:`~decisionpy.graph.decision_node.DecisionNode`, and
+:class:`~decisionpy.graph.utility_node.UtilityNode` inherit them uniformly
+rather than re-implementing the contract per type.
+
+Mutable by design
+-----------------
+A node is a workspace value that may be edited incrementally — add a parent,
+set the distribution / action space / utility function, swap states — by an
+external author: a script, a UI, or an LLM driving the diagram over a tool
+interface. Because of that, a node is allowed to exist in an *inconsistent*
+state: its configurable field (``dist`` / ``values`` / action ``states``) may
+be unset, or its signature may not yet match its parents after an edge change.
+
+Two layers of checking reflect this:
+
+- **Field-level validation** runs on every assignment (including during
+  construction). A bad value — empty name, duplicate parent, non-callable dist
+  — is rejected the moment it is set.
+- **Cross-field consistency** (the configurable field's signature vs
+  ``parents``) is *not* enforced on assignment. It is queryable via
+  :attr:`Node.consistency` and gated explicitly via :meth:`Node.validate`,
+  which is the checkpoint inference runs against. Editing pauses wherever it
+  likes; inference requires a ``CONSISTENT`` node.
+
+The ``parents`` field
+---------------------
+Every node type carries a ``parents`` tuple of node names. Its semantics differ
+by type, but the structural bookkeeping (validation, topological ordering,
+cycle prevention) is identical, which is why it lives on the base:
+
+- **Chance node** — the variables ``P(name | parents)`` conditions on (causal /
+  statistical dependency).
+- **Decision node** — the *information set*: the variables observed when the
+  decision is made. Not a causal dependency.
+- **Utility node** — the variables the payoff depends on.
+
+Parent values are resolved and passed to the node's configurable callable as
+**keyword arguments** keyed by parent name, so callables are tied to parent
+*names* (stable) rather than parent *order* (incidental).
+"""
+
+import inspect
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+
+class NodeKind(Enum):
+    """
+    Category of a node — the structural tag inference / solve dispatch reads.
+
+    Forward-looking: the unified-inference ADR routes a diagram to ``infer()``
+    or ``solve()`` based on the kinds of nodes it contains. A pure chance-node
+    diagram is a Bayesian network; the moment a decision or utility node
+    appears, it becomes an influence diagram that needs a solver.
+
+    :var CHANCE: A random variable — ``P(name | parents)``.
+    :var DECISION: A variable the agent controls; ``states`` are its actions.
+    :var UTILITY: A deterministic payoff — ``U(parents)``.
+    """
+
+    CHANCE = "chance"
+    DECISION = "decision"
+    UTILITY = "utility"
+
+
+class Consistency(Enum):
+    """
+    State of the ``parents`` / configurable-field relationship on a node.
+
+    :var UNCONFIGURED: The node's configurable field (``dist`` for chance,
+        ``values`` for utility, action ``states`` for decision) is unset —
+        structure exists, the specification has not yet been supplied.
+    :var STALE: The configurable field is set but its signature does not match
+        ``parents`` — typically because a parent was added or removed since it
+        was last configured.
+    :var CONSISTENT: The configurable field is set and accepts ``parents`` as
+        keyword arguments — the node is ready to be translated / inferred /
+        solved.
+    """
+
+    UNCONFIGURED = "unconfigured"
+    STALE = "stale"
+    CONSISTENT = "consistent"
+
+
+@dataclass
+class Node:
+    """
+    Base class for every node in an influence diagram.
+
+    Owns the shared mutable-node contract: a ``name`` and a ``parents`` tuple,
+    field-level validation on every assignment, and the
+    :attr:`~Consistency.UNCONFIGURED` / :attr:`~Consistency.STALE` /
+    :attr:`~Consistency.CONSISTENT` consistency gate that inference consumes.
+
+    This class is **internal**: users construct one of its subclasses
+    (:class:`~decisionpy.graph.chance_node.ChanceNode`,
+    :class:`~decisionpy.graph.decision_node.DecisionNode`,
+    :class:`~decisionpy.graph.utility_node.UtilityNode`) rather than a bare
+    ``Node``. It is exported only so it can be referenced in type hints and
+    ``isinstance`` checks.
+
+    :param str name: Identifier for the node.
+    :param tuple[str, ...] parents: Names of the nodes this one relates to.
+        Empty for a root node. May be edited after construction. Semantics
+        depend on the node kind — see the module docstring.
+    """
+
+    name: str
+    parents: tuple[str, ...] = field(default=(), kw_only=True)
+
+    def __setattr__(self, key: str, value: Any) -> None:
+        """
+        Validate a known-field assignment, then apply it.
+
+        Validates only the fields this base class owns (``name``, ``parents``);
+        everything else passes through to ``object.__setattr__`` unchanged so
+        subclass fields, internal helpers, and future additions do not break.
+        Subclasses override and call ``super().__setattr__`` to add their own
+        field checks.
+        """
+        if key == "name":
+            _validate_name(value)
+        elif key == "parents":
+            # ``name`` is declared before ``parents`` and is therefore assigned
+            # first by the generated ``__init__``; ``getattr`` covers the
+            # pre-name-assignment edge case defensively.
+            _validate_parents(getattr(self, "name", ""), value)
+        object.__setattr__(self, key, value)
+
+    # --- mutation helpers ---------------------------------------------------
+
+    def add_parent(self, name: str) -> None:
+        """
+        Append ``name`` to :attr:`parents` if it is not already present.
+
+        Going through the ``parents`` setter ensures the same validation runs
+        as on construction.
+        """
+        if name in self.parents:
+            return
+        self.parents = (*self.parents, name)
+
+    def remove_parent(self, name: str) -> None:
+        """Remove ``name`` from :attr:`parents`; no-op if absent."""
+        self.parents = tuple(p for p in self.parents if p != name)
+
+    # --- kind / structure ---------------------------------------------------
+
+    @property
+    def kind(self) -> NodeKind:
+        """
+        The structural category of this node.
+
+        Subclasses override to return their :class:`NodeKind`. The base
+        definition is abstract: a bare ``Node`` has no meaningful kind.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} must declare its NodeKind by overriding `kind`."
+        )
+
+    @property
+    def is_sink(self) -> bool:
+        """
+        Whether this node may not have children.
+
+        ``False`` for chance and decision nodes. Utility nodes override to
+        ``True`` — a payoff is terminal in an influence diagram. The diagram's
+        ``add_edge`` reads this to reject an edge that would give a sink a
+        child, rather than branching on node type.
+        """
+        return False
+
+    @property
+    def is_discrete(self) -> bool:
+        """
+        Whether this node is defined over a finite, enumerable domain.
+
+        Subclasses override. The base definition is abstract.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} must declare `is_discrete` by overriding it."
+        )
+
+    # --- consistency --------------------------------------------------------
+
+    @property
+    def consistency(self) -> Consistency:
+        """
+        The current ``parents`` / configurable-field consistency state.
+
+        Computed on demand from the live field values, never stored, so it
+        always reflects the latest edits. Delegates to
+        :meth:`_compute_consistency`, which each subclass implements against
+        its own configurable field.
+        """
+        return self._compute_consistency()
+
+    def _compute_consistency(self) -> Consistency:
+        """Subclass-specific consistency computation."""
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement `_compute_consistency`."
+        )
+
+    def consistency_message(self, state: Consistency) -> str:
+        """
+        Human-facing explanation of a non-CONSISTENT ``state``.
+
+        Returned for :class:`~decisionpy.graph.diagram.DiagramProblem` messages
+        and :meth:`validate` errors. Keeping the wording on the node (rather
+        than the diagram) means each node type owns the description of its own
+        configurable field.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement `consistency_message`."
+        )
+
+    def validate(self) -> None:
+        """
+        Raise ``ValueError`` unless the node is :attr:`Consistency.CONSISTENT`.
+
+        This is the gate inference consumes. Editing never calls it
+        automatically — an inconsistent node is a legitimate intermediate
+        state while a UI or LLM is building the diagram.
+        """
+        state = self.consistency
+        if state is Consistency.CONSISTENT:
+            return
+        raise ValueError(self.consistency_message(state))
+
+
+# --- field validators -------------------------------------------------------
+
+
+def _validate_name(name: Any) -> None:
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError(f"`name` must be a non-empty string, got {name!r}.")
+
+
+def _validate_parents(name: str, parents: Any) -> None:
+    if not isinstance(parents, tuple):
+        raise TypeError(
+            f"`parents` for {name!r} must be a tuple, got {type(parents).__name__}."
+        )
+    if not all(isinstance(p, str) and p.strip() for p in parents):
+        raise ValueError(
+            f"`parents` for {name!r} must all be non-empty strings, got {parents!r}."
+        )
+    seen: set[str] = set()
+    for parent in parents:
+        if parent == name:
+            raise ValueError(f"Node {name!r} cannot list itself among its parents.")
+        if parent in seen:
+            raise ValueError(f"`parents` for {name!r} contains duplicate {parent!r}.")
+        seen.add(parent)
+
+
+def _signature_matches(
+    callable_: Callable[..., Any], parent_names: tuple[str, ...]
+) -> bool:
+    """
+    Whether ``callable_`` accepts ``parent_names`` as keyword arguments.
+
+    A ``**kwargs``-only callable matches any parent set (bind accepts
+    arbitrary kwargs). A callable whose parameters do not line up with
+    ``parent_names`` — missing a parent, or carrying an extra parameter —
+    fails ``bind`` and is reported as stale.
+
+    A callable that cannot be introspected (some builtins, C extensions) is
+    conservatively reported as not matching. Callers that want to bypass
+    signature checking should accept ``**kwargs``.
+    """
+    try:
+        sig = inspect.signature(callable_)
+    except (TypeError, ValueError):
+        return False
+    try:
+        sig.bind(**dict.fromkeys(parent_names))
+    except TypeError:
+        return False
+    return True

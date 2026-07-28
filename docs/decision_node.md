@@ -14,6 +14,34 @@ in the NumPyro backend, and how discrete, continuous, and mixed decisions compos
 
 ---
 
+## Representation in the graph layer
+
+`DecisionNode` now exists in [`graph/decision_node.py`](../decisionpy/graph/decision_node.py),
+subclasses the shared [`Node`](../decisionpy/graph/node.py), and participates in
+the diagram like any other node. What it carries:
+
+- **`parents`** — the **information set**: the variables observed when the
+  decision is made. *Not* a causal dependency. This is the standard
+  influence-diagram convention; the field name is reused from chance/utility
+  nodes so the container's shared bookkeeping (validation, topological
+  ordering, cycle prevention) applies unchanged.
+- **`states`** — the available actions (labels). `None` marks the decision as
+  not-yet-configured (or, forward-looking, continuous — to be owned by the
+  solver).
+- **No `dist`.** The decision's value is chosen, not sampled.
+
+A decision is `CONSISTENT` once its action `states` are declared, and
+`UNCONFIGURED` before. There is **no STALE state** for a decision: the action
+space does not depend on the information set's size, so adding or removing an
+information parent never invalidates it.
+
+The *solving* of decisions — Strategy B (intervention-scan) for v0 discrete,
+Strategy A (policy-as-parameters) for continuous — is the **next** milestone.
+The node's representation is settled here; the solver is what the sections
+below are about.
+
+---
+
 ## What "solving a LIMID" means here
 
 A LIMID is solved when each decision node has a *local policy*

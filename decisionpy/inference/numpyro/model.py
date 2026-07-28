@@ -28,6 +28,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import Snapshot
 
 __all__ = ["to_model"]
@@ -73,6 +74,11 @@ def to_model(
     def model() -> dict[str, Any]:
         values: dict[str, Any] = {}
         for name, node in nodes:
+            # This translator is chance-node only (see docs/backend_numpyro.md).
+            # The snapshot carries the ``Node`` base type; narrow to ``ChanceNode``
+            # for the ``dist`` field. A diagram with decisions / utilities is not a
+            # valid input to this translator.
+            assert isinstance(node, ChanceNode)
             parent_values = {parent: values[parent] for parent in node.parents}
             assert node.dist is not None
             fn = node.dist(**parent_values)
