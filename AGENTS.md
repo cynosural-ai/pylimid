@@ -29,6 +29,10 @@ def add_edge(self, parent: str, child: str) -> None:
     """
 ```
 
+## Writing Markdown files
+Dont break lines at 80 characters, let lines flow and the viewer will adjust 
+
+
 ## Philosophy
 Follow the Zen of Python:
 
