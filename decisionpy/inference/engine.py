@@ -30,15 +30,20 @@ def infer(
     """
     Compute posterior marginals for *query* variables given *observed* evidence.
 
-    :param diagram: A validated influence diagram (chance nodes only for v0).
-    :param query: Names of variables whose posteriors are requested.
-    :param observed: Map from node name to its observed integer state.
-    :param engine: ``"auto"`` (default), ``"ve"``, or ``"numpyro"``.
-    :returns: ``{var_name: [P(0), P(1), ...]}`` — one probability vector per
-              query variable.  Probabilities sum to 1.
-    :raises InferenceError: If the chosen engine cannot handle the diagram.
-    :raises ImportError: If ``engine="numpyro"`` and the numpyro extra is not
-        installed.
+    Args:
+        diagram: A validated influence diagram (chance nodes only for v0).
+        query: Names of variables whose posteriors are requested.
+        observed: Map from node name to its observed integer state.
+        engine: ``"auto"`` (default), ``"ve"``, or ``"numpyro"``.
+
+    Returns:
+        ``{var_name: [P(0), P(1), ...]}`` — one probability vector per query
+        variable. Probabilities sum to 1.
+
+    Raises:
+        InferenceError: If the chosen engine cannot handle the diagram.
+        ImportError: If ``engine="numpyro"`` and the numpyro extra is not
+            installed.
     """
     observed = observed or {}
     snapshot = diagram.snapshot()

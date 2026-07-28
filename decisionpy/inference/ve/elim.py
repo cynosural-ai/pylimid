@@ -64,8 +64,9 @@ def query(
     Requires a discrete-only Bayesian network (every node must have ``states``
     set).  All nodes must be ``CONSISTENT`` prior to snapshotting.
 
-    :returns: A dict mapping each query variable name to its probability
-              vector ``[P(v=0), P(v=1), ...]``.
+    Returns:
+        A dict mapping each query variable name to its probability vector
+        ``[P(v=0), P(v=1), ...]``.
     """
     observed = observed or {}
     _check_discrete(snapshot)

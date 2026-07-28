@@ -54,15 +54,16 @@ class ChanceNode(Node):
     :attr:`~decisionpy.graph.node.Node.consistency` and gated via
     :meth:`~decisionpy.graph.node.Node.validate`.
 
-    :param str name: Identifier for the node.
-    :param tuple[str, ...] parents: Names of the nodes this one conditionally
-        depends on. Empty for a root node. May be edited after construction.
-    :param DistFactory | None dist: Callable invoked as
-        ``dist(**parent_values)`` returning the node's distribution. ``None``
-        (the default) marks the node as not-yet-configured.
-    :param tuple[str, ...] | None states: Human-facing labels for a discrete
-        node's outcomes. ``None`` marks the node as continuous. Values flowing
-        through the graph are integer indices into this tuple.
+    Attributes:
+        name: Identifier for the node.
+        parents: Names of the nodes this one conditionally depends on. Empty
+            for a root node. May be edited after construction.
+        dist: Callable invoked as ``dist(**parent_values)`` returning the
+            node's distribution. ``None`` (the default) marks the node as
+            not-yet-configured.
+        states: Human-facing labels for a discrete node's outcomes. ``None``
+            marks the node as continuous. Values flowing through the graph are
+            integer indices into this tuple.
     """
 
     dist: DistFactory | None = field(default=None, kw_only=True)

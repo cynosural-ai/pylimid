@@ -64,9 +64,10 @@ class NodeKind(Enum):
     diagram is a Bayesian network; the moment a decision or utility node
     appears, it becomes an influence diagram that needs a solver.
 
-    :var CHANCE: A random variable — ``P(name | parents)``.
-    :var DECISION: A variable the agent controls; ``states`` are its actions.
-    :var UTILITY: A deterministic payoff — ``U(parents)``.
+    Attributes:
+        CHANCE: A random variable — ``P(name | parents)``.
+        DECISION: A variable the agent controls; ``states`` are its actions.
+        UTILITY: A deterministic payoff — ``U(parents)``.
     """
 
     CHANCE = "chance"
@@ -78,15 +79,16 @@ class Consistency(Enum):
     """
     State of the ``parents`` / configurable-field relationship on a node.
 
-    :var UNCONFIGURED: The node's configurable field (``dist`` for chance,
-        ``values`` for utility, action ``states`` for decision) is unset —
-        structure exists, the specification has not yet been supplied.
-    :var STALE: The configurable field is set but its signature does not match
-        ``parents`` — typically because a parent was added or removed since it
-        was last configured.
-    :var CONSISTENT: The configurable field is set and accepts ``parents`` as
-        keyword arguments — the node is ready to be translated / inferred /
-        solved.
+    Attributes:
+        UNCONFIGURED: The node's configurable field (``dist`` for chance,
+            ``values`` for utility, action ``states`` for decision) is unset —
+            structure exists, the specification has not yet been supplied.
+        STALE: The configurable field is set but its signature does not match
+            ``parents`` — typically because a parent was added or removed since
+            it was last configured.
+        CONSISTENT: The configurable field is set and accepts ``parents`` as
+            keyword arguments — the node is ready to be translated / inferred /
+            solved.
     """
 
     UNCONFIGURED = "unconfigured"
@@ -111,10 +113,11 @@ class Node:
     ``Node``. It is exported only so it can be referenced in type hints and
     ``isinstance`` checks.
 
-    :param str name: Identifier for the node.
-    :param tuple[str, ...] parents: Names of the nodes this one relates to.
-        Empty for a root node. May be edited after construction. Semantics
-        depend on the node kind — see the module docstring.
+    Attributes:
+        name: Identifier for the node.
+        parents: Names of the nodes this one relates to. Empty for a root
+            node. May be edited after construction. Semantics depend on the
+            node kind — see the module docstring.
     """
 
     name: str
