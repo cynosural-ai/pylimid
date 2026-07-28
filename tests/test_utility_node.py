@@ -53,13 +53,13 @@ def test_utility_has_no_dist_or_states() -> None:
 
 def test_non_callable_values_rejected() -> None:
     with pytest.raises(TypeError, match="must be callable"):
-        UtilityNode(name="u", values=42)  # type: ignore[arg-type]
+        UtilityNode(name="u", values=42)  # ty: ignore[invalid-argument-type]
 
 
 def test_assigning_non_callable_values_raises() -> None:
     u = UtilityNode(name="u")
     with pytest.raises(TypeError, match="must be callable"):
-        u.values = 3.14  # type: ignore[assignment]
+        u.values = 3.14  # ty: ignore[invalid-assignment]
 
 
 def test_assigning_none_values_is_allowed() -> None:

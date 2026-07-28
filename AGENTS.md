@@ -4,7 +4,7 @@
 ```bash
 uv run ruff check .        # lint
 uv run ruff format --check .  # format check
-uv run ty .                # type check
+uv run ty check            # type check
 uv run pytest tests/       # run tests
 ```
 

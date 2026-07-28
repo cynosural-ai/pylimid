@@ -47,7 +47,7 @@ def test_duplicate_states_rejected() -> None:
 
 def test_non_tuple_states_rejected() -> None:
     with pytest.raises(TypeError, match="must be a tuple"):
-        DecisionNode(name="d", states=["a", "b"])  # type: ignore[arg-type]
+        DecisionNode(name="d", states=["a", "b"])  # ty: ignore[invalid-argument-type]
 
 
 def test_assigning_bad_states_raises() -> None:

@@ -50,9 +50,9 @@ def test_self_parent_rejected_on_every_node_type(make: Any) -> None:
 @pytest.mark.parametrize(
     "make",
     [
-        lambda: ChanceNode(name="y", parents=["a"]),  # type: ignore[arg-type]
-        lambda: DecisionNode(name="y", parents=["a"]),  # type: ignore[arg-type]
-        lambda: UtilityNode(name="y", parents=["a"]),  # type: ignore[arg-type]
+        lambda: ChanceNode(name="y", parents=["a"]),  # ty: ignore[invalid-argument-type]
+        lambda: DecisionNode(name="y", parents=["a"]),  # ty: ignore[invalid-argument-type]
+        lambda: UtilityNode(name="y", parents=["a"]),  # ty: ignore[invalid-argument-type]
     ],
 )
 def test_non_tuple_parents_rejected_on_every_node_type(make: Any) -> None:
