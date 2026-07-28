@@ -48,13 +48,15 @@ class ProblemKind(Enum):
     """
     Category of a :class:`DiagramProblem`.
 
-    :var DANGLING_PARENT: A node lists a parent that is not in the diagram.
-    :var CYCLE: The graph contains a cycle.
-    :var UNCONFIGURED: A node's configurable field (``dist`` / ``values`` /
-        action ``states``) is unset; inference cannot run on it.
-    :var STALE: A node's configurable field signature does not match its parents.
-    :var UTILITY_NOT_SINK: A utility node has acquired a child — a payoff must
-        be terminal.
+    Attributes:
+        DANGLING_PARENT: A node lists a parent that is not in the diagram.
+        CYCLE: The graph contains a cycle.
+        UNCONFIGURED: A node's configurable field (``dist`` / ``values`` /
+            action ``states``) is unset; inference cannot run on it.
+        STALE: A node's configurable field signature does not match its
+            parents.
+        UTILITY_NOT_SINK: A utility node has acquired a child — a payoff must
+            be terminal.
     """
 
     DANGLING_PARENT = "dangling_parent"
@@ -122,8 +124,11 @@ class InfluenceDiagram:
         — dangling references are tolerated during construction and caught by
         :meth:`validate`.
 
-        :param Node node: The node to add.
-        :raises ValueError: If a node with this name is already registered.
+        Args:
+            node: The node to add.
+
+        Raises:
+            ValueError: If a node with this name is already registered.
         """
         if node.name in self._nodes:
             raise ValueError(f"A node named {node.name!r} is already in the diagram.")
@@ -137,7 +142,8 @@ class InfluenceDiagram:
         those references up (via each survivor's ``remove_parent``), so no
         dangling reference to the removed name is left behind.
 
-        :raises KeyError: If ``name`` is not in the diagram.
+        Raises:
+            KeyError: If ``name`` is not in the diagram.
         """
         node = self._nodes.pop(name)
         for survivor in self._nodes.values():
@@ -158,14 +164,16 @@ class InfluenceDiagram:
 
         Cycle prevention: if a path ``child -> ... -> parent`` already exists,
         adding ``parent -> child`` would close a cycle, and the call is
-        rejected. Utility-sink prevention: an edge whose *child* is a utility
-        node is rejected, since a payoff must be terminal. Both are eager
-        checks (a cycle and a utility-with-child are never useful intermediate
-        states). Idempotent: a duplicate edge is a no-op.
+        rejected. Utility-sink prevention: an edge whose *parent* is a utility
+        node is rejected (the parent would gain a child, and a payoff must be
+        terminal). Both are eager checks (a cycle and a utility-with-child are
+        never useful intermediate states). Idempotent: a duplicate edge is a
+        no-op.
 
-        :raises KeyError: If either endpoint is not in the diagram.
-        :raises ValueError: If the edge would create a cycle (including a
-            self-loop), or if the child is a sink node (utility).
+        Raises:
+            KeyError: If either endpoint is not in the diagram.
+            ValueError: If the edge would create a cycle (including a
+                self-loop), or if the parent is a sink node (utility).
         """
         if parent not in self._nodes:
             raise KeyError(f"Parent {parent!r} is not in the diagram.")
@@ -203,9 +211,10 @@ class InfluenceDiagram:
         """
         Set the distribution factory on chance node ``name`` (field-validated).
 
-        :raises TypeError: If ``name`` is not a chance node. Decision nodes
-            carry an action ``states`` instead, and utility nodes a ``values``
-            function — set those directly on the node.
+        Raises:
+            TypeError: If ``name`` is not a chance node. Decision nodes carry
+                an action ``states`` instead, and utility nodes a ``values``
+                function — set those directly on the node.
         """
         node = self._nodes[name]
         if not isinstance(node, ChanceNode):
@@ -350,8 +359,9 @@ class InfluenceDiagram:
         """
         Return a validated, point-in-time view of the diagram.
 
-        :raises ValueError: If :meth:`validate` reports any problem, with the
-            problems listed in the message.
+        Raises:
+            ValueError: If :meth:`validate` reports any problem, with the
+                problems listed in the message.
         """
         problems = self.validate()
         if problems:

@@ -39,7 +39,8 @@ def forward_sample(
 
     Equivalent to ``Predictive(to_model(snapshot), num_samples)(rng_key)``.
 
-    :returns: Dict mapping node name to a 1-D JAX array of samples.
+    Returns:
+        Dict mapping node name to a 1-D JAX array of samples.
     """
     import jax
     from numpyro.infer import Predictive

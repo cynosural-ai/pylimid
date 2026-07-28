@@ -48,12 +48,13 @@ class UtilityNode(Node):
     """
     A utility (payoff) node in an influence diagram.
 
-    :param str name: Identifier for the node.
-    :param tuple[str, ...] parents: Names of the variables the payoff depends
-        on. May be edited after construction.
-    :param ValueFactory | None values: Callable invoked as
-        ``values(**parent_values)`` returning a ``float`` payoff. ``None`` (the
-        default) marks the node as not-yet-configured.
+    Attributes:
+        name: Identifier for the node.
+        parents: Names of the variables the payoff depends on. May be edited
+            after construction.
+        values: Callable invoked as ``values(**parent_values)`` returning a
+            ``float`` payoff. ``None`` (the default) marks the node as
+            not-yet-configured.
     """
 
     values: ValueFactory | None = field(default=None, kw_only=True)

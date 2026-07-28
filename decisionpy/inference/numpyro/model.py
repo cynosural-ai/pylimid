@@ -51,14 +51,19 @@ def to_model(
     them out. Observed nodes skip enumeration and are clamped via ``obs=``.
     Continuous nodes are left for the inference engine.
 
-    :param Snapshot snapshot: A validated, topologically-ordered view of a
-        chance-node diagram.
-    :param dict | None observed: Mapping of node names to observed values.
-        Nodes present here are conditioned on their given value; nodes absent
-        are treated as latent. Pass ``None`` or ``{}`` for forward sampling.
-    :returns: A NumPyro model function taking no arguments, returning a
+    Args:
+        snapshot: A validated, topologically-ordered view of a chance-node
+            diagram.
+        observed: Mapping of node names to observed values. Nodes present here
+            are conditioned on their given value; nodes absent are treated as
+            latent. Pass ``None`` or ``{}`` for forward sampling.
+
+    Returns:
+        A NumPyro model function taking no arguments, returning a
         ``dict[str, Any]`` of sampled (or observed) values keyed by node name.
-    :raises ImportError: If NumPyro is not installed.
+
+    Raises:
+        ImportError: If NumPyro is not installed.
     """
     try:
         import numpyro

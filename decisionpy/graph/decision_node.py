@@ -55,15 +55,16 @@ class DecisionNode(Node):
     """
     A decision variable in an influence diagram.
 
-    :param str name: Identifier for the node.
-    :param tuple[str, ...] parents: The **information set** — names of the
-        variables observed when this decision is made. Not a causal
-        dependency. May be edited after construction.
-    :param tuple[str, ...] | None states: Labels for the available actions.
-        ``None`` (the default) marks the decision as not-yet-configured (or,
-        forward-looking, as continuous — to be owned by the solver). For a
-        discrete decision, values flowing through the graph are integer
-        indices into this tuple.
+    Attributes:
+        name: Identifier for the node.
+        parents: The **information set** — names of the variables observed
+            when this decision is made. Not a causal dependency. May be edited
+            after construction.
+        states: Labels for the available actions. ``None`` (the default) marks
+            the decision as not-yet-configured (or, forward-looking, as
+            continuous — to be owned by the solver). For a discrete decision,
+            values flowing through the graph are integer indices into this
+            tuple.
     """
 
     states: tuple[str, ...] | None = field(default=None, kw_only=True)
