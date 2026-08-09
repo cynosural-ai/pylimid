@@ -13,9 +13,11 @@ from decisionpy.inference.id import solve
 
 
 def _single_decision_diagram() -> InfluenceDiagram:
-    """disease -> treat (info set) -> recovery; utility on (recovery, treat).
+    """
+    Single-decision diagram with a hand-computed optimum.
 
-    Hand-solved:
+    Nodes: ``disease -> treat`` (info set) ``-> recovery``; utility on
+    ``(recovery, treat)``. Hand-solved:
         healthy: no treat → 0.90·100 = 90; treat → 0.92·100 − 20 = 72 → no.
         sick:    no treat → 0.40·100 = 40; treat → 0.80·100 − 20 = 60 → yes.
         E[U*] = 0.6·90 + 0.4·60 = 78.
@@ -57,12 +59,13 @@ def _single_decision_diagram() -> InfluenceDiagram:
 
 
 def _two_decision_diagram() -> InfluenceDiagram:
-    """Two independent subproblems with additive total utility.
+    """
+    Two independent subproblems with additive total utility.
 
-    Subproblem 1: s1 -> d1 (info (s1,)) -> o1; U1 = 100·o1 − 20·d1.
+    Subproblem 1: ``s1 -> d1`` (info ``(s1,)``) ``-> o1``; U1 = 100·o1 − 20·d1.
         s1=0: d1=0 → 10, d1=1 → 30 → d1=1.  s1=1: d1=0 → 80, d1=1 → 70 → d1=0.
         E[U1] = 0.6·30 + 0.4·80 = 50.
-    Subproblem 2: s2 -> d2 (info (s2,)) -> o2; U2 = 100·o2 − 40·d2.
+    Subproblem 2: ``s2 -> d2`` (info ``(s2,)``) ``-> o2``; U2 = 100·o2 − 40·d2.
         d2=0 → 40, d2=1 → 30 → d2=0.  E[U2] = 40.
     Total: 90.
     """
@@ -126,7 +129,8 @@ def _two_decision_diagram() -> InfluenceDiagram:
 
 
 def _no_information_decision_diagram() -> InfluenceDiagram:
-    """A decision with an empty information set.
+    """
+    Decision with an empty information set.
 
     act=0 → 0.5·100 = 50; act=1 → 0.9·100 − 30 = 60 → act=1.  E[U] = 60.
     """
@@ -153,7 +157,8 @@ def _no_information_decision_diagram() -> InfluenceDiagram:
 
 
 def _irrelevant_information_diagram() -> InfluenceDiagram:
-    """A decision whose information variable does not affect the payoff.
+    """
+    Decision whose information variable does not affect the payoff.
 
     y is observed but the payoff depends only on the action: act=0 → 100,
     act=1 → 40 → act=0 regardless of y.  E[U] = 100.
@@ -249,9 +254,7 @@ def test_non_regular_structure_raises() -> None:
             name="payoff",
             parents=("structure", "drill"),
             values=lambda structure, drill: (
-                (100.0 - 80.0 * structure)
-                if drill == 0
-                else (10.0 + 80.0 * structure)
+                (100.0 - 80.0 * structure) if drill == 0 else (10.0 + 80.0 * structure)
             ),
         )
     )

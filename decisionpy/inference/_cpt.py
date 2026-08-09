@@ -47,8 +47,7 @@ def cardinalities(snapshot: Snapshot) -> dict[str, int]:
         states = getattr(node, "states", None)
         if states is None:
             raise TypeError(
-                f"Node {name!r} has no declared states; a discrete diagram "
-                f"is required."
+                f"Node {name!r} has no declared states; a discrete diagram is required."
             )
         card[name] = len(states)
     return card

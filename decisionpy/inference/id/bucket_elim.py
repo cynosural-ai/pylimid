@@ -41,6 +41,7 @@ from itertools import product
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.diagram import Snapshot
+from decisionpy.graph.node import Node
 from decisionpy.graph.utility_node import UtilityNode
 from decisionpy.inference._cpt import cardinalities, cpt, utility_factor
 from decisionpy.inference._factor import Factor, _assignments, _project, _union_vars
@@ -117,9 +118,7 @@ def solve(snapshot: Snapshot) -> Solution:
                     [v for v in combined.variables if v != name]
                 )
             else:
-                probs.append(
-                    psi.marginal([v for v in psi.variables if v != name])
-                )
+                probs.append(psi.marginal([v for v in psi.variables if v != name]))
         else:
             assert isinstance(node, DecisionNode)
             if not relevant:
@@ -134,11 +133,15 @@ def solve(snapshot: Snapshot) -> Solution:
 
     _complete_policy(policy, node_map, card)
 
-    # 3. Multiply what remains: the maximum expected utility.
-    total = utility
+    # 3. Multiply what remains: the maximum expected utility. Every remaining
+    # factor is a scalar (all variables eliminated), but ``Factor.__mul__``
+    # treats an empty-scope factor as the constant 1 — correct for the
+    # probability factors of variable elimination, wrong for a non-unit
+    # utility — so combine the scalars directly.
+    expected_utility = utility.values[0]
     for f in probs:
-        total = total * f
-    return Solution(policy=policy, expected_utility=total.values[0])
+        expected_utility *= f.values[0]
+    return Solution(policy=policy, expected_utility=expected_utility)
 
 
 # ---------------------------------------------------------------------------
@@ -266,23 +269,21 @@ def _max_out(
             )
         sub_policy[info_assign] = next(iter(actions))
 
-    return sub_policy, Factor(
-        variables=others, card=tuple(other_cards), values=values
-    )
+    return sub_policy, Factor(variables=others, card=tuple(other_cards), values=values)
 
 
 def _complete_policy(
     policy: Policy,
-    node_map: dict[str, object],
+    node_map: dict[str, Node],
     card: dict[str, int],
 ) -> None:
     """
     Fill default policies (action 0) for decisions that were never maxed.
 
-        A decision that influences no utility is skipped by the elimination loop;
-        its choice is irrelevant, so any action is optimal. Give it a total policy
-        so ``policy`` covers every decision.
-        """
+    A decision that influences no utility is skipped by the elimination loop;
+    its choice is irrelevant, so any action is optimal. Give it a total policy
+    so ``policy`` covers every decision.
+    """
     for name, node in node_map.items():
         if isinstance(node, DecisionNode) and name not in policy:
             policy[name] = {}
