@@ -24,6 +24,7 @@ dev = [
 test = [
     "pytest>=8.4.0",
     "pgmpy>=0.1",
+    "pyagrum>=1.12",
 ]
 backend = [
     "numpyro>=0.15",
