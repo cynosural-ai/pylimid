@@ -70,13 +70,12 @@ def query(
         ``[P(v=0), P(v=1), ...]``.
     """
     observed = observed or {}
-    _check_discrete(snapshot)
     card = cardinalities(snapshot)
 
     # 1. Build initial factor list (CPTs).
     #
-    # VE is a chance-node engine (a discrete Bayesian network). ``_check_discrete``
-    # above guarantees every node ``is_discrete``, which only chance nodes can be —
+    # VE is a chance-node engine (a discrete Bayesian network). ``cardinalities``
+    # above guarantees every node has ``states``, which only chance nodes can be —
     # but the snapshot carries the ``Node`` base type, so narrow to ``ChanceNode``
     # for the chance-specific CPT logic. This is a type narrowing, not a behavior
     # change: a diagram with decisions / utilities routes to ``solve()``, not here.
@@ -137,15 +136,6 @@ def query(
 
 
 # ---------------------------------------------------------------------------
-
-
-def _check_discrete(snapshot: Snapshot) -> None:
-    for _, node in snapshot.nodes:
-        if not node.is_discrete:
-            raise TypeError(
-                f"Variable elimination requires all-discrete diagrams. "
-                f"Node {node.name!r} has no ``states`` and appears continuous."
-            )
 
 
 def _point_mass(

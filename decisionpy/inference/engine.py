@@ -11,7 +11,13 @@ Unified inference entry-point.
 
 from __future__ import annotations
 
+import jax
+import jax.numpy as jnp
+from numpyro.infer import MCMC, NUTS, Predictive
+
 from decisionpy.graph.diagram import InfluenceDiagram
+from decisionpy.inference.numpyro.model import to_model
+from decisionpy.inference.ve import query as ve_query
 
 __all__ = ["InferenceError", "infer"]
 
@@ -74,8 +80,6 @@ def _choose_engine(snapshot) -> str:
 
 
 def _infer_ve(snapshot, query, observed) -> dict[str, list[float]]:
-    from decisionpy.inference.ve import query as ve_query
-
     try:
         return ve_query(snapshot, variables=query, observed=observed)
     except TypeError as e:
@@ -85,11 +89,6 @@ def _infer_ve(snapshot, query, observed) -> dict[str, list[float]]:
 
 
 def _infer_numpyro(snapshot, query, observed) -> dict[str, list[float]]:
-    import jax
-    from numpyro.infer import MCMC, NUTS
-
-    from decisionpy.inference.numpyro.model import to_model
-
     all_discrete = all(node.is_discrete for _, node in snapshot.nodes)
     model = to_model(snapshot, observed=observed)
 
@@ -114,28 +113,19 @@ def _infer_numpyro(snapshot, query, observed) -> dict[str, list[float]]:
 
 
 def _infer_numpyro_discrete(model, snapshot, query) -> dict[str, list[float]]:
-    import jax
-    import jax.numpy as jnp
-    import numpyro
-    from numpyro.contrib.funsor import infer_discrete
-
+    # ``infer_discrete=True`` makes Predictive sample the enumerated discrete
+    # sites from their exact posterior (via funsor), in one vectorized pass —
+    # the counterpart to a per-sample ``infer_discrete`` loop.
     num_samples = 2000
-    values: dict[str, list[float]] = {}
-    for name in query:
-        values[name] = []
-
-    for i in range(num_samples):
-        k = jax.random.PRNGKey(i)
-        inferred = infer_discrete(model, temperature=1, rng_key=k)
-        tr = numpyro.handlers.trace(inferred).get_trace()
-        for name in query:
-            values[name].append(float(tr[name]["value"]))
+    samples = Predictive(model, num_samples=num_samples, infer_discrete=True)(
+        jax.random.PRNGKey(0)
+    )
 
     result: dict[str, list[float]] = {}
     for name in query:
         node = _find_node(snapshot, name)
         card = len(node.states)
-        counts = jnp.bincount(jnp.array(values[name], dtype=jnp.int32), length=card)
+        counts = jnp.bincount(samples[name], length=card)
         probs = counts / counts.sum()
         result[name] = [float(p) for p in probs]
     return result

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+import jax
 import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
 import pytest
-from numpyro.contrib.funsor import infer_discrete
 from numpyro.infer import MCMC, NUTS, Predictive
 
 from decisionpy.graph.chance_node import ChanceNode
@@ -175,21 +175,13 @@ def _posterior_samples(
     """
     Collect posterior samples for a model with enumerated discrete latents.
 
-    For each sample, calls ``infer_discrete`` (which computes the exact
-    posterior) and reads the substituted value from the trace.  Returns a
+    ``Predictive(..., infer_discrete=True)`` samples the enumerated discrete
+    sites from their exact posterior (funsor), in one vectorized pass — the
+    counterpart to a per-sample ``infer_discrete`` tracing loop. Returns a
     dict mapping site name to a 1-D JAX array of ``num_samples`` values.
     """
-    import jax
-
-    values: dict[str, list[Any]] = {}
-    for i in range(num_samples):
-        rng = jax.random.PRNGKey(base_seed + i)
-        inferred = infer_discrete(model, temperature=1, rng_key=rng)
-        tr = numpyro.handlers.trace(inferred).get_trace()
-        for name, site in tr.items():
-            if site["type"] == "sample":
-                values.setdefault(name, []).append(site["value"])
-    return {name: jnp.array(vals) for name, vals in values.items()}
+    predictive = Predictive(model, num_samples=num_samples, infer_discrete=True)
+    return predictive(jax.random.PRNGKey(base_seed))
 
 
 # --- posterior inference: discrete ------------------------------------------
@@ -293,32 +285,15 @@ def test_posterior_mixed_discrete_continuous() -> None:
     assert p_rain_yes == pytest.approx(0.292, abs=0.03)
 
 
-# --- errors -----------------------------------------------------------------
-
-
-def test_missing_numpyro_raises_clearly(monkeypatch: pytest.MonkeyPatch) -> None:
-    """If numpyro cannot be imported, to_model raises an actionable ImportError."""
-    import sys
-
-    monkeypatch.setitem(sys.modules, "numpyro", None)
-    snap = _rain_wet_grass_diagram().snapshot()
-    with pytest.raises(ImportError, match="numpyro"):
-        to_model(snap)
-
-
 # --- small driver helpers ---------------------------------------------------
 
 
 def _trace(model: Any) -> dict[str, Any]:
     """Run a model under a seeded trace and return its named sample sites."""
-    import numpyro
-
     seeded = numpyro.handlers.seed(model, jax_random_key())
     return numpyro.handlers.trace(seeded).get_trace()
 
 
 def jax_random_key(seed: int = 0) -> Any:
     """A fixed PRNG key for reproducible sampling in tests."""
-    import jax
-
     return jax.random.PRNGKey(seed)

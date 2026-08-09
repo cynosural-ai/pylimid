@@ -44,12 +44,7 @@ from decisionpy.graph.diagram import Snapshot
 from decisionpy.graph.node import Node
 from decisionpy.graph.utility_node import UtilityNode
 from decisionpy.inference.utils.cpt import cardinalities, cpt, utility_factor
-from decisionpy.inference.utils.factor import (
-    Factor,
-    _assignments,
-    _project,
-    _union_vars,
-)
+from decisionpy.inference.utils.factor import Factor
 
 __all__ = ["Policy", "Solution", "solve"]
 
@@ -159,34 +154,16 @@ def _sum_utilities(factors: list[Factor]) -> Factor:
     Combine utility factors additively into a single factor.
 
     Expected total utility is ``E[sum_k U_k]``, so the per-node utility factors
-    broadcast-add into one factor over the union of their scopes. The constant
-    zero factor represents a diagram with no utility nodes.
+    broadcast-add into one factor over the union of their scopes (via
+    :meth:`Factor.__add__`). The constant zero factor represents a diagram with
+    no utility nodes.
     """
     if not factors:
         return Factor(variables=[], card=(), values=[0.0])
     result = factors[0]
     for f in factors[1:]:
-        result = _add(result, f)
+        result = result + f
     return result
-
-
-def _add(a: Factor, b: Factor) -> Factor:
-    """Pointwise sum of two factors, broadcast over the union of scopes."""
-    all_vars = _union_vars(a.variables, b.variables)
-    all_cards = {
-        v: (a.card_of(v) if v in a.variables else b.card_of(v)) for v in all_vars
-    }
-    lookup = {v: i for i, v in enumerate(all_vars)}
-    values = [
-        a[_project(assign, a.variables, lookup)]
-        + b[_project(assign, b.variables, lookup)]
-        for assign in _assignments(all_vars, all_cards)
-    ]
-    return Factor(
-        variables=all_vars,
-        card=tuple(all_cards[v] for v in all_vars),
-        values=values,
-    )
 
 
 def _product(factors: list[Factor]) -> Factor:

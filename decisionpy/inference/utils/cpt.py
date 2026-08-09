@@ -38,7 +38,7 @@ def cardinalities(snapshot: Snapshot) -> dict[str, int]:
 
     Raises:
         TypeError: If any chance or decision node has no declared ``states``
-            (the diagram is not all-categorical).
+            (the diagram is not all-discrete).
     """
     card: dict[str, int] = {}
     for name, node in snapshot.nodes:
@@ -47,7 +47,8 @@ def cardinalities(snapshot: Snapshot) -> dict[str, int]:
         states = getattr(node, "states", None)
         if states is None:
             raise TypeError(
-                f"Node {name!r} has no declared states; a discrete diagram is required."
+                f"Node {name!r} has no declared states; an all-discrete "
+                f"diagram is required."
             )
         card[name] = len(states)
     return card

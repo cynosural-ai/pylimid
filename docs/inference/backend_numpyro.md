@@ -44,8 +44,7 @@ prior-predictive sampling). That is the v0 capability.
 NumPyro (and its JAX base) is a declared runtime dependency of decisionpy, not
 a separate extra. The graph layer still never imports it — `decisionpy.graph`
 works on plain `dist` callables, and `import decisionpy` does not load NumPyro;
-only importing `decisionpy.inference` does. `to_model` raises a clear
-`ImportError` if NumPyro cannot be imported.
+only importing `decisionpy.inference` does.
 
 ---
 
