@@ -4,12 +4,9 @@ version = "0.1.0"
 description = "A library for mixed-type limited-memory influence diagrams."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
-
-[project.optional-dependencies]
-# NumPyro backend. Optional so the graph layer stays importable with zero
-# runtime dependencies; install with `pip install decisionpy[numpyro]`.
-numpyro = [
+# The inference engines (NumPyro, and VE's distribution extraction) build on
+# numpyro/jax; previously an optional extra, now a plain runtime dependency.
+dependencies = [
     "numpyro>=0.15",
     "jax>=0.4",
     "funsor>=0.4",
@@ -26,14 +23,9 @@ test = [
     "pgmpy>=0.1",
     "pyagrum>=1.12",
 ]
-backend = [
-    "numpyro>=0.15",
-    "jax>=0.4",
-    "funsor>=0.4",
-]
 
 [tool.uv]
-default-groups = ["dev", "test", "backend"]
+default-groups = ["dev", "test"]
 
 [build-system]
 requires = ["hatchling"]

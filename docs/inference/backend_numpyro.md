@@ -39,19 +39,13 @@ prior-predictive sampling). That is the v0 capability.
 
 ---
 
-## Optional dependency
+## Dependency
 
-NumPyro (and its JAX base) is an *optional* dependency. Nothing in
-`decisionpy.graph` imports it, and `import decisionpy` / `import
-decisionpy.backend` never pull it in. Install the extra:
-
-```
-pip install decisionpy[numpyro]
-```
-
-`to_model` raises a clear `ImportError` pointing here if NumPyro is absent.
-This preserves the "backend-agnostic" guarantee on the graph layer: a user
-inspecting or editing a diagram needs no PPL installed.
+NumPyro (and its JAX base) is a declared runtime dependency of decisionpy, not
+a separate extra. The graph layer still never imports it — `decisionpy.graph`
+works on plain `dist` callables, and `import decisionpy` does not load NumPyro;
+only importing `decisionpy.inference` does. `to_model` raises a clear
+`ImportError` if NumPyro cannot be imported.
 
 ---
 
@@ -66,8 +60,9 @@ inspecting or editing a diagram needs no PPL installed.
   observations). Forward sampling is what decision solving (Strategy B in
   [`decision_node.md`](./decision_node.md)) builds on; posterior inference is a
   later capability with real algorithm choices to commit to.
-- **Decision and utility nodes.** Not yet represented in the graph; the
-  translator grows a branch for them when they land.
+- **Decision and utility nodes.** The translator remains chance-node only
+  (it narrows every node to `ChanceNode`); a diagram with decisions or
+  utilities routes to `solve()` / the `id` solvers, not here.
 - **A deep-frozen snapshot.** A `Snapshot` holds references to still-mutable
   nodes ([`diagram.md`](./diagram.md), "the snapshot is logical, not
   deep-frozen"). The node list is captured once at `to_model` time, so

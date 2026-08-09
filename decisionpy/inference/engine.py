@@ -42,8 +42,6 @@ def infer(
 
     Raises:
         InferenceError: If the chosen engine cannot handle the diagram.
-        ImportError: If ``engine="numpyro"`` and the numpyro extra is not
-            installed.
     """
     observed = observed or {}
     snapshot = diagram.snapshot()
@@ -69,13 +67,6 @@ def _choose_engine(snapshot) -> str:
     all_discrete = all(node.is_discrete for _, node in snapshot.nodes)
     if all_discrete:
         return "ve"
-    try:
-        import numpyro  # noqa: F401
-    except ImportError as exc:
-        raise InferenceError(
-            "Diagram has continuous nodes and the numpyro extra is not "
-            "installed. Install with: pip install decisionpy[numpyro]"
-        ) from exc
     return "numpyro"
 
 

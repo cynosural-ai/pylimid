@@ -10,9 +10,10 @@ probabilistic programming system. It consumes a
 and returns a plain NumPyro model function the caller feeds to ``numpyro.infer``
 (e.g. ``Predictive``, ``MCMC``, ``SVI``).
 
-NumPyro is an *optional* dependency: this module is not imported by anything in
-:mod:`decisionpy.graph`. :func:`to_model` raises a clear error if NumPyro is not
-installed.
+NumPyro is a declared runtime dependency of decisionpy (nothing in
+:mod:`decisionpy.graph` imports it — the graph layer works on plain callables —
+but :func:`to_model` itself needs it). :func:`to_model` raises a clear error if
+NumPyro cannot be imported.
 
 Unobserved discrete nodes are detected automatically via ``node.is_discrete``
 and annotated with ``infer={"enumerate": "parallel"}`` so that NumPyro's NUTS
@@ -69,8 +70,8 @@ def to_model(
         import numpyro
     except ImportError as e:  # pragma: no cover - exercised via monkeypatch test
         raise ImportError(
-            "The NumPyro backend requires the 'numpyro' extra. "
-            "Install it with: pip install decisionpy[numpyro]"
+            "numpyro is a required dependency of decisionpy but could not be "
+            "imported; install it with: pip install numpyro"
         ) from e
 
     nodes = snapshot.nodes

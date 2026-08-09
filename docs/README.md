@@ -57,8 +57,8 @@ Read in this order:
 
 5. **[`backend_numpyro.md`](./backend_numpyro.md)** — the NumPyro translator:
    turns a validated `Snapshot` into a NumPyro model. Chance nodes only in v0
-   (a Bayesian network), forward / prior-predictive sampling. Optional `numpyro`
-   extra so the graph layer stays zero-dep.
+   (a Bayesian network), forward / prior-predictive sampling. NumPyro is a
+   declared dependency, though the graph layer itself never imports it.
 
 6. **[`inference_strategy.md`](./inference_strategy.md)** — analysis of
    inference backends for the full influence diagram roadmap: variable
@@ -103,8 +103,8 @@ Read in this order:
   optimal discrete policies (`solve()` core) for all-categorical LIMIDs,
   numpy-only (see the current session note).
 - `inference/numpyro/` — NumPyro bridge: translates a `Snapshot` into a NumPyro
-  model, with forward sampling, MCMC, and SVI helpers. Optional `numpyro` extra;
-  not imported by `decisionpy.graph`.
+  model, with forward sampling, MCMC, and SVI helpers. NumPyro is a declared
+  dependency, though nothing in `decisionpy.graph` imports it.
 - `inference/engine.py` — unified ``infer()`` entry-point with auto-dispatch.
 - Planned: `solve()` wiring in `engine.py` (intervention-scan / policy
   optimization — see `decision_node.md`); Gibbs sampling under `inference/`.

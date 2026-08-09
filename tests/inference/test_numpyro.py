@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import jax.numpy as jnp
+import numpyro
 import numpyro.distributions as dist
 import pytest
 from numpyro.contrib.funsor import infer_discrete
@@ -13,16 +14,6 @@ from numpyro.infer import MCMC, NUTS, Predictive
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import InfluenceDiagram
 from decisionpy.inference.numpyro.model import to_model
-
-# Skip the whole module when the numpyro extra is not installed. The heavy
-# imports above already fail in that case, so the guard is belt-and-braces.
-numpyro_missing: bool = False
-try:
-    import numpyro  # noqa: F401
-except ImportError:  # pragma: no cover
-    numpyro_missing = True
-pytestmark = pytest.mark.skipif(numpyro_missing, reason="numpyro extra not installed")
-
 
 # --- helpers ----------------------------------------------------------------
 

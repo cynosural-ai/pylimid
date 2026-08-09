@@ -1,9 +1,9 @@
 """
 NumPyro inference backend — forward sampling, MCMC, and SVI.
 
-Thin wrappers around :func:`~decisionpy.inference._numpyro_model.to_model`.
-Import this module to use NumPyro-based inference; requires the ``numpyro``
-extra (``pip install decisionpy[numpyro]``).
+Thin wrappers around :func:`~decisionpy.inference.numpyro.model.to_model`.
+Import this module to use NumPyro-based inference; requires ``numpyro``, a
+declared dependency of decisionpy.
 
 Usage::
 
