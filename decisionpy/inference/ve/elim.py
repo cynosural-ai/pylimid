@@ -6,7 +6,7 @@ Graph-native, zero heavy dependencies.  Works directly against a
 
 Algorithm (for a single query variable)
 ---------------------------------------
-1. Build one :class:`~decisionpy.inference._factor.Factor` per node (its CPT).
+1. Build one :class:`~decisionpy.inference.utils.factor.Factor` per node (its CPT).
 2. Condition on observed variables by slicing factors.
 3. Determine an elimination order (all variables except query + evidence).
 4. For each variable *X* in order:
@@ -47,8 +47,8 @@ from __future__ import annotations
 
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import Snapshot
-from decisionpy.inference._cpt import cardinalities, cpt
-from decisionpy.inference._factor import Factor
+from decisionpy.inference.utils.cpt import cardinalities, cpt
+from decisionpy.inference.utils.factor import Factor
 
 __all__ = ["query"]
 

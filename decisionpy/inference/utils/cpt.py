@@ -4,7 +4,7 @@ CPT and utility-factor builders shared by the graph-native inference engines.
 Both variable elimination (``decisionpy.inference.ve``) and the
 influence-diagram solvers (``decisionpy.inference.id``) consume a validated
 :class:`~decisionpy.graph.diagram.Snapshot` and need to turn a node's
-configurable callable into a :class:`~decisionpy.inference._factor.Factor` over
+configurable callable into a :class:`~decisionpy.inference.utils.factor.Factor` over
 its variables:
 
 - a chance node's ``dist`` becomes the CPT factor ``P(node | parents)``;
@@ -24,7 +24,7 @@ from itertools import product
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import Snapshot
 from decisionpy.graph.utility_node import UtilityNode
-from decisionpy.inference._factor import Factor
+from decisionpy.inference.utils.factor import Factor
 
 __all__ = ["cardinalities", "cpt", "utility_factor"]
 
