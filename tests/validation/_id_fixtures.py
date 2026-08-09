@@ -5,15 +5,11 @@ from __future__ import annotations
 import math
 from itertools import product
 
+import jax.numpy as jnp
 import numpyro.distributions as dist
 import pyagrum as gum
 
 from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-
-try:
-    import jax.numpy as jnp
-except ImportError:
-    import numpy as jnp
 
 __all__ = [
     "SingleDecisionTreat",

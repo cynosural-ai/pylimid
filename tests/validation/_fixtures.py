@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import jax.numpy as jnp
 import numpyro.distributions as dist
 from pgmpy.factors.discrete import TabularCPD
 from pgmpy.inference import VariableElimination
@@ -9,11 +10,6 @@ from pgmpy.models import DiscreteBayesianNetwork
 
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import InfluenceDiagram
-
-try:
-    import jax.numpy as jnp
-except ImportError:
-    import numpy as jnp
 
 __all__ = [
     "TwoNodeRainWet",

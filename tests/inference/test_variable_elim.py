@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 
+import jax.numpy as jnp
 import numpyro.distributions as dist
 import pytest
 
@@ -43,12 +44,6 @@ def _rain_wet_grass_diagram() -> InfluenceDiagram:
         )
     )
     return diag
-
-
-try:
-    import jax.numpy as jnp  # noqa: F401
-except ImportError:
-    pass
 
 
 # --- prior marginals ---------------------------------------------------------

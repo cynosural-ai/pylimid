@@ -6,11 +6,13 @@ the full mixed-type influence diagram with decisions and utilities.
 
 ---
 
-## Current state (v0)
+## Current state
 
-We have one backend: `decisionpy.backend.numpyro` — forward (prior-predictive)
-sampling for chance-node-only diagrams. It translates a validated `Snapshot`
-into a NumPyro model and the caller feeds it to `Predictive`.
+Two graph-native engines plus the NumPyro bridge: variable elimination
+(`decisionpy.inference.ve`) for exact discrete Bayesian networks, bucket
+elimination (`decisionpy.inference.id`) for exact discrete influence diagrams,
+and the NumPyro translator (`decisionpy.inference.numpyro.model.to_model`) for
+forward sampling and MCMC/SVI — all consuming a validated `Snapshot`.
 
 ## Analysis of candidate methods
 
