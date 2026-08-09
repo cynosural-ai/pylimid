@@ -47,7 +47,8 @@ from __future__ import annotations
 
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import Snapshot
-from decisionpy.inference.ve.factor import Factor
+from decisionpy.inference._cpt import cardinalities, cpt
+from decisionpy.inference._factor import Factor
 
 __all__ = ["query"]
 
@@ -70,6 +71,7 @@ def query(
     """
     observed = observed or {}
     _check_discrete(snapshot)
+    card = cardinalities(snapshot)
 
     # 1. Build initial factor list (CPTs).
     #
@@ -84,7 +86,7 @@ def query(
         node_map[_name] = node
     factors: list[Factor] = []
     for _name, node in node_map.items():
-        factors.append(_cpt(node, node_map))
+        factors.append(cpt(node, card))
 
     # Condition: for each observed variable, slice its dimension in EVERY factor
     # that contains it.
@@ -135,58 +137,6 @@ def query(
 
 
 # ---------------------------------------------------------------------------
-
-
-def _cpt(node: ChanceNode, node_map: dict[str, ChanceNode]) -> Factor:
-    """Build the CPT factor P(*node* | parents(*node*))."""
-    parent_vars = list(node.parents)
-    parent_cards: list[int] = []
-    for p in parent_vars:
-        assert node_map[p].states is not None
-        parent_cards.append(
-            len(node_map[p].states)  # ty: ignore[invalid-argument-type]
-        )
-    assert node.states is not None
-    node_card = len(node.states)
-    all_vars = parent_vars + [node.name]
-    all_cards = parent_cards + [node_card]
-
-    from itertools import product
-
-    values: list[float] = []
-    for parent_vals in product(*[range(c) for c in parent_cards]):
-        kwargs = dict(zip(node.parents, parent_vals, strict=True))
-        prob_vec = _extract_probs(node, kwargs, node_card)
-        if prob_vec is None:
-            raise RuntimeError(
-                f"Could not extract probability vector from node "
-                f"{node.name!r}. Make sure its ``dist`` returns a "
-                f"Categorical or a distribution with a ``probs`` attribute."
-            )
-        values.extend(prob_vec)
-
-    return Factor(variables=all_vars, card=tuple(all_cards), values=values)
-
-
-def _extract_probs(
-    node: ChanceNode,
-    parent_kwargs: dict[str, object],
-    card: int,
-) -> list[float] | None:
-    """Call ``node.dist(**parent_kwargs)`` and extract probability vector."""
-    assert node.dist is not None
-    dist = node.dist(**parent_kwargs)
-    probs = getattr(dist, "probs", None)
-    if probs is not None:
-        return [float(p) for p in probs]
-    # Fallback: materialise via log_prob for each outcome.
-    try:
-        log_probs = [dist.log_prob(i) for i in range(card)]
-        import math
-
-        return [math.exp(float(lp)) for lp in log_probs]
-    except Exception:
-        return None
 
 
 def _check_discrete(snapshot: Snapshot) -> None:
