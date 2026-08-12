@@ -211,12 +211,13 @@ def _max_out(
     other_cards = [card[v] for v in others]
 
     # Best (value, action) per context assignment of the other variables.
+    other_positions = [base.variables.index(v) for v in others]
     best: dict[tuple[int, ...], tuple[float, int]] = {}
     values: list[float] = []
     for ctx in product(*[range(c) for c in other_cards]):
         full = [0] * len(base.variables)
-        for i, v in enumerate(others):
-            full[base.variables.index(v)] = ctx[i]
+        for i, pos in enumerate(other_positions):
+            full[pos] = ctx[i]
         best_value = float("-inf")
         best_action = 0
         for a in range(decision_card):
