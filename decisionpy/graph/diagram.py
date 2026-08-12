@@ -41,6 +41,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from decisionpy.graph.chance_node import ChanceNode, DistFactory
+from decisionpy.graph.mermaid import to_mermaid
 from decisionpy.graph.node import Consistency, Node
 
 
@@ -397,6 +398,23 @@ class InfluenceDiagram:
     def names(self) -> tuple[str, ...]:
         """All node names in insertion order."""
         return tuple(self._nodes)
+
+    # --- rendering ----------------------------------------------------------
+
+    def to_mermaid(self) -> str:
+        """
+        Render the diagram as a Mermaid ``flowchart`` source string.
+
+        Deterministic (topological node order, declared parent order for
+        edges) and usable on the live workspace: no validation required, so
+        an incomplete diagram renders with dangling parents as dashed ghost
+        nodes and non-consistent nodes tinted via ``classDef``. See
+        :mod:`decisionpy.graph.mermaid`.
+
+        Returns:
+            Mermaid flowchart source; paste into a Mermaid renderer to view.
+        """
+        return to_mermaid(self)
 
     # --- internals ----------------------------------------------------------
 
