@@ -275,14 +275,22 @@ def _signature_matches(
     """
     Whether ``callable_`` accepts ``parent_names`` as keyword arguments.
 
+    The guarantee the consistency gate can make is narrow: a ``CONSISTENT``
+    callable *could* have used its parents. A callable whose parameters do not
+    line up with ``parent_names`` — missing a parent, or carrying an extra
+    parameter — fails ``bind`` and is reported as stale. A callable that
+    *ignores* its parents but could have used them (an independent node) is a
+    legitimate model; signature inspection cannot tell it apart from a wiring
+    mistake, and the gate does not try.
+
     A ``**kwargs``-only callable matches any parent set (bind accepts
-    arbitrary kwargs). A callable whose parameters do not line up with
-    ``parent_names`` — missing a parent, or carrying an extra parameter —
-    fails ``bind`` and is reported as stale.
+    arbitrary kwargs): the gate cannot verify what such a generic callable
+    actually uses, so it treats it as matching. This is the supported escape
+    hatch for generic factories that resolve parents dynamically; the price is
+    that the gate is blind to them.
 
     A callable that cannot be introspected (some builtins, C extensions) is
-    conservatively reported as not matching. Callers that want to bypass
-    signature checking should accept ``**kwargs``.
+    conservatively reported as not matching.
     """
     try:
         sig = inspect.signature(callable_)
