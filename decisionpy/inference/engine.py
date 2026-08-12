@@ -16,6 +16,7 @@ import jax.numpy as jnp
 from numpyro.infer import MCMC, NUTS, Predictive
 
 from decisionpy.graph.diagram import InfluenceDiagram
+from decisionpy.graph.node import NodeKind
 from decisionpy.inference.numpyro.model import to_model
 from decisionpy.inference.ve import query as ve_query
 
@@ -70,8 +71,12 @@ def infer(
 
 
 def _choose_engine(snapshot) -> str:
-    all_discrete = all(node.is_discrete for _, node in snapshot.nodes)
-    if all_discrete:
+    # Node classification is by ``kind``, never by ``is_discrete`` (vacuous
+    # for utility nodes). A diagram is a Bayesian network iff every node is a
+    # chance node; only then does ``is_discrete`` pick the exact engine.
+    nodes = [node for _, node in snapshot.nodes]
+    is_bn = all(node.kind is NodeKind.CHANCE for node in nodes)
+    if is_bn and all(node.is_discrete for node in nodes):
         return "ve"
     return "numpyro"
 
@@ -89,7 +94,12 @@ def _infer_ve(snapshot, query, observed) -> dict[str, list[float]]:
 
 
 def _infer_numpyro(snapshot, query, observed) -> dict[str, list[float]]:
-    all_discrete = all(node.is_discrete for _, node in snapshot.nodes)
+    # The vectorized discrete path applies only to a pure discrete BN: a node
+    # counts as discrete engine input only if it is a chance node (utility
+    # nodes have no domain — classify by kind, not ``is_discrete``).
+    all_discrete = all(
+        node.kind is NodeKind.CHANCE and node.is_discrete for _, node in snapshot.nodes
+    )
     model = to_model(snapshot, observed=observed)
 
     if all_discrete:
