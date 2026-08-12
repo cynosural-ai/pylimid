@@ -11,6 +11,10 @@ The docs split into two kinds:
 - **Living design notes** — the current reference for *how* a part of the
   library behaves and why. They are updated as the code changes.
 
+`sessions/` holds dated session summaries — legacy only. They are historical
+records for context and are not updated as the code changes; the living design
+notes are the current source of truth.
+
 ## Decision records
 
 1. **[`16_07_2026 - initial plan`](./ADR/16_07_2026%20-%20initial%20plan.md)** —
@@ -66,6 +70,11 @@ Read in this order:
    exact/approximate discrete, grow NumPyro as the primary engine for
    mixed-type + gradient-based decision optimization.
 
+7. **[`bucket_elim.md`](./inference/bucket_elim.md)** — the exact
+   influence-diagram solver: algorithm (additive utilities, reverse-topological
+   elimination, decision max-out), the policy representation, and the supported
+   scope (all-categorical, regular structures).
+
 ## Status of each decision
 
 | Topic                | Status      | Where                              |
@@ -76,8 +85,8 @@ Read in this order:
 | Chance-node distribution form | Settled | `chance_node.md`             |
 | Decision-node representation | Settled — graph layer | `decision_node.md` |
 | Utility-node representation | Settled — graph layer | `utility_node.md` |
-| Decision-node solving strategy | Settled (v0 = B); implementation deferred | `decision_node.md` |
-| NumPyro translator   | v0 — chance-only, forward sampling | `backend_numpyro.md` |
+| Decision-node solving strategy | Settled — exact bucket elimination implemented; Strategy B (intervention-scan) planned for the NumPyro path | `decision_node.md`, `bucket_elim.md` |
+| NumPyro translator   | Chance-only; forward sampling, conditional inference (MCMC/SVI) | `backend_numpyro.md` |
 | Inference strategy   | Settled — VE + Gibbs for discrete, NumPyro for mixed-type | `inference_strategy.md` |
 | Unified inference API | Settled — `infer()` / `solve()` with auto-dispatch | `ADR/23_07_2026_unified_inference_architecture.md` |
 | `from_cpt` sugar     | Deferred    | `chance_node.md` (resolved q)      |
@@ -101,7 +110,7 @@ Read in this order:
   (see `inference_strategy.md`).
 - `inference/id/` — exact influence-diagram solving via bucket elimination:
   optimal discrete policies (`solve()` core) for all-categorical LIMIDs,
-  numpy-only (see the current session note).
+  numpy-only (see `bucket_elim.md`).
 - `inference/numpyro/` — NumPyro bridge: translates a `Snapshot` into a NumPyro
   model, with forward sampling, MCMC, and SVI helpers. NumPyro is a declared
   dependency, though nothing in `decisionpy.graph` imports it.

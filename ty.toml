@@ -14,7 +14,7 @@ respect-ignore-files = true
 
 [terminal]
 output-format = "full"
-error-on-warning = false
+error-on-warning = true
 
 [rules]
 # Core safety - undefined names and wrong assignments

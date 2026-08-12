@@ -23,6 +23,9 @@ from __future__ import annotations
 
 from typing import Any
 
+import jax
+from numpyro.infer import Predictive
+
 from decisionpy.graph.diagram import Snapshot
 from decisionpy.inference.numpyro.model import to_model
 
@@ -42,9 +45,6 @@ def forward_sample(
     Returns:
         Dict mapping node name to a 1-D JAX array of samples.
     """
-    import jax
-    from numpyro.infer import Predictive
-
     if rng_key is None:
         rng_key = jax.random.PRNGKey(0)
 

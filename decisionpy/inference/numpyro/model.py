@@ -11,9 +11,8 @@ and returns a plain NumPyro model function the caller feeds to ``numpyro.infer``
 (e.g. ``Predictive``, ``MCMC``, ``SVI``).
 
 NumPyro is a declared runtime dependency of decisionpy (nothing in
-:mod:`decisionpy.graph` imports it — the graph layer works on plain callables —
-but :func:`to_model` itself needs it). :func:`to_model` raises a clear error if
-NumPyro cannot be imported.
+:mod:`decisionpy.graph` imports it — the graph layer works on plain callables,
+but the translator itself needs it).
 
 Unobserved discrete nodes are detected automatically via ``node.is_discrete``
 and annotated with ``infer={"enumerate": "parallel"}`` so that NumPyro's NUTS
@@ -28,6 +27,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Any
+
+import numpyro
 
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import Snapshot
@@ -62,18 +63,7 @@ def to_model(
     Returns:
         A NumPyro model function taking no arguments, returning a
         ``dict[str, Any]`` of sampled (or observed) values keyed by node name.
-
-    Raises:
-        ImportError: If NumPyro is not installed.
     """
-    try:
-        import numpyro
-    except ImportError as e:  # pragma: no cover - exercised via monkeypatch test
-        raise ImportError(
-            "numpyro is a required dependency of decisionpy but could not be "
-            "imported; install it with: pip install numpyro"
-        ) from e
-
     nodes = snapshot.nodes
     observed = observed or {}
 

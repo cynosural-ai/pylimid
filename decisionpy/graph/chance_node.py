@@ -15,25 +15,14 @@ assignment, and the :attr:`~decisionpy.graph.node.Consistency` gate (optional
 The ``dist`` callable receives resolved parent values as **keyword arguments**
 (keyed by parent name), so it is tied to parent *names*, which are stable,
 rather than parent *order*, which is incidental.
-
-Re-exported here for back-comat: :class:`~decisionpy.graph.node.Consistency`
-now lives on :mod:`decisionpy.graph.node` but is re-exported here so existing
-``from decisionpy.graph.chance_node import Consistency`` imports keep working.
 """
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from decisionpy.graph.node import (
-    Consistency,  # noqa: F401 — re-exported for back-comat
-    Node,
-    NodeKind,
-    _signature_matches,
-)
-from decisionpy.graph.node import (
-    Consistency as _Consistency,
-)
+from decisionpy.graph.node import Consistency as _Consistency
+from decisionpy.graph.node import Node, NodeKind, _signature_matches
 
 #: Factory returning a distribution object given resolved parent values.
 #:

@@ -80,12 +80,12 @@ class UtilityNode(Node):
     @property
     def is_discrete(self) -> bool:
         """
-        ``False`` — a utility node is a deterministic scalar, never sampled.
+        ``False`` — a utility node is not a random variable.
 
-        This also routes any diagram containing a utility node away from
-        variable elimination (which is discrete-BN only) toward a solver — the
-        correct forward behavior, since a diagram with utilities is an
-        influence diagram, not a Bayesian network.
+        It is a deterministic scalar payoff with no sampling domain, so
+        ``is_discrete`` is vacuous for it. Engines must classify nodes by
+        ``kind`` — a diagram with a utility node is an influence diagram, not
+        a Bayesian network — never by ``is_discrete``.
         """
         return False
 

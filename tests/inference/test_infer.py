@@ -42,6 +42,25 @@ def _continuous_diagram() -> InfluenceDiagram:
     return diag
 
 
+def _mixed_diagram() -> InfluenceDiagram:
+    """Rain (discrete root) and temperature (continuous root)."""
+    diag = InfluenceDiagram()
+    diag.add_node(
+        ChanceNode(
+            name="rain",
+            states=("no", "yes"),
+            dist=lambda: dist.Categorical(probs=jnp.array([0.8, 0.2])),
+        )
+    )
+    diag.add_node(
+        ChanceNode(
+            name="temp",
+            dist=lambda: dist.Normal(loc=20.0, scale=3.0),
+        )
+    )
+    return diag
+
+
 # --- auto-dispatch -----------------------------------------------------------
 
 
@@ -112,6 +131,21 @@ def test_probabilities_sum_to_one():
 def test_probabilities_sum_to_one_with_observed():
     result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1})
     assert sum(result["rain"]) == pytest.approx(1.0)
+
+
+def test_continuous_returns_samples():
+    """Continuous queries return raw posterior samples, not probabilities."""
+    result = infer(_continuous_diagram(), ["x"], engine="numpyro")
+    assert len(result["x"]) == 2000  # raw MCMC draws
+    assert sum(result["x"]) != pytest.approx(1.0)  # not probabilities
+
+
+def test_mixed_result_shape_follows_variable_type():
+    """Discrete queries return probability vectors; continuous return samples."""
+    result = infer(_mixed_diagram(), ["rain", "temp"], engine="numpyro")
+    assert sum(result["rain"]) == pytest.approx(1.0)  # probability vector
+    assert len(result["temp"]) == 2000  # raw MCMC draws
+    assert sum(result["temp"]) != pytest.approx(1.0)  # not probabilities
 
 
 # --- errors ------------------------------------------------------------------

@@ -43,13 +43,8 @@ from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.diagram import Snapshot
 from decisionpy.graph.node import Node
 from decisionpy.graph.utility_node import UtilityNode
-from decisionpy.inference.utils.cpt import cardinalities, cpt, utility_factor
-from decisionpy.inference.utils.factor import (
-    Factor,
-    _assignments,
-    _project,
-    _union_vars,
-)
+from decisionpy.inference.utils.factor import Factor
+from decisionpy.inference.utils.factors import cardinalities, cpt, utility_factor
 
 __all__ = ["Policy", "Solution", "solve"]
 
@@ -107,8 +102,7 @@ def solve(snapshot: Snapshot) -> Solution:
 
     # 2. Eliminate in reverse topological order.
     policy: Policy = {}
-    for name in reversed(snapshot.order):
-        node = node_map[name]
+    for name, node in reversed(snapshot.nodes):
         if isinstance(node, UtilityNode):
             continue
         relevant = [f for f in probs if name in f.variables]
@@ -159,34 +153,16 @@ def _sum_utilities(factors: list[Factor]) -> Factor:
     Combine utility factors additively into a single factor.
 
     Expected total utility is ``E[sum_k U_k]``, so the per-node utility factors
-    broadcast-add into one factor over the union of their scopes. The constant
-    zero factor represents a diagram with no utility nodes.
+    broadcast-add into one factor over the union of their scopes (via
+    :meth:`Factor.__add__`). The constant zero factor represents a diagram with
+    no utility nodes.
     """
     if not factors:
         return Factor(variables=[], card=(), values=[0.0])
     result = factors[0]
     for f in factors[1:]:
-        result = _add(result, f)
+        result = result + f
     return result
-
-
-def _add(a: Factor, b: Factor) -> Factor:
-    """Pointwise sum of two factors, broadcast over the union of scopes."""
-    all_vars = _union_vars(a.variables, b.variables)
-    all_cards = {
-        v: (a.card_of(v) if v in a.variables else b.card_of(v)) for v in all_vars
-    }
-    lookup = {v: i for i, v in enumerate(all_vars)}
-    values = [
-        a[_project(assign, a.variables, lookup)]
-        + b[_project(assign, b.variables, lookup)]
-        for assign in _assignments(all_vars, all_cards)
-    ]
-    return Factor(
-        variables=all_vars,
-        card=tuple(all_cards[v] for v in all_vars),
-        values=values,
-    )
 
 
 def _product(factors: list[Factor]) -> Factor:
@@ -235,12 +211,13 @@ def _max_out(
     other_cards = [card[v] for v in others]
 
     # Best (value, action) per context assignment of the other variables.
+    other_positions = [base.variables.index(v) for v in others]
     best: dict[tuple[int, ...], tuple[float, int]] = {}
     values: list[float] = []
     for ctx in product(*[range(c) for c in other_cards]):
         full = [0] * len(base.variables)
-        for i, v in enumerate(others):
-            full[base.variables.index(v)] = ctx[i]
+        for i, pos in enumerate(other_positions):
+            full[pos] = ctx[i]
         best_value = float("-inf")
         best_action = 0
         for a in range(decision_card):

@@ -93,7 +93,11 @@ class Snapshot:
     """
 
     nodes: tuple[tuple[str, Node], ...]
-    order: tuple[str, ...]
+
+    @property
+    def order(self) -> tuple[str, ...]:
+        """Node names in topological order (derived from :attr:`nodes`)."""
+        return tuple(name for name, _ in self.nodes)
 
 
 class InfluenceDiagram:
@@ -369,7 +373,7 @@ class InfluenceDiagram:
             raise ValueError(f"Diagram is not valid: {formatted}")
         order = self.topological_sort()
         nodes = tuple((name, self._nodes[name]) for name in order)
-        return Snapshot(nodes=nodes, order=order)
+        return Snapshot(nodes=nodes)
 
     # --- lookups ------------------------------------------------------------
 

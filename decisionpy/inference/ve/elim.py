@@ -47,8 +47,8 @@ from __future__ import annotations
 
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import Snapshot
-from decisionpy.inference.utils.cpt import cardinalities, cpt
 from decisionpy.inference.utils.factor import Factor
+from decisionpy.inference.utils.factors import cardinalities, cpt
 
 __all__ = ["query"]
 
@@ -70,16 +70,15 @@ def query(
         ``[P(v=0), P(v=1), ...]``.
     """
     observed = observed or {}
-    _check_discrete(snapshot)
     card = cardinalities(snapshot)
 
     # 1. Build initial factor list (CPTs).
     #
-    # VE is a chance-node engine (a discrete Bayesian network). ``_check_discrete``
-    # above guarantees every node ``is_discrete``, which only chance nodes can be —
-    # but the snapshot carries the ``Node`` base type, so narrow to ``ChanceNode``
-    # for the chance-specific CPT logic. This is a type narrowing, not a behavior
-    # change: a diagram with decisions / utilities routes to ``solve()``, not here.
+    # VE is a chance-node engine (a discrete Bayesian network). ``cardinalities``
+    # above guarantees every node has declared ``states``; the snapshot still
+    # carries the ``Node`` base type, so narrow to ``ChanceNode`` for the
+    # chance-specific CPT logic. This is a type narrowing, not a behavior change:
+    # a diagram with decisions / utilities routes to ``solve()``, not here.
     node_map: dict[str, ChanceNode] = {}
     for _name, node in snapshot.nodes:
         assert isinstance(node, ChanceNode)
@@ -137,15 +136,6 @@ def query(
 
 
 # ---------------------------------------------------------------------------
-
-
-def _check_discrete(snapshot: Snapshot) -> None:
-    for _, node in snapshot.nodes:
-        if not node.is_discrete:
-            raise TypeError(
-                f"Variable elimination requires all-discrete diagrams. "
-                f"Node {node.name!r} has no ``states`` and appears continuous."
-            )
 
 
 def _point_mass(

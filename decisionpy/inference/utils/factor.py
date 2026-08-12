@@ -60,6 +60,10 @@ class Factor:
         """
         Pointwise product, broadcasting over the union of variables.
 
+        An empty-scope factor is treated as the constant 1 (the multiplicative
+        identity). Contrast :meth:`__add__`, where an empty scope carries a
+        real value and is broadcast like any other factor.
+
         ::
 
             f(a,b) * g(b,c)  →  h(a,b,c) where h[a,b,c] = f[a,b] * g[b,c]
@@ -94,6 +98,42 @@ class Factor:
             s = self[_project(assignment, self.variables, union_lookup)]
             o = other[_project(assignment, other.variables, union_lookup)]
             values.append(s * o)
+
+        return Factor(
+            variables=all_vars,
+            card=tuple(all_cards[v] for v in all_vars),
+            values=values,
+        )
+
+    def __add__(self, other: Factor) -> Factor:
+        """
+        Pointwise sum, broadcasting over the union of variables.
+
+        Used to combine utility factors, whose objective is additive
+        (``E[sum_k U_k]``) — the counterpart to :meth:`__mul__` for
+        probabilities. Unlike :meth:`__mul__`, an empty-scope factor is a real
+        constant here, not the unit 1, so it is broadcast like any other.
+
+        ::
+
+            f(a,b) + g(b,c)  →  h(a,b,c) where h[a,b,c] = f[a,b] + g[b,c]
+        """
+        all_vars = _union_vars(self.variables, other.variables)
+        all_cards = {
+            v: (
+                self.card[self.variables.index(v)]
+                if v in self.variables
+                else other.card[other.variables.index(v)]
+            )
+            for v in all_vars
+        }
+
+        values: list[float] = []
+        union_lookup = {v: i for i, v in enumerate(all_vars)}
+        for assignment in _assignments(all_vars, all_cards):
+            s = self[_project(assignment, self.variables, union_lookup)]
+            o = other[_project(assignment, other.variables, union_lookup)]
+            values.append(s + o)
 
         return Factor(
             variables=all_vars,
