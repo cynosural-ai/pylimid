@@ -36,11 +36,12 @@ space does not depend on the information set's size, so adding or removing an
 information parent never invalidates it.
 
 The *solving* of decisions is partially implemented: **bucket elimination**
-(`decisionpy.inference.id`) gives exact optimal policies for all-categorical
-diagrams — the discrete case. Strategy B (intervention-scan, NumPyro) for the
-approximate path and Strategy A (policy-as-parameters) for continuous decisions
-remain planned. The node's representation is settled here; the solver options
-are what the sections below are about.
+([`bucket_elim.md`](../inference/bucket_elim.md), `decisionpy.inference.id`)
+gives exact optimal policies for all-categorical diagrams — the discrete case.
+Strategy B (intervention-scan, NumPyro) for the approximate path and Strategy A
+(policy-as-parameters) for continuous decisions remain planned. The node's
+representation is settled here; the solver options are what the sections below
+are about.
 
 ---
 
