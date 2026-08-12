@@ -60,6 +60,10 @@ class Factor:
         """
         Pointwise product, broadcasting over the union of variables.
 
+        An empty-scope factor is treated as the constant 1 (the multiplicative
+        identity). Contrast :meth:`__add__`, where an empty scope carries a
+        real value and is broadcast like any other factor.
+
         ::
 
             f(a,b) * g(b,c)  →  h(a,b,c) where h[a,b,c] = f[a,b] * g[b,c]
