@@ -102,8 +102,7 @@ def solve(snapshot: Snapshot) -> Solution:
 
     # 2. Eliminate in reverse topological order.
     policy: Policy = {}
-    for name in reversed(snapshot.order):
-        node = node_map[name]
+    for name, node in reversed(snapshot.nodes):
         if isinstance(node, UtilityNode):
             continue
         relevant = [f for f in probs if name in f.variables]
