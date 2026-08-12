@@ -11,6 +11,10 @@ The docs split into two kinds:
 - **Living design notes** — the current reference for *how* a part of the
   library behaves and why. They are updated as the code changes.
 
+`sessions/` holds dated session summaries — legacy only. They are historical
+records for context and are not updated as the code changes; the living design
+notes are the current source of truth.
+
 ## Decision records
 
 1. **[`16_07_2026 - initial plan`](./ADR/16_07_2026%20-%20initial%20plan.md)** —
