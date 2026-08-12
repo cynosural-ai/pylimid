@@ -75,10 +75,10 @@ def query(
     # 1. Build initial factor list (CPTs).
     #
     # VE is a chance-node engine (a discrete Bayesian network). ``cardinalities``
-    # above guarantees every node has ``states``, which only chance nodes can be —
-    # but the snapshot carries the ``Node`` base type, so narrow to ``ChanceNode``
-    # for the chance-specific CPT logic. This is a type narrowing, not a behavior
-    # change: a diagram with decisions / utilities routes to ``solve()``, not here.
+    # above guarantees every node has declared ``states``; the snapshot still
+    # carries the ``Node`` base type, so narrow to ``ChanceNode`` for the
+    # chance-specific CPT logic. This is a type narrowing, not a behavior change:
+    # a diagram with decisions / utilities routes to ``solve()``, not here.
     node_map: dict[str, ChanceNode] = {}
     for _name, node in snapshot.nodes:
         assert isinstance(node, ChanceNode)
