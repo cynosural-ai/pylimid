@@ -398,6 +398,25 @@ class InfluenceDiagram:
         """All node names in insertion order."""
         return tuple(self._nodes)
 
+    # --- rendering ----------------------------------------------------------
+
+    def to_mermaid(self) -> str:
+        """
+        Render the diagram as a Mermaid ``flowchart`` source string.
+
+        Deterministic (topological node order, declared parent order for
+        edges) and usable on the live workspace: no validation required, so
+        an incomplete diagram renders with dangling parents as dashed ghost
+        nodes and non-consistent nodes tinted via ``classDef``. See
+        :mod:`decisionpy.graph.mermaid`.
+
+        Returns:
+            Mermaid flowchart source; paste into a Mermaid renderer to view.
+        """
+        from decisionpy.graph.mermaid import to_mermaid
+
+        return to_mermaid(self)
+
     # --- internals ----------------------------------------------------------
 
     def _children_of(self, name: str) -> tuple[str, ...]:
