@@ -47,8 +47,8 @@ from __future__ import annotations
 
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import Snapshot
-from decisionpy.inference.utils.cpt import cardinalities, cpt
 from decisionpy.inference.utils.factor import Factor
+from decisionpy.inference.utils.factors import cardinalities, cpt
 
 __all__ = ["query"]
 

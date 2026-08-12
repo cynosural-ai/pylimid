@@ -14,7 +14,3 @@ Things still left to fix, collected during the review passes of the bucket-elimi
 5. **`UtilityNode.is_discrete` returns `False` as a routing proxy** — semantically "not a BN-engine input", not "not finite". Works today, but conflates two meanings; the first engine that reads `is_discrete` for its own purposes will trip on it.
 6. **`infer()` result format seam** — probability vectors for discrete, raw MCMC sample arrays for continuous. One return shape would be nicer; needs a design decision (e.g. always return probability vectors, or always return samples).
 7. **`docs/graph/decision_node.md` recommends Strategy B (intervention-scan) for v0** — the actual v0 solver is exact bucket elimination. The "Recommendation: B for v0" section still reads as the committed path; reconcile it with what was implemented (the solving-status wording is updated, the recommendation narrative is not).
-
-## Small nits
-
-8. **`inference/utils/cpt.py` name** — contains `cardinalities`, `cpt`, and `utility_factor`; the name undersells it. Consider `utils/factors.py` or similar if a rename comes up anyway.

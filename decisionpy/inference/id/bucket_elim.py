@@ -43,8 +43,8 @@ from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.diagram import Snapshot
 from decisionpy.graph.node import Node
 from decisionpy.graph.utility_node import UtilityNode
-from decisionpy.inference.utils.cpt import cardinalities, cpt, utility_factor
 from decisionpy.inference.utils.factor import Factor
+from decisionpy.inference.utils.factors import cardinalities, cpt, utility_factor
 
 __all__ = ["Policy", "Solution", "solve"]
 

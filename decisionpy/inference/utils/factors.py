@@ -1,5 +1,5 @@
 """
-CPT and utility-factor builders shared by the graph-native inference engines.
+Factor builders shared by the graph-native inference engines.
 
 Both variable elimination (``decisionpy.inference.ve``) and the
 influence-diagram solvers (``decisionpy.inference.id``) consume a validated
