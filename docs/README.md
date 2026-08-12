@@ -76,8 +76,8 @@ Read in this order:
 | Chance-node distribution form | Settled | `chance_node.md`             |
 | Decision-node representation | Settled — graph layer | `decision_node.md` |
 | Utility-node representation | Settled — graph layer | `utility_node.md` |
-| Decision-node solving strategy | Settled (v0 = B); implementation deferred | `decision_node.md` |
-| NumPyro translator   | v0 — chance-only, forward sampling | `backend_numpyro.md` |
+| Decision-node solving strategy | Settled — exact bucket elimination implemented; Strategy B (intervention-scan) planned for the NumPyro path | `decision_node.md` |
+| NumPyro translator   | Chance-only; forward sampling, conditional inference (MCMC/SVI) | `backend_numpyro.md` |
 | Inference strategy   | Settled — VE + Gibbs for discrete, NumPyro for mixed-type | `inference_strategy.md` |
 | Unified inference API | Settled — `infer()` / `solve()` with auto-dispatch | `ADR/23_07_2026_unified_inference_architecture.md` |
 | `from_cpt` sugar     | Deferred    | `chance_node.md` (resolved q)      |
