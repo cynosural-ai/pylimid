@@ -124,12 +124,21 @@ def _infer_numpyro(snapshot, query, observed) -> InferenceResult:
         )
         mcmc.run(jax.random.PRNGKey(0))
         posterior = mcmc.get_samples()
-        result = {}
-        for name in query:
-            if name in posterior:
-                result[name] = [float(x) for x in posterior[name]]
-            else:
-                result[name] = _infer_numpyro_discrete(model, snapshot, [name])[name]
+        result = {
+            name: [float(x) for x in posterior[name]]
+            for name in query
+            if name in posterior
+        }
+        discrete = [name for name in query if name not in result]
+        if discrete:
+            # Discrete marginals condition on the continuous posterior: hand
+            # the MCMC draws to Predictive so funsor samples the enumerated
+            # sites given them. A bare ``infer_discrete=True`` call cannot
+            # trace a model that still has unobserved continuous sites.
+            samples = Predictive(
+                model, posterior_samples=posterior, infer_discrete=True
+            )(jax.random.PRNGKey(0))
+            result.update(_discrete_marginals(samples, snapshot, discrete))
         return result
 
 
@@ -137,13 +146,16 @@ def _infer_numpyro_discrete(model, snapshot, query) -> InferenceResult:
     # ``infer_discrete=True`` makes Predictive sample the enumerated discrete
     # sites from their exact posterior (via funsor), in one vectorized pass —
     # the counterpart to a per-sample ``infer_discrete`` loop.
-    num_samples = 2000
-    samples = Predictive(model, num_samples=num_samples, infer_discrete=True)(
+    samples = Predictive(model, num_samples=2000, infer_discrete=True)(
         jax.random.PRNGKey(0)
     )
+    return _discrete_marginals(samples, snapshot, query)
 
+
+def _discrete_marginals(samples, snapshot, names) -> dict[str, list[float]]:
+    """Bincount discrete posterior samples into probability vectors."""
     result: dict[str, list[float]] = {}
-    for name in query:
+    for name in names:
         node = _find_node(snapshot, name)
         card = len(node.states)
         counts = jnp.bincount(samples[name], length=card)
