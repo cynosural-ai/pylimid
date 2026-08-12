@@ -6,11 +6,12 @@ Unified inference entry-point.
     from decisionpy.inference import infer
 
     result = infer(diagram, query=["rain"], observed={"wet_grass": 1})
-    # → {"rain": [0.456, 0.544]}  (exact posteriors for discrete BNs)
+    # → {"rain": Marginal(values=[0.456, 0.544], exact=True)}
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TypeAlias
 
 import jax.numpy as jnp
@@ -20,18 +21,47 @@ from decisionpy.graph.node import NodeKind
 from decisionpy.inference.numpyro import samples as numpyro_samples
 from decisionpy.inference.ve import query as ve_query
 
-__all__ = ["InferenceError", "InferenceResult", "infer"]
+__all__ = ["Draws", "InferenceError", "InferenceResult", "Marginal", "infer"]
 
 
 class InferenceError(Exception):
     """Asked for an inference method that cannot handle the given diagram."""
 
 
-#: Result of :func:`infer`: one entry per query variable. For a discrete
-#: variable (declared ``states``) the value is its posterior probability vector
-#: ``[P(0), P(1), ...]`` (summing to 1); for a continuous variable it is a list
-#: of posterior samples (MCMC draws).
-InferenceResult: TypeAlias = dict[str, list[float]]
+@dataclass(frozen=True)
+class Marginal:
+    """
+    Posterior over a discrete variable: a probability vector over its states.
+
+    Attributes:
+        values: ``[P(0), P(1), ...]`` — sums to 1.
+        exact: Whether ``values`` is exact (variable elimination) or a
+            Monte-Carlo estimate (numpyro enumeration/MCMC draws).
+    """
+
+    values: list[float]
+    exact: bool
+
+
+@dataclass(frozen=True)
+class Draws:
+    """
+    Posterior over a continuous variable: raw posterior draws.
+
+    A continuous variable has no per-state probability mass, so its result
+    is the raw sample list.
+
+    Attributes:
+        values: One posterior draw per entry.
+    """
+
+    values: list[float]
+
+
+#: Result of :func:`infer`: one entry per query variable. A discrete variable
+#: (declared ``states``) maps to a :class:`Marginal`; a continuous variable
+#: maps to a :class:`Draws`.
+InferenceResult: TypeAlias = dict[str, Marginal | Draws]
 
 
 def infer(
@@ -51,10 +81,10 @@ def infer(
         engine: ``"auto"`` (default), ``"ve"``, or ``"numpyro"``.
 
     Returns:
-        ``{var_name: values}`` — one entry per query variable. For a discrete
-        variable (declared ``states``) the value is its posterior probability
-        vector ``[P(0), P(1), ...]`` (summing to 1); for a continuous variable
-        it is a list of posterior samples (MCMC draws).
+        ``{var_name: result}`` — one entry per query variable. A discrete
+        variable (declared ``states``) maps to a :class:`Marginal` (its
+        probability vector, plus whether it is exact); a continuous variable
+        maps to a :class:`Draws` (raw posterior draws).
 
     Raises:
         InferenceError: If the chosen engine cannot handle the diagram.
@@ -95,17 +125,21 @@ def _choose_engine(snapshot) -> str:
 
 def _infer_ve(snapshot, query, observed) -> InferenceResult:
     try:
-        return ve_query(snapshot, variables=query, observed=observed)
+        vectors = ve_query(snapshot, variables=query, observed=observed)
     except TypeError as e:
         raise InferenceError(
             f"Variable elimination requires an all-discrete diagram. {e}"
         ) from e
+    return {
+        name: Marginal(values=values, exact=True) for name, values in vectors.items()
+    }
 
 
 def _infer_numpyro(snapshot, query, observed) -> InferenceResult:
     # ``samples()`` returns raw draws; ``infer()`` normalizes them to the
-    # per-type contract: probability vectors for discrete variables, plain
-    # lists of draws for continuous ones.
+    # per-type contract: a Marginal for discrete variables, raw Draws for
+    # continuous ones. NumPyro results are Monte-Carlo estimates (enumerated
+    # draws bincounted), never exact.
     draws = numpyro_samples(snapshot, observed=observed, query=query)
     result: InferenceResult = {}
     for name in query:
@@ -113,9 +147,9 @@ def _infer_numpyro(snapshot, query, observed) -> InferenceResult:
         if node.kind is NodeKind.CHANCE and node.is_discrete:
             counts = jnp.bincount(draws[name], length=len(node.states))
             probs = counts / counts.sum()
-            result[name] = [float(p) for p in probs]
+            result[name] = Marginal(values=[float(p) for p in probs], exact=False)
         else:
-            result[name] = [float(x) for x in draws[name]]
+            result[name] = Draws(values=[float(x) for x in draws[name]])
     return result
 
 

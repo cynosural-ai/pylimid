@@ -8,7 +8,7 @@ import pytest
 
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import InfluenceDiagram
-from decisionpy.inference import InferenceError, infer
+from decisionpy.inference import Draws, InferenceError, Marginal, infer
 from decisionpy.inference.ve import query as ve_query
 
 # --- helpers -----------------------------------------------------------------
@@ -67,7 +67,7 @@ def _mixed_diagram() -> InfluenceDiagram:
 def test_auto_discrete_dispatches_to_ve():
     result = infer(_rain_wet_grass(), ["rain"])
     expected = ve_query(_rain_wet_grass().snapshot(), variables=["rain"])
-    assert result["rain"] == pytest.approx(expected["rain"])
+    assert result["rain"] == Marginal(values=expected["rain"], exact=True)
 
 
 def test_auto_with_observed():
@@ -81,12 +81,12 @@ def test_auto_with_observed():
         variables=["rain"],
         observed={"wet_grass": 1},
     )
-    assert result["rain"] == pytest.approx(expected["rain"])
+    assert result["rain"] == Marginal(values=expected["rain"], exact=True)
 
 
 def test_auto_continuous_requires_numpyro():
     result = infer(_continuous_diagram(), ["x"], engine="numpyro")
-    assert "x" in result
+    assert isinstance(result["x"], Draws)
 
 
 # --- explicit engine selection -----------------------------------------------
@@ -95,7 +95,7 @@ def test_auto_continuous_requires_numpyro():
 def test_explicit_ve():
     result = infer(_rain_wet_grass(), ["wet_grass"], engine="ve")
     expected = ve_query(_rain_wet_grass().snapshot(), variables=["wet_grass"])
-    assert result["wet_grass"] == pytest.approx(expected["wet_grass"])
+    assert result["wet_grass"] == Marginal(values=expected["wet_grass"], exact=True)
 
 
 def test_explicit_numpyro_discrete():
@@ -106,12 +106,14 @@ def test_explicit_numpyro_discrete():
         engine="numpyro",
     )
     # P(rain=yes | wet_grass=wet) ≈ 0.543
-    assert result["rain"] == pytest.approx([0.457, 0.543], abs=0.04)
+    assert result["rain"].values == pytest.approx([0.457, 0.543], abs=0.04)
+    assert isinstance(result["rain"], Marginal)
+    assert result["rain"].exact is False
 
 
 def test_explicit_numpyro_prior():
     result = infer(_rain_wet_grass(), ["rain"], engine="numpyro")
-    assert result["rain"] == pytest.approx([0.8, 0.2], abs=0.04)
+    assert result["rain"].values == pytest.approx([0.8, 0.2], abs=0.04)
 
 
 # --- result format -----------------------------------------------------------
@@ -124,37 +126,50 @@ def test_result_keys_match_query():
 
 def test_probabilities_sum_to_one():
     result = infer(_rain_wet_grass(), ["rain", "wet_grass"])
-    assert sum(result["rain"]) == pytest.approx(1.0)
-    assert sum(result["wet_grass"]) == pytest.approx(1.0)
+    assert sum(result["rain"].values) == pytest.approx(1.0)
+    assert sum(result["wet_grass"].values) == pytest.approx(1.0)
 
 
 def test_probabilities_sum_to_one_with_observed():
     result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1})
-    assert sum(result["rain"]) == pytest.approx(1.0)
+    assert sum(result["rain"].values) == pytest.approx(1.0)
 
 
 def test_engine_choice_does_not_change_result_shape():
-    """Discrete queries are probability vectors no matter which engine runs."""
+    """Discrete queries are Marginals no matter which engine runs."""
     ve_result = infer(_rain_wet_grass(), ["rain"], engine="ve")
     np_result = infer(_rain_wet_grass(), ["rain"], engine="numpyro")
-    assert len(ve_result["rain"]) == len(np_result["rain"]) == 2
-    assert sum(np_result["rain"]) == pytest.approx(1.0)
-    assert all(isinstance(p, float) for p in np_result["rain"])
+    assert isinstance(ve_result["rain"], Marginal)
+    assert isinstance(np_result["rain"], Marginal)
+    assert len(ve_result["rain"].values) == len(np_result["rain"].values) == 2
+    assert sum(np_result["rain"].values) == pytest.approx(1.0)
+    assert all(isinstance(p, float) for p in np_result["rain"].values)
 
 
-def test_continuous_returns_samples():
-    """Continuous queries return raw posterior samples, not probabilities."""
+def test_engine_choice_changes_exactness():
+    """The ``exact`` flag carries what the engine name would have told you."""
+    ve_result = infer(_rain_wet_grass(), ["rain"], engine="ve")
+    np_result = infer(_rain_wet_grass(), ["rain"], engine="numpyro")
+    assert ve_result["rain"].exact is True
+    assert np_result["rain"].exact is False
+
+
+def test_continuous_returns_draws():
+    """Continuous queries return Draws, not probabilities."""
     result = infer(_continuous_diagram(), ["x"], engine="numpyro")
-    assert len(result["x"]) == 2000  # raw MCMC draws
-    assert sum(result["x"]) != pytest.approx(1.0)  # not probabilities
+    assert isinstance(result["x"], Draws)
+    assert len(result["x"].values) == 2000  # raw MCMC draws
+    assert sum(result["x"].values) != pytest.approx(1.0)  # not probabilities
 
 
 def test_mixed_result_shape_follows_variable_type():
-    """Discrete queries return probability vectors; continuous return samples."""
+    """Discrete queries return Marginals; continuous return Draws."""
     result = infer(_mixed_diagram(), ["rain", "temp"], engine="numpyro")
-    assert sum(result["rain"]) == pytest.approx(1.0)  # probability vector
-    assert len(result["temp"]) == 2000  # raw MCMC draws
-    assert sum(result["temp"]) != pytest.approx(1.0)  # not probabilities
+    assert isinstance(result["rain"], Marginal)
+    assert sum(result["rain"].values) == pytest.approx(1.0)  # probability vector
+    assert isinstance(result["temp"], Draws)
+    assert len(result["temp"].values) == 2000  # raw MCMC draws
+    assert sum(result["temp"].values) != pytest.approx(1.0)  # not probabilities
 
 
 # --- errors ------------------------------------------------------------------
