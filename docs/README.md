@@ -27,6 +27,10 @@ The docs split into two kinds:
    `solve`) and auto-dispatch across graph-native and PPL engines. Retires the
    separate `backend/` directory.
 
+4. **[`13_08_2026_typed_inference_results.md`](./ADR/13_08_2026_typed_inference_results.md)**
+   — commits `infer()` to typed per-entry results: `Marginal(values, exact)`
+   for discrete variables, `Draws(values)` for continuous ones.
+
 ## Living design notes
 
 Read in this order:
@@ -86,6 +90,7 @@ Read in this order:
 | NumPyro translator   | Chance-only; `samples()` — forward sampling and posterior inference (enumeration / NUTS) | `backend_numpyro.md` |
 | Inference strategy   | Settled — VE + Gibbs for discrete, NumPyro for mixed-type | `inference_strategy.md` |
 | Unified inference API | Settled — `infer()` / `solve()` with auto-dispatch | `ADR/23_07_2026_unified_inference_architecture.md` |
+| `infer()` result format | Settled — typed per-entry results (`Marginal` / `Draws`) | `ADR/13_08_2026_typed_inference_results.md` |
 | `from_cpt` sugar     | Deferred    | `chance_node.md` (resolved q)      |
 | Parametric learning (`fit`) | Deferred | `diagram.md`                 |
 
@@ -115,8 +120,8 @@ Read in this order:
   NumPyro is a declared dependency, though nothing in `decisionpy.graph`
   imports it.
 - `inference/engine.py` — unified `infer()` entry-point with auto-dispatch,
-  normalizing engine outputs to the per-type contract (probability vectors
-  for discrete variables, raw draws for continuous).
+  returning typed per-entry results: `Marginal(values, exact)` for discrete
+  variables, `Draws(values)` for continuous ones.
 - Planned: `solve()` wiring in `engine.py` (intervention-scan / policy
   optimization — see `decision_node.md`); Gibbs sampling under `inference/`.
 
