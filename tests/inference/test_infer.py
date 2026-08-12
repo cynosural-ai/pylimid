@@ -133,6 +133,15 @@ def test_probabilities_sum_to_one_with_observed():
     assert sum(result["rain"]) == pytest.approx(1.0)
 
 
+def test_engine_choice_does_not_change_result_shape():
+    """Discrete queries are probability vectors no matter which engine runs."""
+    ve_result = infer(_rain_wet_grass(), ["rain"], engine="ve")
+    np_result = infer(_rain_wet_grass(), ["rain"], engine="numpyro")
+    assert len(ve_result["rain"]) == len(np_result["rain"]) == 2
+    assert sum(np_result["rain"]) == pytest.approx(1.0)
+    assert all(isinstance(p, float) for p in np_result["rain"])
+
+
 def test_continuous_returns_samples():
     """Continuous queries return raw posterior samples, not probabilities."""
     result = infer(_continuous_diagram(), ["x"], engine="numpyro")

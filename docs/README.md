@@ -57,8 +57,9 @@ Read in this order:
 
 5. **[`backend_numpyro.md`](./backend_numpyro.md)** — the NumPyro translator:
    turns a validated `Snapshot` into a NumPyro model. Chance nodes only in v0
-   (a Bayesian network), forward / prior-predictive sampling. NumPyro is a
-   declared dependency, though the graph layer itself never imports it.
+   (a Bayesian network); `samples()` covers both forward sampling and
+   posterior inference (exact enumeration / NUTS). NumPyro is a declared
+   dependency, though the graph layer itself never imports it.
 
 6. **[`inference_strategy.md`](./inference_strategy.md)** — analysis of
    inference backends for the full influence diagram roadmap: variable
@@ -82,7 +83,7 @@ Read in this order:
 | Decision-node representation | Settled — graph layer | `decision_node.md` |
 | Utility-node representation | Settled — graph layer | `utility_node.md` |
 | Decision-node solving strategy | Settled — exact bucket elimination implemented; Strategy B (intervention-scan) planned for the NumPyro path | `decision_node.md`, `bucket_elim.md` |
-| NumPyro translator   | Chance-only; forward sampling, conditional inference (MCMC/SVI) | `backend_numpyro.md` |
+| NumPyro translator   | Chance-only; `samples()` — forward sampling and posterior inference (enumeration / NUTS) | `backend_numpyro.md` |
 | Inference strategy   | Settled — VE + Gibbs for discrete, NumPyro for mixed-type | `inference_strategy.md` |
 | Unified inference API | Settled — `infer()` / `solve()` with auto-dispatch | `ADR/23_07_2026_unified_inference_architecture.md` |
 | `from_cpt` sugar     | Deferred    | `chance_node.md` (resolved q)      |
@@ -102,15 +103,20 @@ Read in this order:
 - `graph/diagram.py` — the mutable container, `Snapshot`, and validation
   (see `diagram.md`). Exports `Node`, `NodeKind`, `Consistency`, and the three
   node types from `decisionpy.graph`.
-- `inference/ve/` — exact discrete inference via variable elimination
+- `inference/ve/` — exact discrete inference via variable elimination:
+  public `query()` returning exact probability vectors
   (see `inference_strategy.md`).
 - `inference/id/` — exact influence-diagram solving via bucket elimination:
   optimal discrete policies (`solve()` core) for all-categorical LIMIDs,
   numpy-only (see `bucket_elim.md`).
 - `inference/numpyro/` — NumPyro bridge: translates a `Snapshot` into a NumPyro
-  model, with forward sampling, MCMC, and SVI helpers. NumPyro is a declared
-  dependency, though nothing in `decisionpy.graph` imports it.
-- `inference/engine.py` — unified ``infer()`` entry-point with auto-dispatch.
+  model, with public `samples()` — prior draws with no observations, posterior
+  draws (exact enumeration / NUTS) with observations, as raw JAX arrays.
+  NumPyro is a declared dependency, though nothing in `decisionpy.graph`
+  imports it.
+- `inference/engine.py` — unified `infer()` entry-point with auto-dispatch,
+  normalizing engine outputs to the per-type contract (probability vectors
+  for discrete variables, raw draws for continuous).
 - Planned: `solve()` wiring in `engine.py` (intervention-scan / policy
   optimization — see `decision_node.md`); Gibbs sampling under `inference/`.
 

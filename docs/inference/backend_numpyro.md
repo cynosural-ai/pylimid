@@ -35,7 +35,9 @@ prior = Predictive(model, num_samples=10_000)(jax.random.PRNGKey(0))
 ```
 
 `Predictive` with no posterior samples draws from the **prior** (forward /
-prior-predictive sampling). That is the v0 capability.
+prior-predictive sampling). The public `samples()` entry point wraps this:
+`samples(snapshot)` forward-samples, and `samples(snapshot, observed=...)`
+runs posterior inference and returns one JAX array per node.
 
 ---
 
@@ -52,13 +54,16 @@ only importing `decisionpy.inference` does.
 
 **In scope:**
 - Chance nodes only (a Bayesian network).
-- Forward / prior-predictive sampling, via `Predictive`.
+- Forward / prior-predictive sampling: `samples(snapshot)` with no
+  `observed` — direct, independent draws.
+- Posterior inference: `samples(snapshot, observed=...)`. When every latent
+  node is discrete, the posterior is drawn by exact discrete enumeration in
+  one vectorized pass; otherwise NUTS samples the continuous latents (with
+  the discrete ones enumerated out) and a conditional pass resamples the
+  discrete latents given the continuous draws. The returned dict covers
+  every node; observed nodes appear as their clamped values.
 
 **Deliberately deferred:**
-- **Posterior inference** (NUTS / SVI over continuous latents given
-  observations). Forward sampling is what decision solving (Strategy B in
-  [`decision_node.md`](./decision_node.md)) builds on; posterior inference is a
-  later capability with real algorithm choices to commit to.
 - **Decision and utility nodes.** The translator remains chance-node only
   (it narrows every node to `ChanceNode`); a diagram with decisions or
   utilities routes to `solve()` / the `id` solvers, not here.

@@ -9,10 +9,10 @@ import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
 import pytest
-from numpyro.infer import MCMC, NUTS, Predictive
 
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import InfluenceDiagram
+from decisionpy.inference.numpyro import samples
 from decisionpy.inference.numpyro.model import to_model
 
 # --- helpers ----------------------------------------------------------------
@@ -111,19 +111,18 @@ def test_topological_order_respected() -> None:
     assert set(trace.keys()) == {"rain", "wet_grass"}
 
 
-# --- forward sampling (the end-to-end proof) --------------------------------
+# --- prior (forward) sampling -------------------------------------------------
 
 
-def test_forward_sample_returns_named_sites() -> None:
-    """Predictive produces one array per node, keyed by node name."""
-    model = to_model(_rain_wet_grass_diagram().snapshot())
-    samples = Predictive(model, num_samples=1000)(jax_random_key())
-    assert set(samples.keys()) == {"rain", "wet_grass"}
-    assert samples["rain"].shape == (1000,)
-    assert samples["wet_grass"].shape == (1000,)
+def test_samples_prior_returns_named_sites() -> None:
+    """samples() with no observations returns one array per node."""
+    draws = samples(_rain_wet_grass_diagram().snapshot(), num_samples=1000)
+    assert set(draws.keys()) == {"rain", "wet_grass"}
+    assert draws["rain"].shape == (1000,)
+    assert draws["wet_grass"].shape == (1000,)
 
 
-def test_forward_sample_marginal_matches_handcomputed() -> None:
+def test_samples_prior_marginal_matches_handcomputed() -> None:
     """
     Empirical marginals match the hand-computed values.
 
@@ -134,19 +133,18 @@ def test_forward_sample_marginal_matches_handcomputed() -> None:
 
     Forward sampling must reproduce both within sampling tolerance.
     """
-    model = to_model(_rain_wet_grass_diagram().snapshot())
-    samples = Predictive(model, num_samples=20_000)(jax_random_key())
+    draws = samples(_rain_wet_grass_diagram().snapshot(), num_samples=20_000)
 
     # rain: index 1 == 'yes'. Prior P(yes) = 0.2.
-    p_rain_yes = float(jnp.mean(samples["rain"] == 1))
+    p_rain_yes = float(jnp.mean(draws["rain"] == 1))
     # wet_grass: index 1 == 'wet'. Hand-computed P(wet) = 0.35.
-    p_wet = float(jnp.mean(samples["wet_grass"] == 1))
+    p_wet = float(jnp.mean(draws["wet_grass"] == 1))
 
     assert p_rain_yes == pytest.approx(0.2, abs=0.02)
     assert p_wet == pytest.approx(0.35, abs=0.02)
 
 
-def test_forward_sample_continuous_root() -> None:
+def test_samples_prior_continuous_root() -> None:
     """A continuous root node samples to plausible support, not indices."""
     diag = InfluenceDiagram()
     diag.add_node(
@@ -155,94 +153,66 @@ def test_forward_sample_continuous_root() -> None:
             dist=lambda: dist.Normal(loc=170.0, scale=5.0),
         )
     )
-    model = to_model(diag.snapshot())
-    samples = Predictive(model, num_samples=20_000)(jax_random_key())
-    heights = samples["height"]
+    draws = samples(diag.snapshot(), num_samples=20_000)
+    heights = draws["height"]
     assert heights.shape == (20_000,)
     assert float(jnp.mean(heights)) == pytest.approx(170.0, abs=0.5)
     assert float(jnp.std(heights)) == pytest.approx(5.0, abs=0.5)
 
 
-# --- posterior inference helpers -------------------------------------------
+def test_samples_query_subset() -> None:
+    """query= returns only the requested nodes."""
+    draws = samples(
+        _rain_wet_grass_diagram().snapshot(),
+        query=["rain"],
+        num_samples=100,
+    )
+    assert set(draws.keys()) == {"rain"}
 
 
-def _posterior_samples(
-    model: Any,
-    *,
-    num_samples: int = 2000,
-    base_seed: int = 0,
-) -> dict[str, Any]:
+def test_samples_rng_key_is_deterministic() -> None:
+    """The same rng_key reproduces the same draws."""
+    snapshot = _rain_wet_grass_diagram().snapshot()
+    a = samples(snapshot, num_samples=100, rng_key=jax.random.PRNGKey(7))
+    b = samples(snapshot, num_samples=100, rng_key=jax.random.PRNGKey(7))
+    assert set(a.keys()) == set(b.keys())
+    for name in a:
+        assert jnp.array_equal(a[name], b[name])
+
+
+# --- posterior: discrete enumeration -----------------------------------------
+
+
+def test_samples_posterior_discrete_with_observation() -> None:
     """
-    Collect posterior samples for a model with enumerated discrete latents.
-
-    ``Predictive(..., infer_discrete=True)`` samples the enumerated discrete
-    sites from their exact posterior (funsor), in one vectorized pass — the
-    counterpart to a per-sample ``infer_discrete`` tracing loop. Returns a
-    dict mapping site name to a 1-D JAX array of ``num_samples`` values.
-    """
-    predictive = Predictive(model, num_samples=num_samples, infer_discrete=True)
-    return predictive(jax.random.PRNGKey(base_seed))
-
-
-# --- posterior inference: discrete ------------------------------------------
-
-
-def test_posterior_discrete_with_observation() -> None:
-    """
-    infer_discrete recovers exact posterior on rain given wet_grass=wet.
+    Enumeration recovers the exact posterior on rain given wet_grass=wet.
 
     Hand-computed:
         P(rain=yes | wet) = P(wet|yes)*P(yes) / P(wet)
                           = 0.95 * 0.2 / 0.35 ≈ 0.543
     """
-    model = to_model(
+    draws = samples(
         _rain_wet_grass_diagram().snapshot(),
-        observed={"wet_grass": jnp.array(1)},
+        observed={"wet_grass": 1},
+        num_samples=2000,
     )
-    samples = _posterior_samples(model, num_samples=2000)
-    p_rain_yes = float(jnp.mean(samples["rain"] == 1))
+    p_rain_yes = float(jnp.mean(draws["rain"] == 1))
     assert p_rain_yes == pytest.approx(0.543, abs=0.03)
 
 
-def test_posterior_discrete_all_latent_with_default_observed() -> None:
-    """Forward sampling still works when observed=None (the default)."""
-    model = to_model(_rain_wet_grass_diagram().snapshot())
-    samples = Predictive(model, num_samples=500)(jax_random_key())
-    assert set(samples.keys()) == {"rain", "wet_grass"}
-
-
-# --- posterior inference: continuous ----------------------------------------
-
-
-def test_posterior_continuous_hierarchical() -> None:
-    """
-    MCMC recovers mu posterior given height observation.
-
-    Model: mu ~ Normal(0, 10); height ~ Normal(mu, 5). Observe height=175.
-    Posterior: mu ~ Normal(175 * 100 / (100+25), sqrt(1/(1/100 + 1/25)))
-             = Normal(140, ~4.47)
-    """
-    model = to_model(
-        _continuous_hierarchical_diagram().snapshot(),
-        observed={"height": jnp.array(175.0)},
+def test_samples_returns_observed_sites_clamped() -> None:
+    """Observed nodes appear in the draws as their clamped value."""
+    draws = samples(
+        _rain_wet_grass_diagram().snapshot(),
+        observed={"wet_grass": 1},
+        num_samples=200,
     )
-    mcmc = MCMC(
-        NUTS(model),
-        num_warmup=500,
-        num_samples=2000,
-        progress_bar=False,
-    )
-    mcmc.run(jax_random_key())
-    posterior = mcmc.get_samples()
-
-    mu_samples = posterior["mu"]
-    assert mu_samples.shape == (2000,)
-    # Normal-Normal conjugate: posterior mean = 140, posterior std ≈ 4.47
-    assert float(jnp.mean(mu_samples)) == pytest.approx(140.0, abs=1.0)
-    assert float(jnp.std(mu_samples)) == pytest.approx(4.47, abs=0.5)
+    assert set(draws.keys()) == {"rain", "wet_grass"}
+    assert draws["wet_grass"].shape == (200,)
+    assert bool(jnp.all(draws["wet_grass"] == 1))
 
 
-def test_posterior_mixed_discrete_continuous() -> None:
+def test_samples_posterior_mixed_discrete_continuous() -> None:
     """
     Mixed BN: rain (discrete) -> height (continuous).
 
@@ -259,8 +229,8 @@ def test_posterior_mixed_discrete_continuous() -> None:
 
     P(yes|175) ≈ 0.0798*0.2 / (0.0798*0.2 + 0.0484*0.8) ≈ 0.292
 
-    The discrete node is auto-detected and enumerated. Predictive with
-    parallel=True computes the exact posterior over the enumerated latent.
+    Every latent node is discrete, so this takes the exact enumeration path
+    (the observed continuous site is clamped).
     """
     diag = InfluenceDiagram()
     diag.add_node(
@@ -279,10 +249,84 @@ def test_posterior_mixed_discrete_continuous() -> None:
             ),
         )
     )
-    model = to_model(diag.snapshot(), observed={"height": jnp.array(175.0)})
-    samples = _posterior_samples(model, num_samples=2000)
-    p_rain_yes = float(jnp.mean(samples["rain"] == 1))
+    draws = samples(
+        diag.snapshot(),
+        observed={"height": jnp.array(175.0)},
+        num_samples=2000,
+    )
+    p_rain_yes = float(jnp.mean(draws["rain"] == 1))
     assert p_rain_yes == pytest.approx(0.292, abs=0.03)
+
+
+# --- posterior: MCMC ---------------------------------------------------------
+
+
+def test_samples_posterior_continuous_hierarchical() -> None:
+    """
+    MCMC recovers the mu posterior given a height observation.
+
+    Model: mu ~ Normal(0, 10); height ~ Normal(mu, 5). Observe height=175.
+    Posterior: mu ~ Normal(175 * 100 / (100+25), sqrt(1/(1/100 + 1/25)))
+             = Normal(140, ~4.47)
+    """
+    draws = samples(
+        _continuous_hierarchical_diagram().snapshot(),
+        observed={"height": jnp.array(175.0)},
+        num_samples=2000,
+    )
+    mu_samples = draws["mu"]
+    assert mu_samples.shape == (2000,)
+    # Normal-Normal conjugate: posterior mean = 140, posterior std ≈ 4.47
+    assert float(jnp.mean(mu_samples)) == pytest.approx(140.0, abs=1.0)
+    assert float(jnp.std(mu_samples)) == pytest.approx(4.47, abs=0.5)
+
+
+def test_samples_posterior_mcmc_resamples_discrete() -> None:
+    """
+    The MCMC path resamples discrete latents and covers every node.
+
+    rain (discrete) -> bias (continuous) -> height (observed). NUTS samples
+    ``bias`` (the only continuous latent); the conditional pass resamples
+    ``rain`` given each bias draw. The returned dict covers all three nodes.
+
+    Observing height=175 favors bias≈0 and therefore rain=no (bias mean 0)
+    over rain=yes (bias mean 2).
+    """
+    diag = InfluenceDiagram()
+    diag.add_node(
+        ChanceNode(
+            name="rain",
+            states=("no", "yes"),
+            dist=lambda: dist.Categorical(probs=jnp.array([0.5, 0.5])),
+        )
+    )
+    diag.add_node(
+        ChanceNode(
+            name="bias",
+            parents=("rain",),
+            dist=lambda rain: dist.Normal(
+                loc=jnp.where(rain == 0, 0.0, 2.0), scale=1.0
+            ),
+        )
+    )
+    diag.add_node(
+        ChanceNode(
+            name="height",
+            parents=("bias",),
+            dist=lambda bias: dist.Normal(loc=175.0 + bias, scale=1.0),
+        )
+    )
+    draws = samples(
+        diag.snapshot(),
+        observed={"height": jnp.array(175.0)},
+        num_samples=500,
+        num_warmup=300,
+    )
+    assert set(draws.keys()) == {"rain", "bias", "height"}
+    assert draws["rain"].shape == (500,)
+    assert draws["bias"].shape == (500,)
+    assert bool(jnp.all(draws["height"] == 175.0))
+    assert float(jnp.mean(draws["rain"] == 1)) < 0.5
 
 
 # --- small driver helpers ---------------------------------------------------
