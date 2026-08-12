@@ -10,4 +10,8 @@ Public API::
 See :mod:`decisionpy.inference.engine` for the full dispatch logic.
 """
 
-from decisionpy.inference.engine import InferenceError, infer  # noqa: F401
+from decisionpy.inference.engine import (  # noqa: F401
+    InferenceError,
+    InferenceResult,
+    infer,
+)

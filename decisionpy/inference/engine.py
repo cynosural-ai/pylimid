@@ -11,6 +11,8 @@ Unified inference entry-point.
 
 from __future__ import annotations
 
+from typing import TypeAlias
+
 import jax
 import jax.numpy as jnp
 from numpyro.infer import MCMC, NUTS, Predictive
@@ -20,11 +22,18 @@ from decisionpy.graph.node import NodeKind
 from decisionpy.inference.numpyro.model import to_model
 from decisionpy.inference.ve import query as ve_query
 
-__all__ = ["InferenceError", "infer"]
+__all__ = ["InferenceError", "InferenceResult", "infer"]
 
 
 class InferenceError(Exception):
     """Asked for an inference method that cannot handle the given diagram."""
+
+
+#: Result of :func:`infer`: one entry per query variable. For a discrete
+#: variable (declared ``states``) the value is its posterior probability vector
+#: ``[P(0), P(1), ...]`` (summing to 1); for a continuous variable it is a list
+#: of posterior samples (MCMC draws).
+InferenceResult: TypeAlias = dict[str, list[float]]
 
 
 def infer(
@@ -33,7 +42,7 @@ def infer(
     *,
     observed: dict[str, int] | None = None,
     engine: str = "auto",
-) -> dict[str, list[float]]:
+) -> InferenceResult:
     """
     Compute posterior marginals for *query* variables given *observed* evidence.
 
@@ -44,8 +53,10 @@ def infer(
         engine: ``"auto"`` (default), ``"ve"``, or ``"numpyro"``.
 
     Returns:
-        ``{var_name: [P(0), P(1), ...]}`` — one probability vector per query
-        variable. Probabilities sum to 1.
+        ``{var_name: values}`` — one entry per query variable. For a discrete
+        variable (declared ``states``) the value is its posterior probability
+        vector ``[P(0), P(1), ...]`` (summing to 1); for a continuous variable
+        it is a list of posterior samples (MCMC draws).
 
     Raises:
         InferenceError: If the chosen engine cannot handle the diagram.
@@ -84,7 +95,7 @@ def _choose_engine(snapshot) -> str:
 # -- engine backends ----------------------------------------------------------
 
 
-def _infer_ve(snapshot, query, observed) -> dict[str, list[float]]:
+def _infer_ve(snapshot, query, observed) -> InferenceResult:
     try:
         return ve_query(snapshot, variables=query, observed=observed)
     except TypeError as e:
@@ -93,7 +104,7 @@ def _infer_ve(snapshot, query, observed) -> dict[str, list[float]]:
         ) from e
 
 
-def _infer_numpyro(snapshot, query, observed) -> dict[str, list[float]]:
+def _infer_numpyro(snapshot, query, observed) -> InferenceResult:
     # The vectorized discrete path applies only to a pure discrete BN: a node
     # counts as discrete engine input only if it is a chance node (utility
     # nodes have no domain — classify by kind, not ``is_discrete``).
@@ -122,7 +133,7 @@ def _infer_numpyro(snapshot, query, observed) -> dict[str, list[float]]:
         return result
 
 
-def _infer_numpyro_discrete(model, snapshot, query) -> dict[str, list[float]]:
+def _infer_numpyro_discrete(model, snapshot, query) -> InferenceResult:
     # ``infer_discrete=True`` makes Predictive sample the enumerated discrete
     # sites from their exact posterior (via funsor), in one vectorized pass —
     # the counterpart to a per-sample ``infer_discrete`` loop.
