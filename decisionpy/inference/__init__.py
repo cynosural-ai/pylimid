@@ -7,7 +7,7 @@ Public API::
 
     result = infer(diagram, query=["rain"], observed={"wet_grass": 1})
 
-See :mod:`decisionpy.inference._api` for the full dispatch logic.
+See :mod:`decisionpy.inference.engine` for the full dispatch logic.
 """
 
 from decisionpy.inference.engine import InferenceError, infer  # noqa: F401
