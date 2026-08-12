@@ -17,10 +17,15 @@ tinted via ``classDef`` so a reader sees at a glance where the diagram is
 unfinished.
 """
 
-import re
+from __future__ import annotations
 
-from decisionpy.graph.diagram import InfluenceDiagram
+import re
+from typing import TYPE_CHECKING
+
 from decisionpy.graph.node import Consistency, NodeKind
+
+if TYPE_CHECKING:
+    from decisionpy.graph.diagram import InfluenceDiagram
 
 _SHAPES: dict[NodeKind, tuple[str, str]] = {
     NodeKind.CHANCE: ("((", "))"),

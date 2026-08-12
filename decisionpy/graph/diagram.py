@@ -41,6 +41,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from decisionpy.graph.chance_node import ChanceNode, DistFactory
+from decisionpy.graph.mermaid import to_mermaid
 from decisionpy.graph.node import Consistency, Node
 
 
@@ -413,8 +414,6 @@ class InfluenceDiagram:
         Returns:
             Mermaid flowchart source; paste into a Mermaid renderer to view.
         """
-        from decisionpy.graph.mermaid import to_mermaid
-
         return to_mermaid(self)
 
     # --- internals ----------------------------------------------------------
