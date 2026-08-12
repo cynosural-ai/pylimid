@@ -1,4 +1,4 @@
-"""Tests for :mod:`decisionpy.inference.variable_elim`."""
+"""Tests for :mod:`decisionpy.inference.ve`."""
 
 from __future__ import annotations
 
