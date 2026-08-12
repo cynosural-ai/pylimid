@@ -70,7 +70,7 @@ def to_model(
     def model() -> dict[str, Any]:
         values: dict[str, Any] = {}
         for name, node in nodes:
-            # This translator is chance-node only (see docs/backend_numpyro.md).
+            # This translator is chance-node only.
             # The snapshot carries the ``Node`` base type; narrow to ``ChanceNode``
             # for the ``dist`` field. A diagram with decisions / utilities is not a
             # valid input to this translator.
