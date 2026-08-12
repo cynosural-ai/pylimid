@@ -92,32 +92,47 @@ with the highest EU wins.
 | Main difficulty     | gradient of `E[U]` w.r.t. policy — SVI's ELBO framing does not directly fit EU maximization, so a custom loss around `jax.grad` + trace is required | exponential blow-up in (#decisions × action-space) |
 | Verifiability       | hard to tell convergence from correctness | trivially correct — EU measured per action |
 
+The exact graph-native alternative to both — **bucket elimination**
+([`bucket_elim.md`](../inference/bucket_elim.md), `decisionpy.inference.id`) — is
+the solver that actually landed for v0: same factor machinery as variable
+elimination, exact optimal policies for all-categorical diagrams, numpy-only.
+
 ---
 
-## Recommendation: B for v0, abstract the node so A drops in later
+## Recommendation: exact bucket elimination for v0; B as the NumPyro path
 
-Reasons:
+The v0 solver is bucket elimination, not intervention-scan. It satisfies the
+same criteria that originally motivated Strategy B, with one extra win:
 
 1. **Verifiable.** For a 1–2 decision discrete diagram the answer can be
    computed by hand and compared. A wrong result under A could be a bug *or*
-   a non-converged optimizer — hard to debug early.
+   a non-converged optimizer — hard to debug early. Bucket elimination is
+   exact, and the implementation is cross-validated against pyAgrum's exact
+   LIMID solver.
 2. **Sidesteps the genuinely hard part** — the expected-utility gradient.
    Doing it correctly (score-function estimator, baseline subtraction,
-   reparameterization when available) is real work that is not needed on
-   day one.
-3. **Maps 1:1 onto NumPyro primitives** built for exactly this: `handlers.do`
-   for interventions, `Predictive` for Monte-Carlo EU.
+   reparameterization when available) is real work that is not needed for the
+   exact discrete case: elimination is pure sum/max algebra over factors.
+3. **Zero dependencies beyond numpy** — the graph-native counterpart to
+   variable elimination, exact where Strategy B is Monte-Carlo.
 
-Crucially, B commits only to the *solver*, not to the *node abstraction*. A
-`DecisionNode` declares "I have these possible actions / this support, and
-these parents I can observe." Whether the solver scans interventions or
-optimizes a policy is a solve-time choice. So committing to B for v0 does not
-lock out A — and that separation is exactly the pluggable-backend design from
-the initial plan.
+Strategy B (intervention-scan) remains the plan for the NumPyro path: it maps
+1:1 onto `numpyro.handlers.do` for interventions and `Predictive` for
+Monte-Carlo EU, and it is the step toward mixed/continuous decisions, where
+exact elimination cannot go (see below). Strategy A (policy-as-parameters)
+stays deferred until continuous decisions are in scope.
 
-Risk: B only works well while decisions are discrete and few. A continuous
-decision ("how much to invest") breaks enumeration and *requires* A. So B is
-a genuine v0, not a permanent answer — but it sits behind the same abstraction.
+Crucially, whichever solver runs, it commits only to the *algorithm*, not to
+the *node abstraction*. A `DecisionNode` declares "I have these possible
+actions / this support, and these parents I can observe." Whether the solver
+eliminates buckets, scans interventions, or optimizes a policy is a solve-time
+choice — the pluggable-backend design from the initial plan.
+
+Risks: bucket elimination is exponential in treewidth and requires an
+all-categorical diagram; B handles arbitrary discrete structures but only well
+while decisions are discrete and few; a continuous decision ("how much to
+invest") breaks both and *requires* A. All three sit behind the same
+abstraction.
 
 ---
 
