@@ -19,6 +19,9 @@ and annotated with ``infer={"enumerate": "parallel"}`` so that NumPyro's NUTS
 and SVI engines can marginalise them out. Observed discrete nodes skip
 enumeration (the value is clamped).
 
+Bound decisions (clamped by a policy) become degenerate observed sites; utility
+nodes are skipped — a payoff is never sampled and is never a parent.
+
 Forward / prior-predictive sampling: pass ``observed=None`` (the default) and
 feed the model to ``Predictive``.
 """
@@ -29,9 +32,12 @@ from collections.abc import Callable
 from typing import Any
 
 import numpyro
+import numpyro.distributions as dist
 
 from decisionpy.graph.chance_node import ChanceNode
+from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.diagram import Snapshot
+from decisionpy.graph.utility_node import UtilityNode
 
 __all__ = ["to_model"]
 
@@ -45,20 +51,33 @@ def to_model(
 
     The returned ``model()`` walks the snapshot's nodes in topological order
     (parents before children — guaranteed by the snapshot), resolves each node's
-    parents by name against the upstream sampled values, calls the node's
-    ``dist`` factory, and emits one ``numpyro.sample`` site per node.
+    parents by name against the upstream sampled values, and emits one
+    ``numpyro.sample`` site per chance node.
 
-    Unobserved discrete nodes are auto-detected and annotated with
+    Unobserved discrete chance nodes are auto-detected and annotated with
     ``infer={"enumerate": "parallel"}`` so that NUTS and SVI can marginalise
     them out. Observed nodes skip enumeration and are clamped via ``obs=``.
     Continuous nodes are left for the inference engine.
 
+    A decision node becomes a degenerate observed site at its bound value —
+    every decision must appear in *observed* (``infer(policy=...)`` merges the
+    policy there). A utility node is skipped entirely.
+
+    Note:
+        Under NumPyro's parallel enumeration, the parent values passed to a
+        ``dist`` callable may carry an enumeration dimension. Index
+        multi-parent probability tables in a single indexing operation
+        (``T[a, b]``) rather than chained (``T[a][b]``) — NumPyro computes
+        wrong posterior weights for chained indexing.
+
     Args:
-        snapshot: A validated, topologically-ordered view of a chance-node
+        snapshot: A validated, topologically-ordered view of an influence
             diagram.
-        observed: Mapping of node names to observed values. Nodes present here
-            are conditioned on their given value; nodes absent are treated as
-            latent. Pass ``None`` or ``{}`` for forward sampling.
+        observed: Mapping of node names to observed values. Chance nodes
+            present here are conditioned on their given value; chance nodes
+            absent are treated as latent; decisions must always be present.
+            Pass ``None`` or ``{}`` for forward sampling of a
+            chance-node-only diagram.
 
     Returns:
         A NumPyro model function taking no arguments, returning a
@@ -70,10 +89,12 @@ def to_model(
     def model() -> dict[str, Any]:
         values: dict[str, Any] = {}
         for name, node in nodes:
-            # This translator is chance-node only.
-            # The snapshot carries the ``Node`` base type; narrow to ``ChanceNode``
-            # for the ``dist`` field. A diagram with decisions / utilities is not a
-            # valid input to this translator.
+            if isinstance(node, UtilityNode):
+                continue
+            if isinstance(node, DecisionNode):
+                value = observed[name]
+                values[name] = numpyro.sample(name, dist.Delta(value), obs=value)
+                continue
             assert isinstance(node, ChanceNode)
             parent_values = {parent: values[parent] for parent in node.parents}
             assert node.dist is not None

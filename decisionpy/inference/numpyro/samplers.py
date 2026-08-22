@@ -53,10 +53,11 @@ def samples(
     resampled conditioned on the continuous posterior).
 
     Args:
-        snapshot: A validated, topologically-ordered view of a chance-node
-            diagram.
+        snapshot: A validated, topologically-ordered view of an influence
+            diagram. Every decision must be bound in *observed*; utility
+            nodes are ignored.
         observed: Node-name to observed-value map. Empty or ``None`` means
-            forward (prior) sampling.
+            forward (prior) sampling of a chance-node-only diagram.
         query: Names of the nodes to return. ``None`` (the default) returns
             every node; observed nodes appear as their clamped value
             broadcast over the draws.
