@@ -87,10 +87,19 @@ def infer(
         maps to a :class:`Draws` (raw posterior draws).
 
     Raises:
-        InferenceError: If the chosen engine cannot handle the diagram.
+        InferenceError: If the diagram has decision or utility nodes (solve
+            those diagrams instead of inferring), or if the chosen engine
+            cannot handle the diagram.
     """
     observed = observed or {}
     snapshot = diagram.snapshot()
+
+    if not all(node.kind is NodeKind.CHANCE for _, node in snapshot.nodes):
+        raise InferenceError(
+            "infer() requires a Bayesian network (chance nodes only); this "
+            "diagram has decision or utility nodes. Use solve() with policy= "
+            "for decision diagrams."
+        )
 
     if engine == "auto":
         engine = _choose_engine(snapshot)
@@ -110,12 +119,9 @@ def infer(
 
 
 def _choose_engine(snapshot) -> str:
-    # Node classification is by ``kind``, never by ``is_discrete`` (vacuous
-    # for utility nodes). A diagram is a Bayesian network iff every node is a
-    # chance node; only then does ``is_discrete`` pick the exact engine.
-    nodes = [node for _, node in snapshot.nodes]
-    is_bn = all(node.kind is NodeKind.CHANCE for node in nodes)
-    if is_bn and all(node.is_discrete for node in nodes):
+    # ``infer()`` guarantees an all-chance diagram, so ``is_discrete`` alone
+    # decides between the exact (ve) and Monte-Carlo (numpyro) engines.
+    if all(node.is_discrete for _, node in snapshot.nodes):
         return "ve"
     return "numpyro"
 

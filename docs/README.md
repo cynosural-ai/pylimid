@@ -121,7 +121,9 @@ Read in this order:
   imports it.
 - `inference/engine.py` — unified `infer()` entry-point with auto-dispatch,
   returning typed per-entry results: `Marginal(values, exact)` for discrete
-  variables, `Draws(values)` for continuous ones.
+  variables, `Draws(values)` for continuous ones. Diagrams with decision or
+  utility nodes are rejected with a clean `InferenceError` pointing at
+  `solve()` / `policy=`.
 - Planned: `solve()` wiring in `engine.py` (intervention-scan / policy
   optimization — see `decision_node.md`); Gibbs sampling under `inference/`.
 

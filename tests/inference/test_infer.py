@@ -7,7 +7,9 @@ import numpyro.distributions as dist
 import pytest
 
 from decisionpy.graph.chance_node import ChanceNode
+from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.diagram import InfluenceDiagram
+from decisionpy.graph.utility_node import UtilityNode
 from decisionpy.inference import Draws, InferenceError, Marginal, infer
 from decisionpy.inference.ve import query as ve_query
 
@@ -56,6 +58,29 @@ def _mixed_diagram() -> InfluenceDiagram:
         ChanceNode(
             name="temp",
             dist=lambda: dist.Normal(loc=20.0, scale=3.0),
+        )
+    )
+    return diag
+
+
+def _decision_diagram() -> InfluenceDiagram:
+    """A valid influence diagram with a decision and a utility node."""
+    diag = InfluenceDiagram()
+    diag.add_node(
+        ChanceNode(
+            name="rain",
+            states=("no", "yes"),
+            dist=lambda: dist.Categorical(probs=jnp.array([0.8, 0.2])),
+        )
+    )
+    diag.add_node(
+        DecisionNode(name="umbrella", parents=("rain",), states=("no", "yes"))
+    )
+    diag.add_node(
+        UtilityNode(
+            name="dryness",
+            parents=("rain", "umbrella"),
+            values=lambda rain, umbrella: float(rain == umbrella),
         )
     )
     return diag
@@ -183,3 +208,14 @@ def test_unknown_engine_raises():
 def test_ve_on_continuous_raises():
     with pytest.raises(InferenceError, match="all-discrete"):
         infer(_continuous_diagram(), ["x"], engine="ve")
+
+
+def test_decision_diagram_raises():
+    with pytest.raises(InferenceError, match="decision or utility"):
+        infer(_decision_diagram(), ["rain"])
+
+
+def test_decision_diagram_raises_with_explicit_engine():
+    for engine in ("ve", "numpyro"):
+        with pytest.raises(InferenceError, match="decision or utility"):
+            infer(_decision_diagram(), ["rain"], engine=engine)
