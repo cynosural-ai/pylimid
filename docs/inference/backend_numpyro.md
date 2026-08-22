@@ -65,8 +65,9 @@ only importing `decisionpy.inference` does.
 
 **Deliberately deferred:**
 - **Decision and utility nodes.** The translator remains chance-node only
-  (it narrows every node to `ChanceNode`); a diagram with decisions or
-  utilities routes to `solve()` / the `id` solvers, not here.
+  (it narrows every node to `ChanceNode`); `infer()` rejects diagrams with
+  decision or utility nodes at the API level and points at `solve()` /
+  `policy=`, so they never reach this translator.
 - **A deep-frozen snapshot.** A `Snapshot` holds references to still-mutable
   nodes ([`diagram.md`](./diagram.md), "the snapshot is logical, not
   deep-frozen"). The node list is captured once at `to_model` time, so
