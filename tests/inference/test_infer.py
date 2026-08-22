@@ -86,6 +86,46 @@ def _decision_diagram() -> InfluenceDiagram:
     return diag
 
 
+def _umbrella_diagram() -> InfluenceDiagram:
+    """``rain -> umbrella (decision) -> wet``; utility on ``(rain, umbrella)``."""
+    diag = InfluenceDiagram()
+    diag.add_node(
+        ChanceNode(
+            name="rain",
+            states=("no", "yes"),
+            dist=lambda: dist.Categorical(probs=jnp.array([0.8, 0.2])),
+        )
+    )
+    diag.add_node(
+        DecisionNode(name="umbrella", parents=("rain",), states=("no", "yes"))
+    )
+    diag.add_node(
+        ChanceNode(
+            name="wet",
+            parents=("rain", "umbrella"),
+            states=("dry", "wet"),
+            dist=lambda rain, umbrella: dist.Categorical(
+                # Single indexing op: numpyro enumeration mis-weights
+                # chained ``[rain][umbrella]`` indexing.
+                probs=jnp.array(
+                    [
+                        [[0.90, 0.10], [0.70, 0.30]],  # rain=0
+                        [[0.40, 0.60], [0.05, 0.95]],  # rain=1
+                    ]
+                )[rain, umbrella]
+            ),
+        )
+    )
+    diag.add_node(
+        UtilityNode(
+            name="dryness",
+            parents=("rain", "umbrella"),
+            values=lambda rain, umbrella: float(rain == umbrella),
+        )
+    )
+    return diag
+
+
 # --- auto-dispatch -----------------------------------------------------------
 
 
@@ -210,12 +250,121 @@ def test_ve_on_continuous_raises():
         infer(_continuous_diagram(), ["x"], engine="ve")
 
 
-def test_decision_diagram_raises():
-    with pytest.raises(InferenceError, match="decision or utility"):
+def test_unbound_decision_raises():
+    with pytest.raises(InferenceError, match="unbound decision"):
         infer(_decision_diagram(), ["rain"])
 
 
-def test_decision_diagram_raises_with_explicit_engine():
+def test_unbound_decision_raises_with_explicit_engine():
     for engine in ("ve", "numpyro"):
-        with pytest.raises(InferenceError, match="decision or utility"):
+        with pytest.raises(InferenceError, match="unbound decision"):
             infer(_decision_diagram(), ["rain"], engine=engine)
+
+
+# --- policy binding -----------------------------------------------------------
+
+
+def test_policy_collapses_id_to_bn_and_routes_to_ve():
+    """A fully bound ID behaves like a BN with the decisions as evidence."""
+    diag = _umbrella_diagram()
+    result = infer(diag, ["rain"], observed={"wet": 1}, policy={"umbrella": 1})
+    expected = ve_query(
+        diag.snapshot(),
+        variables=["rain"],
+        observed={"umbrella": 1, "wet": 1},
+    )
+    assert result["rain"] == Marginal(values=expected["rain"], exact=True)
+
+
+def test_policy_with_explicit_numpyro():
+    """The numpyro engine sees the bound decision as an observed site."""
+    diag = _umbrella_diagram()
+    result = infer(
+        diag,
+        ["rain"],
+        observed={"wet": 1},
+        policy={"umbrella": 1},
+        engine="numpyro",
+    )
+    expected = ve_query(
+        diag.snapshot(),
+        variables=["rain"],
+        observed={"umbrella": 1, "wet": 1},
+    )
+    assert result["rain"].values == pytest.approx(expected["rain"], abs=0.04)
+    assert isinstance(result["rain"], Marginal)
+    assert result["rain"].exact is False
+
+
+def test_policy_on_continuous_diagram_routes_to_numpyro():
+    """A continuous chance node plus a bound decision still infers."""
+    diag = InfluenceDiagram()
+    diag.add_node(DecisionNode(name="d", states=("no", "yes")))
+    diag.add_node(
+        ChanceNode(
+            name="x", parents=("d",), dist=lambda d: dist.Normal(loc=2.0 * d, scale=1.0)
+        )
+    )
+    diag.add_node(
+        UtilityNode(
+            name="u", parents=("x", "d"), values=lambda x, d: float(x) * float(d)
+        )
+    )
+    result = infer(diag, ["x"], policy={"d": 1})
+    assert isinstance(result["x"], Draws)
+    assert len(result["x"].values) == 2000
+    assert jnp.mean(jnp.array(result["x"].values)) == pytest.approx(2.0, abs=0.2)
+
+
+def test_utility_node_alone_does_not_block_infer():
+    """Utilities are ignored; a chance+utility diagram infers fine."""
+    diag = InfluenceDiagram()
+    diag.add_node(
+        ChanceNode(
+            name="rain",
+            states=("no", "yes"),
+            dist=lambda: dist.Categorical(probs=jnp.array([0.8, 0.2])),
+        )
+    )
+    diag.add_node(
+        UtilityNode(
+            name="dryness",
+            parents=("rain",),
+            values=lambda rain: float(rain),
+        )
+    )
+    result = infer(diag, ["rain"])
+    assert result["rain"] == Marginal(values=[0.8, 0.2], exact=True)
+
+
+def test_partially_bound_decisions_raise():
+    diag = InfluenceDiagram()
+    diag.add_node(DecisionNode(name="d1", states=("no", "yes")))
+    diag.add_node(DecisionNode(name="d2", states=("no", "yes")))
+    diag.add_node(
+        UtilityNode(
+            name="u", parents=("d1", "d2"), values=lambda d1, d2: float(d1 + d2)
+        )
+    )
+    with pytest.raises(InferenceError, match="unbound decision.*d2"):
+        infer(diag, ["u"], policy={"d1": 0})
+
+
+def test_policy_unknown_name_raises():
+    with pytest.raises(InferenceError, match="unknown names.*bogus"):
+        infer(_umbrella_diagram(), ["rain"], policy={"bogus": 0})
+
+
+def test_policy_on_bayesian_network_raises():
+    with pytest.raises(InferenceError, match="decision nodes only"):
+        infer(_rain_wet_grass(), ["rain"], policy={"rain": 0})
+
+
+def test_querying_a_decision_raises():
+    with pytest.raises(InferenceError, match="chance variables only"):
+        infer(_umbrella_diagram(), ["umbrella"], policy={"umbrella": 1})
+
+
+def test_querying_a_utility_raises():
+    with pytest.raises(InferenceError, match="chance variables only"):
+        infer(_umbrella_diagram(), ["dryness"], policy={"umbrella": 1})
