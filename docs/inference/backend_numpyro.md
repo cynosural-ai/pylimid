@@ -45,7 +45,9 @@ multi-parent probability tables in a single indexing operation
 (`T[a, b]`), not chained (`T[a][b]`): NumPyro computes silently wrong
 posterior weights for chained indexing. This reproduces in pure NumPyro (a
 two-node model with an enumerated parent), so it is a NumPyro-side behavior
-the translator documents rather than fixes.
+the translator documents rather than fixes. Open upstream issue:
+<https://github.com/pyro-ppl/numpyro/issues/2252> (revisit this note when it
+is resolved).
 
 ---
 
