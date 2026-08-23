@@ -25,19 +25,6 @@ forward sampling and MCMC/SVI — all consuming a validated `Snapshot`.
   essentially the elimination order. Building VE directly on the graph is
   straightforward and gives reference answers for testing approximate methods.
 
-### Gibbs sampling
-
-- **Discrete nodes:** conditionals are always tractable (a finite categorical).
-  Markov blanket = factors involving the node, trivially computable from the
-  graph and CPTs.
-- **Continuous conjugate nodes:** conditional stays in a known family (e.g.
-  Normal-Normal, Gamma-Poisson, Beta-Binomial). Pure Gibbs step.
-- **Non-conjugate continuous nodes:** no closed-form conditional. Fall back to
-  Metropolis-within-Gibbs, which requires hand-tuned proposals and often mixes
-  slowly.
-- **Decision solving:** expected utility and policy optimization are
-  sample-based, no gradients.
-
 ### NumPyro (NUTS + SVI + enumeration)
 
 - **Discrete unobserved nodes:** SVI with `infer={"enumerate": "parallel"}`
@@ -51,18 +38,16 @@ forward sampling and MCMC/SVI — all consuming a validated `Snapshot`.
   reparameterized forward sampling are in place, expected utility is a
   differentiable function of decision parameters. This enables SGD optimization
   over decision rules, which is a qualitative leap for large/continuous decision
-  spaces — something neither VE nor Gibbs can provide.
+  spaces — something VE cannot provide.
 - **Discrete HMC:** experimental, unreliable, not recommended.
 
 ### Summary table
 
-| Method                       | Reliability | Handles discrete | Handles continuous | Gradients | GPU |
-|------------------------------|-------------|-------------------|---------------------|-----------|-----|
-| Variable elimination         | Exact       | Yes               | No (discrete only)  | N/A       | No  |
-| Gibbs (discrete + conjugate) | High        | Yes               | Conjugate families only | No    | No  |
-| Gibbs + Metropolis-within    | Medium      | Yes               | Yes (slow)          | No        | No  |
-| SVI + enumeration            | Medium      | Yes (via enum)    | Yes (via NUTS)      | Yes       | Yes |
-| NUTS (pure)                  | High        | No                | Yes                 | Yes       | Yes |
+| Method               | Reliability | Handles discrete | Handles continuous | Gradients | GPU |
+|----------------------|-------------|-------------------|---------------------|-----------|-----|
+| Variable elimination | Exact       | Yes               | No (discrete only)  | N/A       | No  |
+| SVI + enumeration    | Medium      | Yes (via enum)    | Yes (via NUTS)      | Yes       | Yes |
+| NUTS (pure)          | High        | No                | Yes                 | Yes       | Yes |
 
 ---
 
@@ -70,14 +55,12 @@ forward sampling and MCMC/SVI — all consuming a validated `Snapshot`.
 
 ### Short term (v0 BN inference)
 
-Add **variable elimination** and **Gibbs sampling** directly against the graph
-(`Snapshot` and `ChanceNode` objects). Neither requires a PPL:
+Add **variable elimination** directly against the graph (`Snapshot` and
+`ChanceNode` objects). It requires no PPL:
 
 - VE uses the topological order already produced by `Snapshot`.
-- Gibbs uses Markov blanket conditionals computed from the node's `dist` and
-  the factors of its children.
 
-These are graph-native, zero-dependency, and produce reference posteriors
+VE is graph-native, zero-dependency, and produces reference posteriors
 against which approximate methods can be tested.
 
 ### Medium term (mixed-type influence diagrams)
@@ -99,15 +82,7 @@ the hardest parts of influence diagram solving:
 3. **Gradient-based policy optimization** — autodiff through the whole diagram
    for decision rules.
 
-VE and Gibbs remain as:
+VE remains as:
 - Exact discrete reference answers.
-- Lightweight tools when JAX/NumPyro are not wanted.
-- Building blocks for bucket elimination over utility/decision nodes.
-
-### Why not Gibbs as the primary backend
-
-Gibbs occupies an awkward middle ground: not exact like VE, not scalable or
-gradient-friendly like NumPyro. For a library targeting mixed-type decision
-optimization, Gibbs doesn't provide enough advantage over the combination of
-VE (exact discrete) + NumPyro (approximate mixed-type + gradients) to justify
-a third engine.
+- A lightweight tool when JAX/NumPyro are not wanted.
+- The building block for bucket elimination over utility/decision nodes.

@@ -67,9 +67,9 @@ Read in this order:
 
 6. **[`inference_strategy.md`](./inference_strategy.md)** — analysis of
    inference backends for the full influence diagram roadmap: variable
-   elimination, Gibbs, NumPyro (NUTS/SVI). Decision: keep VE + Gibbs for
-   exact/approximate discrete, grow NumPyro as the primary engine for
-   mixed-type + gradient-based decision optimization.
+   elimination and NumPyro (NUTS/SVI). Decision: VE for exact discrete,
+   NumPyro as the primary engine for mixed-type + gradient-based decision
+   optimization.
 
 7. **[`bucket_elim.md`](./inference/bucket_elim.md)** — the exact
    influence-diagram solver: algorithm (additive utilities, reverse-topological
@@ -88,7 +88,7 @@ Read in this order:
 | Utility-node representation | Settled — graph layer | `utility_node.md` |
 | Decision-node solving strategy | Settled — exact bucket elimination implemented; Strategy B (intervention-scan) planned for the NumPyro path | `decision_node.md`, `bucket_elim.md` |
 | NumPyro translator   | Chance-only; `samples()` — forward sampling and posterior inference (enumeration / NUTS) | `backend_numpyro.md` |
-| Inference strategy   | Settled — VE + Gibbs for discrete, NumPyro for mixed-type | `inference_strategy.md` |
+| Inference strategy   | Settled — VE for exact discrete, NumPyro for mixed-type | `inference_strategy.md` |
 | Unified inference API | Settled — `infer()` / `solve()` with auto-dispatch | `ADR/23_07_2026_unified_inference_architecture.md` |
 | `infer()` result format | Settled — typed per-entry results (`Marginal` / `Draws`) | `ADR/13_08_2026_typed_inference_results.md` |
 | `from_cpt` sugar     | Deferred    | `chance_node.md` (resolved q)      |
