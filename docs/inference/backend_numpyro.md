@@ -39,6 +39,16 @@ prior-predictive sampling). The public `samples()` entry point wraps this:
 `samples(snapshot)` forward-samples, and `samples(snapshot, observed=...)`
 runs posterior inference and returns one JAX array per node.
 
+**Indexing in `dist` callables.** Under parallel enumeration the parent values
+a `dist` callable receives may carry NumPyro's enumeration dimension. Index
+multi-parent probability tables in a single indexing operation
+(`T[a, b]`), not chained (`T[a][b]`): NumPyro computes silently wrong
+posterior weights for chained indexing. This reproduces in pure NumPyro (a
+two-node model with an enumerated parent), so it is a NumPyro-side behavior
+the translator documents rather than fixes. Open upstream issue:
+<https://github.com/pyro-ppl/numpyro/issues/2252> (revisit this note when it
+is resolved).
+
 ---
 
 ## Dependency
@@ -64,10 +74,11 @@ only importing `decisionpy.inference` does.
   every node; observed nodes appear as their clamped values.
 
 **Deliberately deferred:**
-- **Decision and utility nodes.** The translator remains chance-node only
-  (it narrows every node to `ChanceNode`); `infer()` rejects diagrams with
-  decision or utility nodes at the API level and points at `solve()` /
-  `policy=`, so they never reach this translator.
+- **Unbound decisions.** A bound decision (clamped by `infer(policy=...)`)
+  is emitted as a degenerate observed site; a utility node is skipped. The
+  translator does not check binding itself — an unbound decision fails with
+  a `KeyError`, and `infer()` rejects unbound diagrams with a clean
+  `InferenceError` before any engine runs.
 - **A deep-frozen snapshot.** A `Snapshot` holds references to still-mutable
   nodes ([`diagram.md`](./diagram.md), "the snapshot is logical, not
   deep-frozen"). The node list is captured once at `to_model` time, so

@@ -1,6 +1,8 @@
 """
 Variable elimination — exact marginal inference on discrete Bayesian networks.
 
+Bound decisions behave as evidence (each must appear in ``observed``).
+
 Graph-native, zero heavy dependencies.  Works directly against a
 :class:`~decisionpy.graph.diagram.Snapshot`.
 
@@ -62,8 +64,12 @@ def query(
     """
     Compute the marginal posterior of *variables* given *observed* evidence.
 
-    Requires a discrete-only Bayesian network (every node must have ``states``
-    set).  All nodes must be ``CONSISTENT`` prior to snapshotting.
+    Requires a discrete-only diagram (every chance and decision node must
+    have ``states`` set; utility nodes are ignored). All nodes must be
+    ``CONSISTENT`` prior to snapshotting. Every decision must be bound in
+    *observed* — a decision behaves as evidence, and an unbound one would be
+    summed out like a random variable, which is meaningless (:func:`infer`
+    enforces the binding).
 
     Returns:
         A dict mapping each query variable name to its probability vector
@@ -74,18 +80,17 @@ def query(
 
     # 1. Build initial factor list (CPTs).
     #
-    # VE is a chance-node engine (a discrete Bayesian network). ``cardinalities``
-    # above guarantees every node has declared ``states``; the snapshot still
-    # carries the ``Node`` base type, so narrow to ``ChanceNode`` for the
-    # chance-specific CPT logic. This is a type narrowing, not a behavior change:
-    # a diagram with decisions / utilities routes to ``solve()``, not here.
+    # VE is a chance-node engine: factors exist only for chance nodes. A
+    # bound decision appears as evidence — its name lives in the scope of
+    # its chance children's CPTs and the conditioning pass below slices it.
+    # Utility nodes contribute nothing and are skipped. ``cardinalities``
+    # above guarantees every chance and decision node has declared
+    # ``states``.
     node_map: dict[str, ChanceNode] = {}
     for _name, node in snapshot.nodes:
-        assert isinstance(node, ChanceNode)
-        node_map[_name] = node
-    factors: list[Factor] = []
-    for _name, node in node_map.items():
-        factors.append(cpt(node, card))
+        if isinstance(node, ChanceNode):
+            node_map[_name] = node
+    factors: list[Factor] = [cpt(node, card) for node in node_map.values()]
 
     # Condition: for each observed variable, slice its dimension in EVERY factor
     # that contains it.

@@ -119,13 +119,15 @@ Read in this order:
   draws (exact enumeration / NUTS) with observations, as raw JAX arrays.
   NumPyro is a declared dependency, though nothing in `decisionpy.graph`
   imports it.
-- `inference/engine.py` — unified `infer()` entry-point with auto-dispatch,
-  returning typed per-entry results: `Marginal(values, exact)` for discrete
-  variables, `Draws(values)` for continuous ones. Diagrams with decision or
-  utility nodes are rejected with a clean `InferenceError` pointing at
-  `solve()` / `policy=`.
-- Planned: `solve()` wiring in `engine.py` (intervention-scan / policy
-  optimization — see `decision_node.md`); Gibbs sampling under `inference/`.
+- `inference/engine.py` — unified `infer()` / `solve()` entry-points with
+  auto-dispatch, returning typed results: `Marginal(values, exact)` for
+  discrete and `Draws(values)` for continuous queries; `Solution(policy,
+  expected_utility)` for solving. `infer()` takes an all-or-nothing
+  `policy=` binding (unbound decisions raise a clean `InferenceError`);
+  `solve()` dispatches to bucket elimination for all-categorical diagrams.
+- Planned: the NumPyro intervention-scan solver for mixed/continuous
+  influence diagrams (a clean `InferenceError` for now); Gibbs sampling
+  under `inference/`.
 
 The build-once prototype that preceded this design has been removed; see
 [`ADR/17_07_2026_mutability_design_decision.md`](./ADR/17_07_2026_mutability_design_decision.md).

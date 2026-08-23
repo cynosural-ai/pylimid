@@ -21,7 +21,7 @@ result.policy["treat"]  # {(0,): 0, (1,): 1}  — action per info-set assignment
 result.expected_utility  # 78.0
 ```
 
-The policy is a solve-time object; it is not stored on the `DecisionNode`. Binding it back onto a diagram (clamping every decision to its chosen action) is the `infer(..., policy=...)` step that collapses the ID to a Bayesian network — engine wiring, not yet implemented.
+The policy is a solve-time object; it is not stored on the `DecisionNode`. Binding it back onto a diagram (clamping every decision to its chosen action) is the `infer(..., policy=...)` step that collapses the ID to a Bayesian network — the unified `solve()` / `infer()` wiring in `decisionpy.inference.engine` dispatches to this solver for all-categorical diagrams.
 
 ## Algorithm
 
