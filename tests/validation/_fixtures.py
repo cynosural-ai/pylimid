@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import inspect
+
 import jax.numpy as jnp
 import numpyro.distributions as dist
 from pgmpy.factors.discrete import TabularCPD
@@ -77,13 +79,20 @@ class BNFixture:
                 )
             else:
                 # Since CPT values are in [parents..., var] order and the lambda
-                # receives parents as positional/keyword args, we need to handle
-                # the indexing generically.
+                # receives parents as keyword args, index the array generically.
+                # The signature is declared with one named parameter per parent
+                # so the consistency gate can verify parent coverage.
                 def make_dist(_arr, _parents):
                     def fn(**kwargs):
                         idx = tuple(kwargs[p] for p in _parents)
                         return dist.Categorical(probs=_arr[idx])
 
+                    fn.__signature__ = inspect.Signature(  # ty: ignore[unresolved-attribute]
+                        [
+                            inspect.Parameter(p, inspect.Parameter.KEYWORD_ONLY)
+                            for p in _parents
+                        ]
+                    )
                     return fn
 
                 node = ChanceNode(

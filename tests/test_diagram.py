@@ -18,7 +18,7 @@ from decisionpy.graph.utility_node import UtilityNode
 
 
 def _dist_matching(**_: Any) -> object:
-    """A dist factory matching any parent set (accepts **kwargs)."""
+    """A dist factory for parentless chance nodes (accepts **kwargs)."""
     return object()
 
 
@@ -27,10 +27,10 @@ def _root() -> ChanceNode:
 
 
 def _child(dist_matching: bool = True) -> ChanceNode:
-    """A child over `rain`; its dist matches if ``dist_matching``."""
+    """A child over `rain`; its dist names ``rain`` if ``dist_matching``."""
     if dist_matching:
 
-        def dist(**_: Any) -> object:
+        def dist(rain: Any) -> object:  # noqa: ARG001
             return object()
 
     else:
@@ -256,7 +256,13 @@ def test_validate_clean_diagram_returns_empty() -> None:
 
 def test_validate_reports_dangling_parent() -> None:
     diag = InfluenceDiagram()
-    diag.add_node(ChanceNode(name="wet", parents=("rain",), dist=_dist_matching))
+    diag.add_node(
+        ChanceNode(
+            name="wet",
+            parents=("rain",),
+            dist=lambda rain: object(),  # noqa: ARG005
+        )
+    )
 
     problems = diag.validate()
     assert len(problems) == 1
@@ -372,7 +378,11 @@ def _mixed_diagram() -> InfluenceDiagram:
         DecisionNode(name="invest", parents=("rain",), states=("buy", "sell"))
     )
     diag.add_node(
-        UtilityNode(name="payoff", parents=("rain", "invest"), values=_utility_values)
+        UtilityNode(
+            name="payoff",
+            parents=("rain", "invest"),
+            values=lambda rain, invest: 1.0,  # noqa: ARG005
+        )
     )
     return diag
 
