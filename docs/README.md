@@ -126,8 +126,7 @@ Read in this order:
   `policy=` binding (unbound decisions raise a clean `InferenceError`);
   `solve()` dispatches to bucket elimination for all-categorical diagrams.
 - Planned: the NumPyro intervention-scan solver for mixed/continuous
-  influence diagrams (a clean `InferenceError` for now); Gibbs sampling
-  under `inference/`.
+  influence diagrams (a clean `InferenceError` for now).
 
 The build-once prototype that preceded this design has been removed; see
 [`ADR/17_07_2026_mutability_design_decision.md`](./ADR/17_07_2026_mutability_design_decision.md).
