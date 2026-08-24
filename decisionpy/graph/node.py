@@ -1,15 +1,10 @@
 """
 Node base — the shared contract for every node in an influence diagram.
 
-Implements the mutable node design settled in ``docs/diagram.md`` and
-``docs/chance_node.md``; see ``docs/17_07_2026_mutability_design_decision.md``
-for the decision that makes this the library's sole node container model.
-
-The seven principles in ``docs/diagram.md`` govern *every* node type. They are
-captured once here, on the base, so that :class:`ChanceNode`,
-:class:`~decisionpy.graph.decision_node.DecisionNode`, and
-:class:`~decisionpy.graph.utility_node.UtilityNode` inherit them uniformly
-rather than re-implementing the contract per type.
+The mutable-node contract is captured once here, on the base, so that
+:class:`ChanceNode`, :class:`~decisionpy.graph.decision_node.DecisionNode`,
+and :class:`~decisionpy.graph.utility_node.UtilityNode` inherit it uniformly
+rather than re-implementing it per type.
 
 Mutable by design
 -----------------

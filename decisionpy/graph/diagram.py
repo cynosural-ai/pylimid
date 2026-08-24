@@ -1,10 +1,6 @@
 """
 Influence diagram — the graph container.
 
-This is the mutable workspace design settled in
-``docs/diagram_mutable_design.md`` and adopted as the library's direction in
-``docs/17_07_2026_mutability_design_decision.md``.
-
 Mutable workspace, validated gate
 ---------------------------------
 The diagram is a workspace that an external author — a script, a UI, or an LLM
