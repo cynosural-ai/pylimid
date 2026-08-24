@@ -44,7 +44,7 @@ rain = ChanceNode(
     states=("no", "yes"),
     dist=lambda: dist.Categorical(probs=jnp.array([0.8, 0.2])),
 )
-rain
+print(rain.name, rain.states)  # "rain" ("no", "yes")
 
 # %%
 print(rain.parents)  # no parents: a root
