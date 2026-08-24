@@ -16,15 +16,14 @@ convention: the same ``parents`` tuple that drives topological ordering and
 cycle prevention for chance nodes is reused here, but its meaning is
 "information available at decision time." Keeping one field name means the
 container's shared bookkeeping (validation, ordering) is reused unchanged —
-see :mod:`decisionpy.graph.node`.
+see decisionpy.graph.node.
 
 Consistency
 -----------
-A decision is :attr:`~decisionpy.graph.node.Consistency.CONSISTENT` once its
-action ``states`` are declared; before that it is
-:attr:`~decisionpy.graph.node.Consistency.UNCONFIGURED`. There is no STALE
-state for a decision: the action space does not depend on the information set's
-size, so adding or removing an information parent never invalidates it.
+A decision is CONSISTENT once its action ``states`` are declared; before that
+it is UNCONFIGURED. There is no STALE state for a decision: the action space
+does not depend on the information set's size, so adding or removing an
+information parent never invalidates it.
 
 Continuous decisions (a future roadmap item) are represented by
 ``states=None``; the node is then UNCONFIGURED in the graph layer (the solver,

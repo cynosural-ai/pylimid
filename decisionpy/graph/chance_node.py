@@ -4,9 +4,8 @@ Chance node — a random variable conditioned on its parents.
 A chance node is ``P(name | parents)`` — a random variable whose distribution
 depends on its parents (a causal / statistical dependency, as distinct from a
 decision node's information set). It inherits the shared mutable-node contract
-from :class:`~decisionpy.graph.node.Node`: field-level validation on every
-assignment, and the :attr:`~decisionpy.graph.node.Consistency` gate (optional
-``dist``, derived consistency) for cross-field checking.
+from Node — field-level validation on every assignment, and the Consistency
+gate (optional ``dist``, derived consistency) for cross-field checking.
 
 The ``dist`` callable receives resolved parent values as **keyword arguments**
 (keyed by parent name), so it is tied to parent *names*, which are stable,
@@ -35,8 +34,7 @@ class ChanceNode(Node):
     (including during construction), so a bad value is rejected at the moment
     it is set rather than later. Cross-field consistency (``dist`` signature
     vs ``parents``) is *not* enforced on assignment — it is queryable via
-    :attr:`~decisionpy.graph.node.Node.consistency` and gated via
-    :meth:`~decisionpy.graph.node.Node.validate`.
+    consistency and gated via validate().
 
     Attributes:
         name: Identifier for the node.
