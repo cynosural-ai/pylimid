@@ -88,21 +88,16 @@ class DiagramProblem:
     message: str
 
 
-#: Fixed points probed through ``log_prob`` — the fallback comparison for
-#: objects that expose neither ``get_args`` nor a ``probs`` vector.
-_PROBE_POINTS = (-2.0, -1.0, 0.0, 1.0, 2.0)
-
-
 def _distribution_fingerprint(output) -> tuple[object, ...]:
     """
     A comparable snapshot of a callable's output.
 
     NumPyro distributions expose their defining parameters uniformly via
     ``get_args()`` (``{'loc': ..., 'scale': ...}``), so two distributions
-    are compared exactly: equal parameters mean equal distributions. An
-    object without ``get_args`` — a bare ``log_prob`` callable or a plain
-    scalar payoff — falls back to comparing ``probs`` when present, else
-    ``log_prob`` at a fixed grid of points, else the scalar itself. Equal
+    are compared exactly: equal parameters mean equal distributions. A
+    plain scalar (a utility ``values`` payoff) is its own fingerprint.
+    Anything else fails loudly — the library's contract is that ``dist``
+    returns a distribution object and ``values`` returns a number. Equal
     fingerprints are treated as "the same output" by
     :meth:`InfluenceDiagram.probe_discrete_parents`.
     """
@@ -113,13 +108,7 @@ def _distribution_fingerprint(output) -> tuple[object, ...]:
             return tuple(
                 (name, _comparable(value)) for name, value in sorted(args.items())
             )
-    probs = getattr(output, "probs", None)
-    if probs is not None:
-        return tuple(float(p) for p in probs.reshape(-1))
-    log_prob = getattr(output, "log_prob", None)
-    if log_prob is None:
-        return (float(output),)
-    return tuple(float(log_prob(x)) for x in _PROBE_POINTS)
+    return (float(output),)
 
 
 def _comparable(value) -> object:

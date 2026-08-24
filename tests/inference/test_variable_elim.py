@@ -320,3 +320,16 @@ def test_observed_query_same_variable() -> None:
         observed={"wet_grass": 1, "rain": 0},
     )
     assert result["wet_grass"] == pytest.approx([0.0, 1.0])
+
+
+def test_dist_without_probs_raises() -> None:
+    """The contract is ``probs``: a dist object without one fails loudly."""
+
+    class BareLogProb:
+        def log_prob(self, value: int) -> float:
+            return 0.0
+
+    diag = InfluenceDiagram()
+    diag.add_node(ChanceNode(name="x", states=("a", "b"), dist=lambda: BareLogProb()))
+    with pytest.raises(RuntimeError, match="probs"):
+        query(diag.snapshot(), variables=["x"])
