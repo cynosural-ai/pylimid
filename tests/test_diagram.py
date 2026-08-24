@@ -6,13 +6,10 @@ import pytest
 
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.decision_node import DecisionNode
-from decisionpy.graph.diagram import (
-    InfluenceDiagram,
-    ProblemKind,
-    Snapshot,
-)
+from decisionpy.graph.diagram import InfluenceDiagram, Snapshot
 from decisionpy.graph.node import Consistency
 from decisionpy.graph.utility_node import UtilityNode
+from decisionpy.graph.validation import ProblemKind
 
 # --- helpers ----------------------------------------------------------------
 
