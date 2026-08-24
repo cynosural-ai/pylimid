@@ -77,9 +77,9 @@ class Draws:
     values: list[float]
 
 
-#: Result of :func:`infer`: one entry per query variable. A discrete variable
-#: (declared ``states``) maps to a :class:`Marginal`; a continuous variable
-#: maps to a :class:`Draws`.
+#: Result of infer(): one entry per query variable. A discrete variable
+#: (declared ``states``) maps to a Marginal; a continuous variable
+#: maps to a Draws.
 InferenceResult: TypeAlias = dict[str, Marginal | Draws]
 
 
@@ -110,9 +110,9 @@ def infer(
 
     Returns:
         ``{var_name: result}`` — one entry per query variable. A discrete
-        variable (declared ``states``) maps to a :class:`Marginal` (its
+        variable (declared ``states``) maps to a Marginal (its
         probability vector, plus whether it is exact); a continuous variable
-        maps to a :class:`Draws` (raw posterior draws).
+        maps to a Draws (raw posterior draws).
 
     Raises:
         InferenceError: If a decision is unbound, if *policy* names a node
@@ -172,7 +172,7 @@ def solve(diagram: InfluenceDiagram, *, engine: str = "auto") -> Solution:
         engine: ``"auto"`` (default) or ``"bucket_elim"``.
 
     Returns:
-        A :class:`Solution` with the optimal per-decision policy (decision
+        A Solution with the optimal per-decision policy (decision
         name to information-set assignment to chosen action) and the
         maximum expected total utility.
 

@@ -1,15 +1,9 @@
 """
 Node base — the shared contract for every node in an influence diagram.
 
-Implements the mutable node design settled in ``docs/diagram.md`` and
-``docs/chance_node.md``; see ``docs/17_07_2026_mutability_design_decision.md``
-for the decision that makes this the library's sole node container model.
-
-The seven principles in ``docs/diagram.md`` govern *every* node type. They are
-captured once here, on the base, so that :class:`ChanceNode`,
-:class:`~decisionpy.graph.decision_node.DecisionNode`, and
-:class:`~decisionpy.graph.utility_node.UtilityNode` inherit them uniformly
-rather than re-implementing the contract per type.
+The mutable-node contract is captured once here, on the base, so that
+ChanceNode, DecisionNode, and UtilityNode inherit it uniformly rather than
+re-implementing it per type.
 
 Mutable by design
 -----------------
@@ -27,7 +21,7 @@ Two layers of checking reflect this:
   — is rejected the moment it is set.
 - **Cross-field consistency** (the configurable field's signature vs
   ``parents``) is *not* enforced on assignment. It is queryable via
-  :attr:`Node.consistency` and gated explicitly via :meth:`Node.validate`,
+  Node.consistency and gated explicitly via Node.validate(),
   which is the checkpoint inference runs against. Editing pauses wherever it
   likes; inference requires a ``CONSISTENT`` node.
 
@@ -102,14 +96,11 @@ class Node:
     Base class for every node in an influence diagram.
 
     Owns the shared mutable-node contract: a ``name`` and a ``parents`` tuple,
-    field-level validation on every assignment, and the
-    :attr:`~Consistency.UNCONFIGURED` / :attr:`~Consistency.STALE` /
-    :attr:`~Consistency.CONSISTENT` consistency gate that inference consumes.
+    field-level validation on every assignment, and the UNCONFIGURED / STALE /
+    CONSISTENT consistency gate that inference consumes.
 
     This class is **internal**: users construct one of its subclasses
-    (:class:`~decisionpy.graph.chance_node.ChanceNode`,
-    :class:`~decisionpy.graph.decision_node.DecisionNode`,
-    :class:`~decisionpy.graph.utility_node.UtilityNode`) rather than a bare
+    (ChanceNode, DecisionNode, UtilityNode) rather than a bare
     ``Node``. It is exported only so it can be referenced in type hints and
     ``isinstance`` checks.
 
@@ -146,7 +137,7 @@ class Node:
 
     def add_parent(self, name: str) -> None:
         """
-        Append ``name`` to :attr:`parents` if it is not already present.
+        Append ``name`` to parents if it is not already present.
 
         Going through the ``parents`` setter ensures the same validation runs
         as on construction.
@@ -156,7 +147,7 @@ class Node:
         self.parents = (*self.parents, name)
 
     def remove_parent(self, name: str) -> None:
-        """Remove ``name`` from :attr:`parents`; no-op if absent."""
+        """Remove ``name`` from parents; no-op if absent."""
         self.parents = tuple(p for p in self.parents if p != name)
 
     # --- kind / structure ---------------------------------------------------
@@ -166,7 +157,7 @@ class Node:
         """
         The structural category of this node.
 
-        Subclasses override to return their :class:`NodeKind`. The base
+        Subclasses override to return their NodeKind. The base
         definition is abstract: a bare ``Node`` has no meaningful kind.
         """
         raise NotImplementedError(
@@ -205,7 +196,7 @@ class Node:
 
         Computed on demand from the live field values, never stored, so it
         always reflects the latest edits. Delegates to
-        :meth:`_compute_consistency`, which each subclass implements against
+        _compute_consistency(), which each subclass implements against
         its own configurable field.
         """
         return self._compute_consistency()
@@ -220,18 +211,17 @@ class Node:
         """
         Human-facing explanation of a non-CONSISTENT ``state``.
 
-        Returned for :class:`~decisionpy.graph.diagram.DiagramProblem` messages
-        and :meth:`validate` errors. Keeping the wording on the node (rather
-        than the diagram) means each node type owns the description of its own
-        configurable field.
+        Returned for DiagramProblem messages and validate() errors. Keeping
+        the wording on the node (rather than the diagram) means each node type
+        owns the description of its own configurable field.
         """
         raise NotImplementedError(
-            f"{type(self).__name__} must implement `consistency_message`."
+            f"{type(self).__name__} must declare `consistency_message`."
         )
 
     def validate(self) -> None:
         """
-        Raise ``ValueError`` unless the node is :attr:`Consistency.CONSISTENT`.
+        Raise ``ValueError`` unless the node is CONSISTENT.
 
         This is the gate inference consumes. Editing never calls it
         automatically — an inconsistent node is a legitimate intermediate

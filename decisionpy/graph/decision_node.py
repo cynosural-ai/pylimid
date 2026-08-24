@@ -1,13 +1,6 @@
 """
 Decision node — a variable the agent controls.
 
-Implements the node portion of the solving strategy settled in
-``docs/decision_node.md``; the mutability and consistency model it inherits is
-in ``docs/diagram.md``. The *solver* (intervention-scan, Strategy B for v0
-discrete decisions; policy-as-parameters, Strategy A for continuous) is the
-**next** milestone — this module defines only the node's representation in the
-graph.
-
 A decision node has **no distribution**: its value is chosen, not sampled. What
 it does carry is:
 
@@ -23,28 +16,25 @@ convention: the same ``parents`` tuple that drives topological ordering and
 cycle prevention for chance nodes is reused here, but its meaning is
 "information available at decision time." Keeping one field name means the
 container's shared bookkeeping (validation, ordering) is reused unchanged —
-see :mod:`decisionpy.graph.node`.
+see decisionpy.graph.node.
 
 Consistency
 -----------
-A decision is :attr:`~decisionpy.graph.node.Consistency.CONSISTENT` once its
-action ``states`` are declared; before that it is
-:attr:`~decisionpy.graph.node.Consistency.UNCONFIGURED`. There is no STALE
-state for a decision: the action space does not depend on the information set's
-size, so adding or removing an information parent never invalidates it.
+A decision is CONSISTENT once its action ``states`` are declared; before that
+it is UNCONFIGURED. There is no STALE state for a decision: the action space
+does not depend on the information set's size, so adding or removing an
+information parent never invalidates it.
 
-Continuous decisions (the v0 roadmap item that requires Strategy A) are
-represented by ``states=None``; the node is then UNCONFIGURED in the graph
-layer (the solver, not the graph, owns the continuous policy).
+Continuous decisions (a future roadmap item) are represented by
+``states=None``; the node is then UNCONFIGURED in the graph layer (the solver,
+not the graph, owns the continuous policy).
 """
 
 from dataclasses import dataclass, field
 from typing import Any
 
 from decisionpy.graph.node import (
-    Consistency as _Consistency,
-)
-from decisionpy.graph.node import (
+    Consistency,
     Node,
     NodeKind,
 )
@@ -88,20 +78,19 @@ class DecisionNode(Node):
         Whether the decision has a declared, enumerable action space.
 
         ``True`` when ``states`` is set (a discrete decision — what the v0
-        intervention-scan solver handles). ``False`` when ``states`` is
-        ``None``, which marks the decision as not-yet-configured or, in the
-        future, continuous (Strategy A territory).
+        solver handles). ``False`` when ``states`` is ``None``, which marks
+        the decision as not-yet-configured or, in the future, continuous.
         """
         return self.states is not None
 
     # --- consistency --------------------------------------------------------
 
-    def _compute_consistency(self) -> _Consistency:
+    def _compute_consistency(self) -> Consistency:
         if self.states is None:
-            return _Consistency.UNCONFIGURED
-        return _Consistency.CONSISTENT
+            return Consistency.UNCONFIGURED
+        return Consistency.CONSISTENT
 
-    def consistency_message(self, state: _Consistency) -> str:
+    def consistency_message(self, state: Consistency) -> str:
         """Decision-node wording for a non-CONSISTENT state (see base)."""
         # UNCONFIGURED is the only non-CONSISTENT state for a decision.
         return (

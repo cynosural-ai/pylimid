@@ -4,11 +4,11 @@ Variable elimination — exact marginal inference on discrete Bayesian networks.
 Bound decisions behave as evidence (each must appear in ``observed``).
 
 Graph-native, zero heavy dependencies.  Works directly against a
-:class:`~decisionpy.graph.diagram.Snapshot`.
+Snapshot.
 
 Algorithm (for a single query variable)
 ---------------------------------------
-1. Build one :class:`~decisionpy.inference.utils.factor.Factor` per node (its CPT).
+1. Build one Factor per node (its CPT).
 2. Condition on observed variables by slicing factors.
 3. Determine an elimination order (all variables except query + evidence).
 4. For each variable *X* in order:
@@ -68,7 +68,7 @@ def query(
     have ``states`` set; utility nodes are ignored). All nodes must be
     ``CONSISTENT`` prior to snapshotting. Every decision must be bound in
     *observed* — a decision behaves as evidence, and an unbound one would be
-    summed out like a random variable, which is meaningless (:func:`infer`
+    summed out like a random variable, which is meaningless (infer()
     enforces the binding).
 
     Returns:
