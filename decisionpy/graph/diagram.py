@@ -88,21 +88,31 @@ class DiagramProblem:
     message: str
 
 
-#: Fixed points probed through ``log_prob`` to compare continuous
-#: distributions that expose no ``probs`` vector.
+#: Fixed points probed through ``log_prob`` — the fallback comparison for
+#: objects that expose neither ``get_args`` nor a ``probs`` vector.
 _PROBE_POINTS = (-2.0, -1.0, 0.0, 1.0, 2.0)
 
 
-def _distribution_fingerprint(output) -> tuple[float, ...]:
+def _distribution_fingerprint(output) -> tuple[object, ...]:
     """
     A comparable snapshot of a callable's output.
 
-    Discrete distributions compare by their ``probs`` vector; continuous
-    ones by their ``log_prob`` at a fixed grid of points; a plain scalar
-    (a utility ``values`` payoff) is its own fingerprint. Two outputs with
-    equal fingerprints are treated as "the same output" by
+    NumPyro distributions expose their defining parameters uniformly via
+    ``get_args()`` (``{'loc': ..., 'scale': ...}``), so two distributions
+    are compared exactly: equal parameters mean equal distributions. An
+    object without ``get_args`` — a bare ``log_prob`` callable or a plain
+    scalar payoff — falls back to comparing ``probs`` when present, else
+    ``log_prob`` at a fixed grid of points, else the scalar itself. Equal
+    fingerprints are treated as "the same output" by
     :meth:`InfluenceDiagram.probe_discrete_parents`.
     """
+    get_args = getattr(output, "get_args", None)
+    if get_args is not None:
+        args = get_args()
+        if args:
+            return tuple(
+                (name, _comparable(value)) for name, value in sorted(args.items())
+            )
     probs = getattr(output, "probs", None)
     if probs is not None:
         return tuple(float(p) for p in probs.reshape(-1))
@@ -110,6 +120,24 @@ def _distribution_fingerprint(output) -> tuple[float, ...]:
     if log_prob is None:
         return (float(output),)
     return tuple(float(log_prob(x)) for x in _PROBE_POINTS)
+
+
+def _comparable(value) -> object:
+    """Convert an array-like parameter to a hashable, comparable form."""
+    tolist = getattr(value, "tolist", None)
+    if tolist is not None:
+        return _freeze(tolist())
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return value
+
+
+def _freeze(value):
+    """Convert nested lists to nested tuples so they can be hashed."""
+    if isinstance(value, list):
+        return tuple(_freeze(item) for item in value)
+    return value
 
 
 @dataclass(frozen=True)
