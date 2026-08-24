@@ -100,7 +100,7 @@ def _distribution_fingerprint(output) -> tuple[float, ...]:
     ones by their ``log_prob`` at a fixed grid of points; a plain scalar
     (a utility ``values`` payoff) is its own fingerprint. Two outputs with
     equal fingerprints are treated as "the same output" by
-    :meth:`InfluenceDiagram.probe`.
+    :meth:`InfluenceDiagram.probe_discrete_parents`.
     """
     probs = getattr(output, "probs", None)
     if probs is not None:
@@ -390,7 +390,7 @@ class InfluenceDiagram:
 
         return problems
 
-    def probe(self) -> list[DiagramProblem]:
+    def probe_discrete_parents(self) -> list[DiagramProblem]:
         """
         Check that every node's callable actually uses each discrete parent.
 

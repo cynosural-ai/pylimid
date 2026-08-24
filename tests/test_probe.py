@@ -1,4 +1,4 @@
-"""Tests for :meth:`InfluenceDiagram.probe` — the parent-sensitivity check."""
+"""Tests for :meth:`InfluenceDiagram.probe_discrete_parents`."""
 
 from __future__ import annotations
 
@@ -60,7 +60,7 @@ def _rain_wet_grass(probs_table) -> InfluenceDiagram:
 def test_probe_catches_clamped_continuous_child():
     """1-row loc and scale tables clamped by JAX indexing: y never sees ``group``."""
     diag = _group_mixture(loc_table=jnp.array([10.0]), scale_table=jnp.array([1.0]))
-    problems = diag.probe()
+    problems = diag.probe_discrete_parents()
     assert len(problems) == 1
     assert problems[0].kind is ProblemKind.DIST_IGNORES_PARENT
     assert problems[0].node == "y"
@@ -70,7 +70,7 @@ def test_probe_catches_clamped_continuous_child():
 def test_probe_catches_clamped_discrete_child():
     """A 1-row probs table: wet_grass never sees ``rain``."""
     diag = _rain_wet_grass(probs_table=jnp.array([[0.90, 0.10]]))
-    problems = diag.probe()
+    problems = diag.probe_discrete_parents()
     assert len(problems) == 1
     assert problems[0].kind is ProblemKind.DIST_IGNORES_PARENT
     assert problems[0].node == "wet_grass"
@@ -80,12 +80,12 @@ def test_probe_clean_on_correct_tables():
     diag = _group_mixture(
         loc_table=jnp.array([10.0, 20.0]), scale_table=jnp.array([1.0, 2.0])
     )
-    assert diag.probe() == []
+    assert diag.probe_discrete_parents() == []
 
 
 def test_probe_clean_on_correct_discrete_tables():
     diag = _rain_wet_grass(probs_table=jnp.array([[0.90, 0.10], [0.10, 0.90]]))
-    assert diag.probe() == []
+    assert diag.probe_discrete_parents() == []
 
 
 def test_probe_flags_utility_ignoring_a_parent():
@@ -104,7 +104,7 @@ def test_probe_flags_utility_ignoring_a_parent():
             values=lambda rain: 1.0,  # ignores rain
         )
     )
-    problems = diag.probe()
+    problems = diag.probe_discrete_parents()
     assert len(problems) == 1
     assert problems[0].node == "payoff"
 
@@ -112,7 +112,7 @@ def test_probe_flags_utility_ignoring_a_parent():
 def test_probe_flags_intentionally_independent_node():
     """An independent node looks like a wiring mistake — warning stands."""
     diag = _rain_wet_grass(probs_table=jnp.array([[0.90, 0.10], [0.90, 0.10]]))
-    problems = diag.probe()
+    problems = diag.probe_discrete_parents()
     assert len(problems) == 1
     assert problems[0].kind is ProblemKind.DIST_IGNORES_PARENT
 
@@ -128,7 +128,7 @@ def test_probe_skips_continuous_parents():
             dist=lambda x: dist.Normal(loc=0.0, scale=1.0),  # ignores x
         )
     )
-    assert diag.probe() == []
+    assert diag.probe_discrete_parents() == []
 
 
 def test_probe_cannot_detect_swapped_rows():
@@ -136,4 +136,4 @@ def test_probe_cannot_detect_swapped_rows():
     diag = _rain_wet_grass(
         probs_table=jnp.array([[0.10, 0.90], [0.90, 0.10]])  # swapped
     )
-    assert diag.probe() == []
+    assert diag.probe_discrete_parents() == []
