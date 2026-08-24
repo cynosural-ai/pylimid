@@ -194,10 +194,35 @@ def test_matching_dist_is_consistent() -> None:
     assert node.consistency is Consistency.CONSISTENT
 
 
-def test_kwargs_dist_matches_any_parents() -> None:
-    """A **kwargs dist is the documented bypass for signature checking."""
+def test_kwargs_dist_with_parents_is_stale() -> None:
+    """A **kwargs dist cannot prove parent coverage, so it is stale."""
     node = ChanceNode(name="x", parents=("a", "b", "c"), dist=_dist_matching)
+    assert node.consistency is Consistency.STALE
+
+
+def test_kwargs_dist_without_parents_is_consistent() -> None:
+    node = ChanceNode(name="x", dist=_dist_matching)
     assert node.consistency is Consistency.CONSISTENT
+
+
+def test_partial_kwargs_dist_is_stale() -> None:
+    """Naming some parents plus **kwargs still leaves the rest unverified."""
+
+    def dist_rain_plus_kwargs(rain: Any, **_rest: Any) -> object:  # noqa: ARG001
+        return object()
+
+    node = ChanceNode(
+        name="x", parents=("rain", "sprinkler"), dist=dist_rain_plus_kwargs
+    )
+    assert node.consistency is Consistency.STALE
+
+
+def test_positional_varargs_dist_is_stale() -> None:
+    def dist_args(*_args: Any) -> object:  # noqa: ARG001
+        return object()
+
+    node = ChanceNode(name="x", parents=("rain",), dist=dist_args)
+    assert node.consistency is Consistency.STALE
 
 
 def test_adding_parent_after_dist_makes_node_stale() -> None:
@@ -213,7 +238,7 @@ def test_fixing_dist_after_parent_change_restores_consistency() -> None:
     node.add_parent("sprinkler")
     assert node.consistency is Consistency.STALE
 
-    node.dist = _dist_matching
+    node.dist = lambda rain, sprinkler: object()  # noqa: ARG005
     assert node.consistency is Consistency.CONSISTENT
 
 

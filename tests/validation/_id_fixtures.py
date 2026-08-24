@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import math
 from itertools import product
 
@@ -187,22 +188,42 @@ def _rows(values: list[float], var_card: int) -> list[list[float]]:
 
 
 def _dist_factory(arr, evidence: list[str]):
-    """A chance-node dist factory indexing *arr* by parent name."""
+    """
+    A chance-node dist factory indexing *arr* by parent name.
+
+    The body resolves parents through ``kwargs``; the signature is declared
+    with one named parameter per evidence variable so the consistency gate
+    can verify parent coverage.
+    """
 
     def fn(**kwargs):
         idx = tuple(kwargs[p] for p in evidence)
         return dist.Categorical(probs=arr[idx])
 
-    return fn
+    return _declare_signature(fn, evidence)
 
 
 def _values_factory(arr, evidence: list[str]):
-    """A utility-node values factory indexing *arr* by parent name."""
+    """
+    A utility-node values factory indexing *arr* by parent name.
+
+    The body resolves parents through ``kwargs``; the signature is declared
+    with one named parameter per evidence variable so the consistency gate
+    can verify parent coverage.
+    """
 
     def fn(**kwargs):
         idx = tuple(kwargs[p] for p in evidence)
         return float(arr[idx])
 
+    return _declare_signature(fn, evidence)
+
+
+def _declare_signature(fn, names: list[str]):
+    """Attach a named-parameter signature to a ``**kwargs``-style factory."""
+    fn.__signature__ = inspect.Signature(
+        [inspect.Parameter(name, inspect.Parameter.KEYWORD_ONLY) for name in names]
+    )
     return fn
 
 

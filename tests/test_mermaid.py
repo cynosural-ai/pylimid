@@ -11,12 +11,12 @@ from decisionpy.graph.utility_node import UtilityNode
 
 
 def _dist(**_: Any) -> object:
-    """A dist factory matching any parent set (accepts **kwargs)."""
+    """A dist factory accepting **kwargs (rendering never validates)."""
     return object()
 
 
 def _values(**_: Any) -> float:
-    """A utility values function matching any parent set."""
+    """A utility values function accepting **kwargs."""
     return 0.0
 
 
@@ -26,7 +26,10 @@ def _bn() -> InfluenceDiagram:
     diag.add_node(ChanceNode(name="rain", dist=_dist, states=("no", "yes")))
     diag.add_node(
         ChanceNode(
-            name="wet_grass", parents=("rain",), dist=_dist, states=("dry", "wet")
+            name="wet_grass",
+            parents=("rain",),
+            dist=lambda rain: object(),  # noqa: ARG005
+            states=("dry", "wet"),
         )
     )
     return diag
@@ -39,7 +42,13 @@ def _influence() -> InfluenceDiagram:
     diag.add_node(
         DecisionNode(name="invest", parents=("market",), states=("no", "yes"))
     )
-    diag.add_node(UtilityNode(name="profit", parents=("invest",), values=_values))
+    diag.add_node(
+        UtilityNode(
+            name="profit",
+            parents=("invest",),
+            values=lambda invest: 0.0,  # noqa: ARG005
+        )
+    )
     return diag
 
 

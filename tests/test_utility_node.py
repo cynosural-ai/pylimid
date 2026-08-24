@@ -74,9 +74,10 @@ def test_assigning_none_values_is_allowed() -> None:
 # --- consistency lifecycle --------------------------------------------------
 
 
-def test_kwargs_values_matches_any_parents() -> None:
+def test_kwargs_values_with_parents_is_stale() -> None:
+    """A **kwargs values callable cannot prove parent coverage."""
     u = UtilityNode(name="u", parents=("a", "b"), values=_values_matching)
-    assert u.consistency is Consistency.CONSISTENT
+    assert u.consistency is Consistency.STALE
 
 
 def test_adding_parent_after_values_makes_utility_stale() -> None:

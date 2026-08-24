@@ -80,14 +80,16 @@ container stays free of per-type logic.
 `UtilityNode` reuses the shared consistency gate from `Node`, applied to its
 `values` field (mirroring how `ChanceNode` applies it to `dist`):
 
-| State          | Condition                                          |
-| -------------- | -------------------------------------------------- |
-| `UNCONFIGURED` | `values is None`                                   |
-| `CONSISTENT`   | `values` is set and accepts `parents` as kwargs    |
-| `STALE`        | `values` is set but its signature ≠ `parents`      |
+| State          | Condition                                             |
+| -------------- | ----------------------------------------------------- |
+| `UNCONFIGURED` | `values is None`                                      |
+| `CONSISTENT`   | `values` names every parent as an explicit parameter  |
+| `STALE`        | `values` is set but its signature ≠ `parents`         |
 
 STALE arises, exactly as for chance nodes, when a parent is added or removed
-after `values` was configured. The wording of the non-CONSISTENT message is
+after `values` was configured, or when the callable hides a parent behind a
+variadic `*args` / `**kwargs` (a `**kwargs`-only callable is `CONSISTENT`
+only for an empty parent set). The wording of the non-CONSISTENT message is
 owned by the node (`UtilityNode.consistency_message`), so each node type
 describes its own configurable field.
 
