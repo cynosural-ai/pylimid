@@ -17,7 +17,6 @@ per-variable domain sizes both builders need.
 
 from __future__ import annotations
 
-import math
 from itertools import product
 
 from decisionpy.graph.chance_node import ChanceNode
@@ -66,8 +65,7 @@ def cpt(node: ChanceNode, card: dict[str, int]) -> Factor:
         assignment is the corresponding row of the node's distribution.
 
     Raises:
-        RuntimeError: If ``node.dist`` yields no probability vector (neither a
-            ``probs`` attribute nor a working ``log_prob``).
+        RuntimeError: If ``node.dist`` yields no ``probs`` vector.
     """
     parent_vars = list(node.parents)
     parent_cards = [card[p] for p in parent_vars]
@@ -76,7 +74,7 @@ def cpt(node: ChanceNode, card: dict[str, int]) -> Factor:
     values: list[float] = []
     for parent_vals in product(*[range(c) for c in parent_cards]):
         kwargs = dict(zip(node.parents, parent_vals, strict=True))
-        prob_vec = _extract_probs(node, kwargs, node_card)
+        prob_vec = _extract_probs(node, kwargs)
         if prob_vec is None:
             raise RuntimeError(
                 f"Could not extract probability vector from node "
@@ -128,17 +126,18 @@ def utility_factor(node: UtilityNode, card: dict[str, int]) -> Factor:
 def _extract_probs(
     node: ChanceNode,
     parent_kwargs: dict[str, object],
-    card: int,
 ) -> list[float] | None:
-    """Call ``node.dist(**parent_kwargs)`` and extract a probability vector."""
+    """
+    Call ``node.dist(**parent_kwargs)`` and extract its ``probs`` vector.
+
+    Returns ``None`` when the result has no ``probs`` attribute — the
+    library's contract is that a discrete ``dist`` returns a distribution
+    object with ``probs`` (a numpyro Categorical does); the caller reports
+    the mismatch loudly.
+    """
     assert node.dist is not None
     dist = node.dist(**parent_kwargs)
     probs = getattr(dist, "probs", None)
-    if probs is not None:
-        return [float(p) for p in probs]
-    # Fallback: materialise via log_prob for each outcome.
-    try:
-        log_probs = [dist.log_prob(i) for i in range(card)]
-        return [math.exp(float(lp)) for lp in log_probs]
-    except Exception:
+    if probs is None:
         return None
+    return [float(p) for p in probs]
