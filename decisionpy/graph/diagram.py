@@ -61,8 +61,9 @@ class ProblemKind(Enum):
         UTILITY_NOT_SINK: A utility node has acquired a child — a payoff must
             be terminal.
         DIST_IGNORES_PARENT: A node's callable returns the same output for
-            every value of a discrete parent — found by :meth:`probe`, a
-            warning rather than an error.
+            every value of a discrete parent — found by
+            :meth:`~InfluenceDiagram.probe_discrete_parents`, a warning
+            rather than an error.
     """
 
     DANGLING_PARENT = "dangling_parent"
