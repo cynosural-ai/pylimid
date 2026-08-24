@@ -10,7 +10,7 @@ uv run pytest tests/       # run tests
 
 ## Code style
 - Google-style docstrings for all public functions, methods, and classes.
-- Cross-references in docstrings are plain text: no Sphinx roles (`:class:`, `:meth:`, `:func:`, `:attr:`, `:mod:`). Write the name bare (`Snapshot`, `validate()`) without backticks or roles.
+- Cross-references in docstrings are plain text: no Sphinx roles and no backticks. Write the name bare (Snapshot, validate()).
 
 Example:
 ```python
