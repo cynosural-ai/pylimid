@@ -2,7 +2,7 @@
 Mermaid rendering for influence diagrams.
 
 Produces a deterministic Mermaid ``flowchart`` source string for an
-:class:`~decisionpy.graph.diagram.InfluenceDiagram`. Mermaid is the canonical
+InfluenceDiagram. Mermaid is the canonical
 text-first rendering: no runtime dependencies, stable output (testable and
 diffable), and a format that both humans (notebooks, GitHub, chat UIs) and
 LLMs can read and emit.
@@ -12,7 +12,7 @@ circles, decision nodes rectangles, utility nodes diamonds.
 
 The renderer works on the live, possibly incomplete workspace: dangling
 parents are drawn as dashed ghost nodes with dashed edges, and nodes whose
-consistency is not :attr:`~decisionpy.graph.node.Consistency.CONSISTENT` are
+consistency is not CONSISTENT are
 tinted via ``classDef`` so a reader sees at a glance where the diagram is
 unfinished.
 """

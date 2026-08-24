@@ -61,7 +61,7 @@ class Factor:
         Pointwise product, broadcasting over the union of variables.
 
         An empty-scope factor is treated as the constant 1 (the multiplicative
-        identity). Contrast :meth:`__add__`, where an empty scope carries a
+        identity). Contrast __add__(), where an empty scope carries a
         real value and is broadcast like any other factor.
 
         ::
@@ -110,8 +110,8 @@ class Factor:
         Pointwise sum, broadcasting over the union of variables.
 
         Used to combine utility factors, whose objective is additive
-        (``E[sum_k U_k]``) — the counterpart to :meth:`__mul__` for
-        probabilities. Unlike :meth:`__mul__`, an empty-scope factor is a real
+        (``E[sum_k U_k]``) — the counterpart to __mul__() for
+        probabilities. Unlike __mul__(), an empty-scope factor is a real
         constant here, not the unit 1, so it is broadcast like any other.
 
         ::

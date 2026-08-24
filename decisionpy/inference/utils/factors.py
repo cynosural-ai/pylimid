@@ -3,8 +3,7 @@ Factor builders shared by the graph-native inference engines.
 
 Both variable elimination (``decisionpy.inference.ve``) and the
 influence-diagram solvers (``decisionpy.inference.id``) consume a validated
-:class:`~decisionpy.graph.diagram.Snapshot` and need to turn a node's
-configurable callable into a :class:`~decisionpy.inference.utils.factor.Factor` over
+Snapshot and need to turn a node's configurable callable into a Factor over
 its variables:
 
 - a chance node's ``dist`` becomes the CPT factor ``P(node | parents)``;
@@ -59,7 +58,7 @@ def cpt(node: ChanceNode, card: dict[str, int]) -> Factor:
 
     Args:
         node: A configured discrete chance node.
-        card: Variable-name to domain-size map (from :func:`cardinalities`).
+        card: Variable-name to domain-size map (from cardinalities()).
 
     Returns:
         A factor over ``node.parents + [node.name]`` whose entry for each
@@ -97,7 +96,7 @@ def utility_factor(node: UtilityNode, card: dict[str, int]) -> Factor:
 
     Args:
         node: A configured utility node (``values`` set and consistent).
-        card: Variable-name to domain-size map (from :func:`cardinalities`).
+        card: Variable-name to domain-size map (from cardinalities()).
 
     Returns:
         A factor over ``node.parents`` whose entry for each assignment is the

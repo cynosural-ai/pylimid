@@ -29,7 +29,7 @@ The reverse-topological order guarantees that when a decision is maximized its
 information set (its parents) is still present in the factors, while the chance
 variables it influences have already been folded in. A decision is exact for
 the structures it accepts: if the best action would have to depend on a
-variable outside its information set (a non-regular LIMID), :func:`solve`
+variable outside its information set (a non-regular LIMID), solve()
 raises — that structure needs arc reversal, deferred to a later milestone.
 """
 
@@ -78,7 +78,7 @@ def solve(snapshot: Snapshot) -> Solution:
         snapshot: A validated influence-diagram snapshot.
 
     Returns:
-        A :class:`Solution` with the optimal per-decision policy and the
+        A Solution with the optimal per-decision policy and the
         maximum expected utility.
 
     Raises:
@@ -154,7 +154,7 @@ def _sum_utilities(factors: list[Factor]) -> Factor:
 
     Expected total utility is ``E[sum_k U_k]``, so the per-node utility factors
     broadcast-add into one factor over the union of their scopes (via
-    :meth:`Factor.__add__`). The constant zero factor represents a diagram with
+    Factor.__add__()). The constant zero factor represents a diagram with
     no utility nodes.
     """
     if not factors:

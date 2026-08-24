@@ -1,11 +1,6 @@
 """
 Utility node — a deterministic payoff.
 
-Implements the node portion of the utility representation; the mutability and
-consistency model it inherits is in ``docs/diagram.md``, and the solving
-strategy that consumes utility is in ``docs/decision_node.md``. See
-``docs/utility_node.md`` for the dedicated design note.
-
 A utility node is ``U(parents)`` — a deterministic scalar function of its
 parents (chance and / or decision variables). It has **no distribution** and
 **no states**: it is never sampled and carries no outcomes. Its value is
@@ -16,13 +11,11 @@ a chance node's ``dist``).
 Utility nodes are terminal
 --------------------------
 In an influence diagram a payoff is always a **sink**: it has parents but no
-children. The diagram enforces this on :meth:`add_edge
-<decisionpy.graph.diagram.InfluenceDiagram.add_edge>` (rejecting an edge that
-would give a utility node a child) and again in :meth:`validate
-<decisionpy.graph.diagram.InfluenceDiagram.validate>` (the defensive backstop
-against a node mutated directly through its own ``add_parent``). This mirrors
-the eager-plus-defensive treatment of acyclicity — a utility-with-child is
-never a useful intermediate state.
+children. The diagram enforces this on add_edge() (rejecting an edge that
+would give a utility node a child) and again in validate() (the defensive
+backstop against a node mutated directly through its own ``add_parent``).
+This mirrors the eager-plus-defensive treatment of acyclicity — a
+utility-with-child is never a useful intermediate state.
 """
 
 from collections.abc import Callable
@@ -30,9 +23,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from decisionpy.graph.node import (
-    Consistency as _Consistency,
-)
-from decisionpy.graph.node import (
+    Consistency,
     Node,
     NodeKind,
     _signature_matches,
@@ -91,16 +82,16 @@ class UtilityNode(Node):
 
     # --- consistency --------------------------------------------------------
 
-    def _compute_consistency(self) -> _Consistency:
+    def _compute_consistency(self) -> Consistency:
         if self.values is None:
-            return _Consistency.UNCONFIGURED
+            return Consistency.UNCONFIGURED
         if _signature_matches(self.values, self.parents):
-            return _Consistency.CONSISTENT
-        return _Consistency.STALE
+            return Consistency.CONSISTENT
+        return Consistency.STALE
 
-    def consistency_message(self, state: _Consistency) -> str:
+    def consistency_message(self, state: Consistency) -> str:
         """Utility-node wording for a non-CONSISTENT state (see base)."""
-        if state is _Consistency.UNCONFIGURED:
+        if state is Consistency.UNCONFIGURED:
             return f"Utility {self.name!r} has no `values` function configured."
         # STALE is the only remaining non-CONSISTENT state.
         return (

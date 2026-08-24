@@ -7,12 +7,12 @@ distribution objects whose concrete type is the backend's concern.
 
 Node types
 ----------
-Three node kinds share a common base (:class:`Node`):
+Three node kinds share a common base (Node):
 
-- :class:`ChanceNode` — a random variable, ``P(name | parents)``.
-- :class:`DecisionNode` — a variable the agent controls; ``parents`` are its
+- ChanceNode — a random variable, ``P(name | parents)``.
+- DecisionNode — a variable the agent controls; ``parents`` are its
   *information set* (observed when deciding), ``states`` its actions.
-- :class:`UtilityNode` — a deterministic payoff ``U(parents)``; always a sink.
+- UtilityNode — a deterministic payoff ``U(parents)``; always a sink.
 
 A Bayesian network is a diagram containing only chance nodes.
 """

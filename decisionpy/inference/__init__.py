@@ -17,7 +17,7 @@ probability vectors, ``id.solve`` returns exact policies, and
 ``numpyro.samples`` returns raw posterior draws; ``infer`` and ``solve``
 auto-dispatch and normalize to typed results.
 
-See :mod:`decisionpy.inference.engine` for the full dispatch logic.
+See decisionpy.inference.engine for the full dispatch logic.
 """
 
 from decisionpy.inference.engine import (  # noqa: F401

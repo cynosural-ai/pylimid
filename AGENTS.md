@@ -10,12 +10,13 @@ uv run pytest tests/       # run tests
 
 ## Code style
 - Google-style docstrings for all public functions, methods, and classes.
+- Cross-references in docstrings are plain text: no Sphinx roles and no backticks. Write the name bare (Snapshot, validate()).
 
 Example:
 ```python
 def add_edge(self, parent: str, child: str) -> None:
     """
-    Wire an edge ``parent -> child``.
+    Wire an edge parent -> child.
 
     Both endpoints must already be in the diagram.
 
