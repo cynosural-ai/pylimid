@@ -58,7 +58,7 @@ class ProblemKind(Enum):
             be terminal.
         DIST_IGNORES_PARENT: A node's callable returns the same output for
             every value of a discrete parent — found by
-            :meth:`~InfluenceDiagram.probe_discrete_parents`, a warning
+            probe_discrete_parents(), a warning
             rather than an error.
     """
 
@@ -95,7 +95,7 @@ def _distribution_fingerprint(output) -> tuple[object, ...]:
     Anything else fails loudly — the library's contract is that ``dist``
     returns a distribution object and ``values`` returns a number. Equal
     fingerprints are treated as "the same output" by
-    :meth:`InfluenceDiagram.probe_discrete_parents`.
+    probe_discrete_parents().
     """
     get_args = getattr(output, "get_args", None)
     if get_args is not None:
@@ -416,9 +416,9 @@ class InfluenceDiagram:
         fewer rows than the parent has states, where JAX indexing silently
         clamps out-of-range values back to the last row.
 
-        Unlike :meth:`validate`, this executes the node callables (arbitrary
+        Unlike validate(), this executes the node callables (arbitrary
         user code), so it is an explicit, opt-in check — never run
-        automatically by :meth:`snapshot`. Continuous parents (no declared
+        automatically by snapshot(). Continuous parents (no declared
         ``states``) are skipped: there is nothing to enumerate.
 
         A finding is a warning, not an error: a deliberately independent
@@ -427,7 +427,7 @@ class InfluenceDiagram:
         the parent but map it to wrong values.
 
         Returns:
-            One :class:`DiagramProblem` per (node, discrete parent) pair
+            One DiagramProblem per (node, discrete parent) pair
             whose callable output is insensitive to the parent.
         """
         problems: list[DiagramProblem] = []
