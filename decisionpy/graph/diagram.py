@@ -41,8 +41,10 @@ from dataclasses import dataclass
 from enum import Enum
 
 from decisionpy.graph.chance_node import ChanceNode, DistFactory
+from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.mermaid import to_mermaid
 from decisionpy.graph.node import Consistency, Node
+from decisionpy.graph.utility_node import UtilityNode
 
 
 class ProblemKind(Enum):
@@ -58,6 +60,9 @@ class ProblemKind(Enum):
             parents.
         UTILITY_NOT_SINK: A utility node has acquired a child — a payoff must
             be terminal.
+        DIST_IGNORES_PARENT: A node's callable returns the same output for
+            every value of a discrete parent — found by :meth:`probe`, a
+            warning rather than an error.
     """
 
     DANGLING_PARENT = "dangling_parent"
@@ -65,6 +70,7 @@ class ProblemKind(Enum):
     UNCONFIGURED = "unconfigured"
     STALE = "stale"
     UTILITY_NOT_SINK = "utility_not_sink"
+    DIST_IGNORES_PARENT = "dist_ignores_parent"
 
 
 @dataclass(frozen=True)
@@ -79,6 +85,30 @@ class DiagramProblem:
     kind: ProblemKind
     node: str
     message: str
+
+
+#: Fixed points probed through ``log_prob`` to compare continuous
+#: distributions that expose no ``probs`` vector.
+_PROBE_POINTS = (-2.0, -1.0, 0.0, 1.0, 2.0)
+
+
+def _distribution_fingerprint(output) -> tuple[float, ...]:
+    """
+    A comparable snapshot of a callable's output.
+
+    Discrete distributions compare by their ``probs`` vector; continuous
+    ones by their ``log_prob`` at a fixed grid of points; a plain scalar
+    (a utility ``values`` payoff) is its own fingerprint. Two outputs with
+    equal fingerprints are treated as "the same output" by
+    :meth:`InfluenceDiagram.probe`.
+    """
+    probs = getattr(output, "probs", None)
+    if probs is not None:
+        return tuple(float(p) for p in probs.reshape(-1))
+    log_prob = getattr(output, "log_prob", None)
+    if log_prob is None:
+        return (float(output),)
+    return tuple(float(log_prob(x)) for x in _PROBE_POINTS)
 
 
 @dataclass(frozen=True)
@@ -358,6 +388,70 @@ class InfluenceDiagram:
                 )
             )
 
+        return problems
+
+    def probe(self) -> list[DiagramProblem]:
+        """
+        Check that every node's callable actually uses each discrete parent.
+
+        For every chance or utility node, each discrete parent is varied
+        across its states (the other parents held fixed) and the node's
+        callable is evaluated per value. When the returned distribution
+        never changes as a parent changes, the callable does not use that
+        parent — the classic silent mistake, e.g. a probability table with
+        fewer rows than the parent has states, where JAX indexing silently
+        clamps out-of-range values back to the last row.
+
+        Unlike :meth:`validate`, this executes the node callables (arbitrary
+        user code), so it is an explicit, opt-in check — never run
+        automatically by :meth:`snapshot`. Continuous parents (no declared
+        ``states``) are skipped: there is nothing to enumerate.
+
+        A finding is a warning, not an error: a deliberately independent
+        node (its callable genuinely ignores a parent) looks identical and
+        is a legitimate model. The check cannot detect callables that use
+        the parent but map it to wrong values.
+
+        Returns:
+            One :class:`DiagramProblem` per (node, discrete parent) pair
+            whose callable output is insensitive to the parent.
+        """
+        problems: list[DiagramProblem] = []
+        for name, node in self._nodes.items():
+            if isinstance(node, ChanceNode):
+                callable_ = node.dist
+            elif isinstance(node, UtilityNode):
+                callable_ = node.values
+            else:
+                continue
+            if callable_ is None:
+                continue  # UNCONFIGURED — validate() reports it
+            for parent in node.parents:
+                parent_node = self._nodes.get(parent)
+                if not isinstance(parent_node, (ChanceNode, DecisionNode)):
+                    continue  # dangling or continuous (no states): out of scope
+                states = parent_node.states
+                if states is None:
+                    continue
+                fixed = {p: 0 for p in node.parents if p != parent}
+                fingerprints = {
+                    _distribution_fingerprint(callable_(**{**fixed, parent: value}))
+                    for value in range(len(states))
+                }
+                if len(fingerprints) == 1:
+                    problems.append(
+                        DiagramProblem(
+                            kind=ProblemKind.DIST_IGNORES_PARENT,
+                            node=name,
+                            message=(
+                                f"Node {name!r}'s callable returns the same "
+                                f"distribution for every value of parent "
+                                f"{parent!r}; {parent} appears to have no "
+                                f"effect. Warning: a deliberately independent "
+                                f"node looks identical."
+                            ),
+                        )
+                    )
         return problems
 
     def snapshot(self) -> Snapshot:
