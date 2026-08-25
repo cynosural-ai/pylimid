@@ -89,8 +89,11 @@ Three layers, in order of tightness:
    `CLGVariableElimination` do exact inference on pure-Gaussian networks
    with evidence — an independent implementation, already a test
    dependency (validated against the analytic oracle above), and the same
-   module that will validate Phase 4's CLG engine. Mirrors the existing
-   tests/validation/ convention.
+   module that will validate Phase 4's CLG engine. Lands as
+   test_compare_pyagrum.py inside exact/linear_gaussian/, next to the
+   engine's own tests — the same convention as the categorical
+   test_compare_*.py files in exact/categorical/variable_elim/ and
+   exact/categorical/bucket_elim/.
 3. **NumPyro MCMC draws (tertiary).** A broad sanity check at loose
    tolerance (~1e-2), the original REMAINING_WORK plan, kept because it
    exercises the user-facing sampling path end to end.

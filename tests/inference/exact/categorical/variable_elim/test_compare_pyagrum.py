@@ -1,16 +1,20 @@
 """
-Validate decisionpy VE against pgmpy exact inference.
+Validate decisionpy VE against pyAgrum exact inference (LazyPropagation).
 
 Each test builds the same Bayesian network in both libraries and checks
 that priors and posteriors agree to high precision (absolute tolerance 1e-6).
 
-Expected runtime: ~2-3 seconds (pgmpy import is slow).
+The pyAgrum sibling of test_compare_pgmpy.py; both share the fixtures in
+_fixtures.py, and this one does not import pgmpy, so it survives if pgmpy
+is dropped.
+
+Expected runtime: ~2-3 seconds (pyAgrum import is slow).
 """
 
 from __future__ import annotations
 
 import pytest
-from validation._fixtures import (
+from _fixtures import (
     FourNodeAsia,
     ThreeNodeChain,
     TwoNodeRainWet,
@@ -27,16 +31,16 @@ def _check(
     query_vars: list[str],
     observed: dict[str, int] | None = None,
 ):
-    """Assert dp_query ≈ pgmpy_query for the given fixture and evidence."""
+    """Assert dp_query ≈ pyagrum_query for the given fixture and evidence."""
     snap = fixture.decisionpy().snapshot()
     dp_result = dp_query(snap, variables=query_vars, observed=observed or {})
-    pg_result = fixture.pgmpy_query(query_vars, observed=observed)
+    pg_result = fixture.pyagrum_query(query_vars, observed=observed)
     for var in query_vars:
         assert dp_result[var] == pytest.approx(pg_result[var], abs=1e-6), (
             f"Mismatch on {var!r} for {fixture.__class__.__name__}\n"
             f"  observed={observed}\n"
             f"  decisionpy: {dp_result[var]}\n"
-            f"  pgmpy:      {pg_result[var]}"
+            f"  pyagrum:    {pg_result[var]}"
         )
 
 
