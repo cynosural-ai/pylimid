@@ -1,13 +1,13 @@
 """
 Shared model factories that produce both a decisionpy and a pyAgrum BN.
 
-Deliberately pgmpy-free: this module (and test_vs_pyagrum_bn.py) is the
-validation path that would survive if pgmpy were dropped, so it must not
+Deliberately pgmpy-free: this module (and test_compare_pyagrum.py) is the
+comparison path that would survive if pgmpy were dropped, so it must not
 import it.
 
-The fixture data mirrors tests/validation/_fixtures.py (same CPTs and
-evidence orders); the decisionpy builder is the same pattern as the one in
-that module.
+The fixture data mirrors _pgmpy_fixtures.py (same CPTs and evidence
+orders); the decisionpy builder is the same pattern as the one in that
+module.
 """
 
 from __future__ import annotations
@@ -155,7 +155,7 @@ def _rows(values: list[float], var_card: int) -> list[list[float]]:
 
 
 # ---------------------------------------------------------------------------
-# Fixtures — same CPT data as tests/validation/_fixtures.py
+# Fixtures — same CPT data as _pgmpy_fixtures.py
 # ---------------------------------------------------------------------------
 
 TwoNodeRainWet = BNFixture()

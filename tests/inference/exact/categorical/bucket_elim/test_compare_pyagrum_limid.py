@@ -11,7 +11,7 @@ Expected runtime: ~2-3 seconds (pyAgrum import is slow).
 from __future__ import annotations
 
 import pytest
-from validation._id_fixtures import (
+from _pyagrum_limid_fixtures import (
     EmptyInfoDecision,
     IrrelevantInfoDecision,
     NestedTwoDecisions,
