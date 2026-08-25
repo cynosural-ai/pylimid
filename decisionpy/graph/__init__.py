@@ -22,13 +22,16 @@ from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.diagram import InfluenceDiagram
 from decisionpy.graph.node import Consistency, Node, NodeKind
 from decisionpy.graph.utility_node import UtilityNode
+from decisionpy.graph.validation import DiagramProblem, ProblemKind
 
 __all__ = [
     "ChanceNode",
     "Consistency",
     "DecisionNode",
+    "DiagramProblem",
     "InfluenceDiagram",
     "Node",
     "NodeKind",
+    "ProblemKind",
     "UtilityNode",
 ]

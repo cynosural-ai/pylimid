@@ -34,54 +34,13 @@ nonetheless has children (defensive backstop, the same two-layer treatment).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 
 from decisionpy.graph.chance_node import ChanceNode, DistFactory
 from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.mermaid import to_mermaid
 from decisionpy.graph.node import Consistency, Node
 from decisionpy.graph.utility_node import UtilityNode
-
-
-class ProblemKind(Enum):
-    """
-    Category of a DiagramProblem.
-
-    Attributes:
-        DANGLING_PARENT: A node lists a parent that is not in the diagram.
-        CYCLE: The graph contains a cycle.
-        UNCONFIGURED: A node's configurable field (``dist`` / ``values`` /
-            action ``states``) is unset; inference cannot run on it.
-        STALE: A node's configurable field signature does not match its
-            parents.
-        UTILITY_NOT_SINK: A utility node has acquired a child — a payoff must
-            be terminal.
-        DIST_IGNORES_PARENT: A node's callable returns the same output for
-            every value of a discrete parent — found by
-            probe_discrete_parents(), a warning
-            rather than an error.
-    """
-
-    DANGLING_PARENT = "dangling_parent"
-    CYCLE = "cycle"
-    UNCONFIGURED = "unconfigured"
-    STALE = "stale"
-    UTILITY_NOT_SINK = "utility_not_sink"
-    DIST_IGNORES_PARENT = "dist_ignores_parent"
-
-
-@dataclass(frozen=True)
-class DiagramProblem:
-    """
-    A single issue found by InfluenceDiagram.validate().
-
-    Carries enough structure for a UI or LLM to render or act on the problem
-    without parsing prose.
-    """
-
-    kind: ProblemKind
-    node: str
-    message: str
+from decisionpy.graph.validation import DiagramProblem, ProblemKind
 
 
 def _distribution_fingerprint(output) -> tuple[object, ...]:

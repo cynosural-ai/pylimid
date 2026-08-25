@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 
 from decisionpy.graph import ChanceNode, InfluenceDiagram, UtilityNode
-from decisionpy.graph.diagram import ProblemKind
+from decisionpy.graph.validation import ProblemKind
 
 # --- helpers -----------------------------------------------------------------
 
