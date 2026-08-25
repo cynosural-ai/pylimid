@@ -86,6 +86,67 @@ print("policy:", solution.policy["treat"])
 print("expected utility:", round(solution.expected_utility, 3))
 
 # %% [markdown]
+# ## The estimate vs the exact answer
+#
+# The same model built in pyAgrum — whose LIMID solver is exact — shows
+# where the remaining gap lives: the scan finds the same policy, and its
+# expected utility wobbles around pyAgrum's exact 78. The difference is the
+# Monte-Carlo noise, and nothing else.
+
+# %%
+import itertools
+import math
+
+import pyagrum as gum
+
+g = gum.InfluenceDiagram()
+g.addChanceNode(gum.LabelizedVariable("disease", "disease", ["healthy", "sick"]))
+g.addDecisionNode(gum.LabelizedVariable("treat", "treat", ["no", "yes"]))
+g.addChanceNode(gum.LabelizedVariable("recovery", "recovery", ["no", "yes"]))
+g.addUtilityNode(gum.LabelizedVariable("utility", "utility", ["pay"]))
+for parent, child in [
+    ("disease", "treat"),
+    ("disease", "recovery"),
+    ("treat", "recovery"),
+    ("recovery", "utility"),
+    ("treat", "utility"),
+]:
+    g.addArc(g.idFromName(parent), g.idFromName(child))
+g.cpt("disease")[{}] = [0.6, 0.4]
+for disease, treat in itertools.product(range(2), range(2)):
+    probs = {
+        (0, 0): [0.10, 0.90],
+        (0, 1): [0.08, 0.92],
+        (1, 0): [0.60, 0.40],
+        (1, 1): [0.20, 0.80],
+    }[(disease, treat)]
+    g.cpt("recovery")[{"disease": disease, "treat": treat}] = probs
+for recovery, treat in itertools.product(range(2), range(2)):
+    g.utility("utility")[{"recovery": recovery, "treat": treat}] = (
+        100.0 * recovery - 20.0 * treat
+    )
+
+ie = gum.ShaferShenoyLIMIDInference(g)
+ie.makeInference()
+exact_meu = float(ie.MEU()["mean"])
+exact_policy = {}
+for disease in range(2):
+    for action in range(2):
+        if math.isclose(
+            float(ie.optimalDecision("treat")[{"disease": disease, "treat": action}]),
+            1.0,
+            abs_tol=1e-6,
+        ):
+            exact_policy[(disease,)] = action
+
+print(
+    "numpyro (2000 samples):",
+    round(solution.expected_utility, 3),
+    solution.policy["treat"],
+)
+print("pyagrum (exact):       ", exact_meu, exact_policy)
+
+# %% [markdown]
 # ## The estimate wobbles with the seed
 #
 # The expected utility is a Monte-Carlo estimate, not the mathematical
