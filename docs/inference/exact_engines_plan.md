@@ -51,13 +51,15 @@ homes.
 An exact all-continuous engine mirroring variable elimination step for
 step, but over Gaussian factors:
 
-- `gaussian_cpt` — probe each CPD: call `dist` at a baseline point (all
+- `gaussian_cpd` — probe each CPD: call `dist` at a baseline point (all
   parents zero; no parents for a root node) and at one point per parent;
   the returned `Normal`'s `loc` yields the intercept and slopes, `scale`
   the conditional standard deviation. Verify linearity by reconstructing
   `loc` at extra random points and failing loudly (InferenceError) if a
   CPD is not `Normal` or not affine in its parents. The probe doubles as
-  parameter extraction, so no structural marker is needed.
+  parameter extraction, so no structural marker is needed. (Named `cpd`,
+  not `cpt`: the discrete `utils/factors.cpt` builds a probability *table*;
+  this builder yields a conditional probability *distribution*.)
 - `gaussian_factor` — a factor over a variable set in canonical form
   `exp(-1/2 xᵀJx + hᵀx)`: multiply = add `(J, h)`, marginalize = Schur
   complement, condition = clamp. The LG analog of `utils.factor.Factor`.
@@ -66,8 +68,32 @@ step, but over Gaussian factors:
   raw draws, so the current `Draws` contract does not fit; the
   `InferenceResult` union grows but the NumPyro default path is untouched.
 - Example fills in `examples/02_bayesian_networks/linear_gaussian_bn.py`
-  (currently a placeholder); tests cover analytic posteriors on small LG
-  chains and cross-validation against NumPyro MCMC draws.
+  (currently a placeholder).
+
+### Validation
+
+Three layers, in order of tightness:
+
+1. **Analytic multivariate-Gaussian oracle (primary).** A linear-Gaussian
+   BN is one joint Gaussian: order nodes topologically, form the strictly
+   triangular coefficient matrix B (B[i, j] = b_ij for parent j of i) and
+   the noise vector sigma, then x = (I-B)^-1 (a + eps) gives the joint
+   N(mu, Sigma) with mu = (I-B)^-1 a and Sigma = (I-B)^-1 diag(sigma^2)
+   (I-B)^-T. Evidence conditioning is the closed-form Schur-complement
+   conditional. Compare the engine's Gaussian posteriors against this
+   oracle at tight tolerance (~1e-9): exact, noiseless, and an
+   implementation-independent path (global linear algebra vs graph-native
+   factor message passing). It shares only the gaussian_cpd parameter
+   extraction with the engine, so the probe itself gets direct unit tests.
+2. **pyAgrum cross-check (external).** `pyagrum.clg.CLG` +
+   `CLGVariableElimination` do exact inference on pure-Gaussian networks
+   with evidence — an independent implementation, already a test
+   dependency (validated against the analytic oracle above), and the same
+   module that will validate Phase 4's CLG engine. Mirrors the existing
+   tests/validation/ convention.
+3. **NumPyro MCMC draws (tertiary).** A broad sanity check at loose
+   tolerance (~1e-2), the original REMAINING_WORK plan, kept because it
+   exercises the user-facing sampling path end to end.
 
 ## Phase 3 — NumPyro as the default engine for infer()
 
