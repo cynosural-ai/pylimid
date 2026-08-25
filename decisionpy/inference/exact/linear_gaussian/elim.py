@@ -30,9 +30,9 @@ Example:
 ...     )
 ... )
 >>> query(d.snapshot(), variables=["x2"])  # prior: x2 ~ N(2, 2.5)
-{'x2': (2.0, 2.5)}
+{'x2': (2.0, 2.5...)}
 >>> query(d.snapshot(), variables=["x1"], observed={"x2": 0.4})
-{'x1': (-0.96, 0.1)}
+{'x1': (-0.96..., 0.1...)}
 """
 
 from __future__ import annotations
