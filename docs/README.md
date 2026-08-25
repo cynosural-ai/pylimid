@@ -131,7 +131,7 @@ Read in this order:
   `engine="lg"`; the exact engines (`ve`, `lg`) are explicit opt-ins that
   validate the diagram's preconditions. `infer()` takes an all-or-nothing
   `policy=` binding (unbound decisions raise a clean `InferenceError`);
-  `solve()` auto-dispatches to bucket elimination for all-categorical
+  `solve()` defaults to bucket elimination for all-categorical
   diagrams.
 - Planned: the NumPyro intervention-scan solver for mixed/continuous
   influence diagrams (a clean `InferenceError` for now).

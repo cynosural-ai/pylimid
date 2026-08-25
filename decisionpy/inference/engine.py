@@ -186,13 +186,14 @@ def infer(
     raise InferenceError(f"Unknown engine {engine!r}. Choose 'numpyro', 've', or 'lg'.")
 
 
-def solve(diagram: InfluenceDiagram, *, engine: str = "auto") -> Solution:
+def solve(diagram: InfluenceDiagram, *, engine: str = "bucket_elim") -> Solution:
     """
     Solve an influence diagram: the optimal policy and its expected utility.
 
     Args:
         diagram: A validated influence diagram with at least one decision.
-        engine: ``"auto"`` (default) or ``"bucket_elim"``.
+        engine: ``"bucket_elim"`` (default, exact) or ``"numpyro"`` (the
+            intervention-scan solver is planned, not yet implemented).
 
     Returns:
         A Solution with the optimal per-decision policy (decision
@@ -211,9 +212,6 @@ def solve(diagram: InfluenceDiagram, *, engine: str = "auto") -> Solution:
             "node; this diagram has none. Use infer() for Bayesian networks."
         )
 
-    if engine == "auto":
-        engine = _choose_solver(snapshot)
-
     if engine == "bucket_elim":
         return _solve_bucket_elim(snapshot)
 
@@ -224,21 +222,9 @@ def solve(diagram: InfluenceDiagram, *, engine: str = "auto") -> Solution:
             "handles all-categorical diagrams."
         )
 
-    raise InferenceError(f"Unknown engine {engine!r}. Choose 'auto' or 'bucket_elim'.")
-
-
-# -- solver selection ---------------------------------------------------------
-
-
-def _choose_solver(snapshot) -> str:
-    # Decisions are categorical by construction (``states`` are mandatory),
-    # so continuous chance nodes are the only thing that rules bucket
-    # elimination out.
-    if all(
-        node.is_discrete for _, node in snapshot.nodes if node.kind is NodeKind.CHANCE
-    ):
-        return "bucket_elim"
-    return "numpyro"
+    raise InferenceError(
+        f"Unknown engine {engine!r}. Choose 'bucket_elim' or 'numpyro'."
+    )
 
 
 def _validate_query(snapshot, query: list[str]) -> None:

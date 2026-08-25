@@ -113,11 +113,10 @@ infer(diagram, engine="lg"):                 # explicit opt-in
     exact linear-Gaussian marginals. Requires an all-continuous diagram
     of Normal CPDs with affine means (fails loudly otherwise).
 
-solve(diagram, engine="auto"):               # still auto-dispatched
-    if bucket elimination feasible (discrete, tractable):
-        → bucket_elim
-    else:
-        → numpyro gradient optimization (not yet implemented)
+solve(diagram, engine="bucket_elim"):        # the default
+    exact policies for all-categorical diagrams. The NumPyro
+    intervention-scan solver is planned; engine="numpyro" raises
+    InferenceError until it lands.
 ```
 
 The exact engines are explicit opt-ins: each validates its own
