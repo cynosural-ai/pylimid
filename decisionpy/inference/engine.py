@@ -21,15 +21,17 @@ import jax.numpy as jnp
 
 from decisionpy.graph.diagram import InfluenceDiagram
 from decisionpy.graph.node import NodeKind
-from decisionpy.inference.id.bucket_elim import (
+from decisionpy.inference.exact.categorical import (
     Policy,
     Solution,
 )
-from decisionpy.inference.id.bucket_elim import (
+from decisionpy.inference.exact.categorical import (
+    query as ve_query,
+)
+from decisionpy.inference.exact.categorical import (
     solve as bucket_elim_solve,
 )
 from decisionpy.inference.numpyro import samples as numpyro_samples
-from decisionpy.inference.ve import query as ve_query
 
 __all__ = [
     "Draws",

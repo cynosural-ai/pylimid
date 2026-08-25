@@ -11,7 +11,7 @@ from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.diagram import InfluenceDiagram
 from decisionpy.graph.utility_node import UtilityNode
 from decisionpy.inference import Draws, InferenceError, Marginal, infer
-from decisionpy.inference.ve import query as ve_query
+from decisionpy.inference.exact.categorical import query as ve_query
 
 # --- helpers -----------------------------------------------------------------
 

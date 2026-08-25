@@ -1,8 +1,8 @@
 # Bucket elimination — exact policies for discrete influence diagrams
 
-The graph-native influence-diagram solver in `decisionpy.inference.id`, the counterpart to variable elimination: same factor machinery, but for the full decision objective — maximize expected total utility by choosing, per decision, the best action given its observed information set. Numpy-only, exact, and the primary engine behind `solve()`.
+The graph-native influence-diagram solver in `decisionpy.inference.exact.categorical`, the counterpart to variable elimination: same factor machinery, but for the full decision objective — maximize expected total utility by choosing, per decision, the best action given its observed information set. Numpy-only, exact, and the primary engine behind `solve()`.
 
-> **Where this fits.** [`decision_node.md`](../graph/decision_node.md) settles the decision-node representation and the solving strategies (intervention-scan vs. policy-as-parameters); this note is about the *implemented* exact solver. It consumes a validated `Snapshot` (see [`diagram.md`](../graph/diagram.md)) and the shared factor primitives in `decisionpy.inference.utils` (same as [`variable elimination`](./backend_numpyro.md)'s sibling in `decisionpy.inference.ve`).
+> **Where this fits.** [`decision_node.md`](../graph/decision_node.md) settles the decision-node representation and the solving strategies (intervention-scan vs. policy-as-parameters); this note is about the *implemented* exact solver. It consumes a validated `Snapshot` (see [`diagram.md`](../graph/diagram.md)) and the shared factor primitives in `decisionpy.inference.utils` (same as [`variable elimination`](./backend_numpyro.md)'s sibling in the same package).
 
 ---
 
@@ -14,7 +14,7 @@ The graph-native influence-diagram solver in `decisionpy.inference.id`, the coun
 - **`expected_utility`** — the maximum expected total utility under that policy.
 
 ```python
-from decisionpy.inference.id import solve
+from decisionpy.inference.exact.categorical import solve
 
 result = solve(diagram.snapshot())
 result.policy["treat"]  # {(0,): 0, (1,): 1}  — action per info-set assignment
@@ -42,4 +42,4 @@ The policy is a solve-time object; it is not stored on the `DecisionNode`. Bindi
 - [`decision_node.md`](../graph/decision_node.md) — decision representation and the two solving strategies (Strategy B: intervention-scan; Strategy A: policy-as-parameters).
 - [`utility_node.md`](../graph/utility_node.md) — the utility representation the solver consumes.
 - [`inference_strategy.md`](./inference_strategy.md) — why VE stays the exact discrete engine and NumPyro grows as the primary mixed-type engine.
-- `decisionpy/inference/id/bucket_elim.py` — module docstring with the algorithm steps.
+- `decisionpy/inference/exact/categorical/bucket_elim.py` — module docstring with the algorithm steps.

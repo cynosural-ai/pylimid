@@ -1,4 +1,4 @@
-"""Tests for :mod:`decisionpy.inference.id` — bucket elimination for LIMIDs."""
+"""Tests for :mod:`decisionpy.inference.exact.categorical` — bucket elimination."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import numpyro.distributions as dist
 import pytest
 
 from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from decisionpy.inference.id import solve
+from decisionpy.inference.exact.categorical import solve
 
 # --- helpers ----------------------------------------------------------------
 

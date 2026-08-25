@@ -9,10 +9,11 @@ the full mixed-type influence diagram with decisions and utilities.
 ## Current state
 
 Two graph-native engines plus the NumPyro bridge: variable elimination
-(`decisionpy.inference.ve`) for exact discrete Bayesian networks, bucket
-elimination (`decisionpy.inference.id`) for exact discrete influence diagrams,
-and the NumPyro translator (`decisionpy.inference.numpyro.model.to_model`) for
-forward sampling and MCMC/SVI — all consuming a validated `Snapshot`.
+(`decisionpy.inference.exact.categorical`) for exact discrete Bayesian
+networks, bucket elimination (same package) for exact discrete influence
+diagrams, and the NumPyro translator
+(`decisionpy.inference.numpyro.model.to_model`) for forward sampling and
+MCMC/SVI — all consuming a validated `Snapshot`.
 
 ## Analysis of candidate methods
 
