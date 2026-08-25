@@ -24,9 +24,9 @@ policy = solve(diagram)
 ```
 
 `infer` computes posterior distributions over named variables. `solve` computes
-optimal decision policies and expected utilities. Both inspect the diagram and
-pick the appropriate engine automatically, with an explicit `engine=` override
-for users who want control.
+optimal decision policies and expected utilities. `infer` defaults to the
+NumPyro engine and dispatches to the exact engines (`ve`, `lg`) only on an
+explicit `engine=` request; `solve` still picks its engine automatically.
 
 The `backend/` package is collapsed into `inference/`. All algorithms — PPL
 bridges and graph-native methods alike — live under one roof. The directory
@@ -97,26 +97,33 @@ policy entries automatically (by optimizing expected utility).
 For NumPyro's `to_model`, bound decisions are injected as observed sites
 alongside regular observations — no special-case code path needed.
 
-### Auto-dispatch rules
+### Engine selection rules
 
 ```
-infer(diagram, engine="auto"):
-    if diagram has NO decisions AND NO utilities:
-        if treewidth < ~20:
-            → variable_elim (exact)
-        elif all nodes are discrete:
-            → gibbs
-        else:
-            → numpyro.mcmc / svi (with funsor enumeration for discrete)
-    else:
-        → bucket_elim (if feasible) or numpyro.svi
+infer(diagram, engine="numpyro"):            # the default
+    the NumPyro backend handles any diagram (Monte-Carlo; exact for
+    enumerated discrete variables only in expectation — results are
+    never flagged exact).
 
-solve(diagram, engine="auto"):
+infer(diagram, engine="ve"):                 # explicit opt-in
+    exact discrete Bayesian-network marginals. Requires an all-discrete
+    diagram (fails loudly otherwise).
+
+infer(diagram, engine="lg"):                 # explicit opt-in
+    exact linear-Gaussian marginals. Requires an all-continuous diagram
+    of Normal CPDs with affine means (fails loudly otherwise).
+
+solve(diagram, engine="auto"):               # still auto-dispatched
     if bucket elimination feasible (discrete, tractable):
         → bucket_elim
     else:
-        → numpyro gradient optimization
+        → numpyro gradient optimization (not yet implemented)
 ```
+
+The exact engines are explicit opt-ins: each validates its own
+preconditions and rejects diagrams that do not satisfy them. There is no
+inference-time dispatch between them — the general engine is the default,
+exactness is a deliberate choice.
 
 ### Explicit engine errors
 

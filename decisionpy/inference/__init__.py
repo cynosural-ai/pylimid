@@ -16,8 +16,8 @@ Public API::
 Engine-specific entry points are public too: ``ve.query`` returns exact
 probability vectors, ``id.solve`` returns exact policies,
 ``linear_gaussian.query`` returns exact (mean, variance) pairs, and
-``numpyro.samples`` returns raw posterior draws; ``infer`` and ``solve``
-auto-dispatch and normalize to typed results.
+``numpyro.samples`` returns raw posterior draws; ``infer`` normalizes
+them to typed results, and ``solve`` auto-dispatches.
 
 See decisionpy.inference.engine for the full dispatch logic.
 """

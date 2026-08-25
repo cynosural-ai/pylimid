@@ -146,31 +146,26 @@ def _umbrella_diagram() -> InfluenceDiagram:
     return diag
 
 
-# --- auto-dispatch -----------------------------------------------------------
+# --- default engine (numpyro) ------------------------------------------------
 
 
-def test_auto_discrete_dispatches_to_ve():
+def test_default_engine_is_numpyro():
+    """infer() defaults to the Monte-Carlo engine; results are never exact."""
     result = infer(_rain_wet_grass(), ["rain"])
-    expected = ve_query(_rain_wet_grass().snapshot(), variables=["rain"])
-    assert result["rain"] == Marginal(values=expected["rain"], exact=True)
+    assert isinstance(result["rain"], Marginal)
+    assert result["rain"].values == pytest.approx([0.8, 0.2], abs=0.04)
+    assert result["rain"].exact is False
 
 
-def test_auto_with_observed():
-    result = infer(
-        _rain_wet_grass(),
-        ["rain"],
-        observed={"wet_grass": 1},
-    )
-    expected = ve_query(
-        _rain_wet_grass().snapshot(),
-        variables=["rain"],
-        observed={"wet_grass": 1},
-    )
-    assert result["rain"] == Marginal(values=expected["rain"], exact=True)
+def test_default_engine_with_observed():
+    result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1})
+    assert isinstance(result["rain"], Marginal)
+    assert result["rain"].values == pytest.approx([0.457, 0.543], abs=0.04)
+    assert result["rain"].exact is False
 
 
-def test_auto_continuous_requires_numpyro():
-    result = infer(_continuous_diagram(), ["x"], engine="numpyro")
+def test_default_engine_on_continuous_returns_draws():
+    result = infer(_continuous_diagram(), ["x"])
     assert isinstance(result["x"], Draws)
 
 
@@ -206,12 +201,12 @@ def test_explicit_numpyro_prior():
 
 
 def test_result_keys_match_query():
-    result = infer(_rain_wet_grass(), ["rain", "wet_grass"])
+    result = infer(_rain_wet_grass(), ["rain", "wet_grass"], engine="ve")
     assert set(result.keys()) == {"rain", "wet_grass"}
 
 
 def test_probabilities_sum_to_one():
-    result = infer(_rain_wet_grass(), ["rain", "wet_grass"])
+    result = infer(_rain_wet_grass(), ["rain", "wet_grass"], engine="ve")
     assert isinstance(result["rain"], Marginal)
     assert isinstance(result["wet_grass"], Marginal)
     assert sum(result["rain"].values) == pytest.approx(1.0)
@@ -219,7 +214,7 @@ def test_probabilities_sum_to_one():
 
 
 def test_probabilities_sum_to_one_with_observed():
-    result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1})
+    result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1}, engine="ve")
     assert isinstance(result["rain"], Marginal)
     assert sum(result["rain"].values) == pytest.approx(1.0)
 
@@ -329,10 +324,12 @@ def test_unbound_decision_raises_with_explicit_engine():
 # --- policy binding -----------------------------------------------------------
 
 
-def test_policy_collapses_id_to_bn_and_routes_to_ve():
+def test_policy_collapses_id_to_bn():
     """A fully bound ID behaves like a BN with the decisions as evidence."""
     diag = _umbrella_diagram()
-    result = infer(diag, ["rain"], observed={"wet": 1}, policy={"umbrella": 1})
+    result = infer(
+        diag, ["rain"], observed={"wet": 1}, policy={"umbrella": 1}, engine="ve"
+    )
     expected = ve_query(
         diag.snapshot(),
         variables=["rain"],
@@ -361,7 +358,7 @@ def test_policy_with_explicit_numpyro():
     assert result["rain"].exact is False
 
 
-def test_policy_on_continuous_diagram_routes_to_numpyro():
+def test_policy_on_continuous_diagram():
     """A continuous chance node plus a bound decision still infers."""
     diag = InfluenceDiagram()
     diag.add_node(DecisionNode(name="d", states=("no", "yes")))
@@ -398,7 +395,7 @@ def test_utility_node_alone_does_not_block_infer():
             values=lambda rain: float(rain),
         )
     )
-    result = infer(diag, ["rain"])
+    result = infer(diag, ["rain"], engine="ve")
     assert result["rain"] == Marginal(values=[0.8, 0.2], exact=True)
 
 
