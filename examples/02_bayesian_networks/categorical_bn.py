@@ -121,12 +121,46 @@ print(
 # # The posterior against the exact answer
 #
 # The NumPyro engine enumerates the discrete space, so these are estimates
-# of the exact posterior. P(cancer=present | xray=pos) ≈ 0.309 exactly;
-# the estimate lands within a percent.
+# of the exact posterior. Building the same network in pyAgrum — whose
+# inference is exact — shows the agreement: P(cancer=present | xray=pos)
+# ≈ 0.309 exactly, and the estimate lands within a percent.
 
 # %%
+import pyagrum as gum
+
+bn = gum.BayesNet()
+for name, states in [
+    ("smoking", ["no", "yes"]),
+    ("pollution", ["low", "high"]),
+    ("cancer", ["absent", "present"]),
+    ("xray", ["neg", "pos"]),
+]:
+    bn.add(gum.LabelizedVariable(name, name, states))
+for parent, child in [
+    ("smoking", "cancer"),
+    ("pollution", "cancer"),
+    ("cancer", "xray"),
+]:
+    bn.addArc(bn.idFromName(parent), bn.idFromName(child))
+bn.cpt("smoking")[{}] = [0.7, 0.3]
+bn.cpt("pollution")[{}] = [0.9, 0.1]
+bn.cpt("cancer")[{"smoking": 0, "pollution": 0}] = [0.99, 0.01]
+bn.cpt("cancer")[{"smoking": 0, "pollution": 1}] = [0.40, 0.60]
+bn.cpt("cancer")[{"smoking": 1, "pollution": 0}] = [0.90, 0.10]
+bn.cpt("cancer")[{"smoking": 1, "pollution": 1}] = [0.50, 0.50]
+bn.cpt("xray")[{"cancer": 0}] = [0.80, 0.20]
+bn.cpt("xray")[{"cancer": 1}] = [0.10, 0.90]
+
+exact = gum.LazyPropagation(bn)
+exact.setEvidence({"xray": "pos"})
+exact.makeInference()
+
 post_cancer = infer(diag, ["cancer"], observed={"xray": 1})
 print(
-    "P(cancer | xray=pos) ->",
+    "numpyro (2000 samples) ->",
     [round(p, 3) for p in post_cancer["cancer"].marginal()],
+)
+print(
+    "pyagrum (exact)        ->",
+    [round(p, 3) for p in exact.posterior("cancer").tolist()],
 )
