@@ -56,12 +56,8 @@ class Posterior:
             ValueError: If the variable is continuous (``states`` is None):
                 a continuous posterior has no per-state probability mass.
         """
-        if self.states is None:
-            raise ValueError(
-                "marginal() requires a discrete variable; this posterior is "
-                "continuous (states is None). Summarize with mean(), std(), "
-                "hdi(), or use the raw values."
-            )
+        self._require_discrete()
+        assert self.states is not None  # the guard above guarantees it
         counts = [0] * len(self.states)
         for value in self.values:
             counts[int(value)] += 1
@@ -116,6 +112,15 @@ class Posterior:
             key=lambda i: ordered[i + k - 1] - ordered[i],
         )
         return (ordered[start], ordered[start + k - 1])
+
+    def _require_discrete(self) -> None:
+        """Fail loudly on a continuous posterior: no per-state mass exists."""
+        if self.states is None:
+            raise ValueError(
+                "marginal() requires a discrete variable; this posterior is "
+                "continuous (states is None). Summarize with mean(), std(), "
+                "hdi(), or use the raw values."
+            )
 
     def _require_continuous(self) -> None:
         """Fail loudly on a discrete posterior: indices are not moments."""
