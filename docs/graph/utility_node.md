@@ -13,7 +13,7 @@ its consistency model works, and why utility nodes are *sinks*.
 > [`decision_node.md`](./decision_node.md); this note covers only the node's
 > representation. Exact expected-utility solving for the discrete case is
 > implemented via bucket elimination ([`bucket_elim.md`](../inference/bucket_elim.md),
-> `decisionpy.inference.id`); the NumPyro intervention-scan path is planned.
+> `decisionpy.inference.exact.categorical`); the NumPyro intervention-scan path is planned.
 
 ---
 
@@ -99,7 +99,7 @@ describes its own configurable field.
 
 - **No NumPyro intervention-scan solver.** The graph layer represents the
   utility; the exact discrete solver (bucket elimination,
-  `decisionpy.inference.id`) is implemented, and the Monte-Carlo
+  `decisionpy.inference.exact.categorical`) is implemented, and the Monte-Carlo
   intervention-scan path (Strategy B from [`decision_node.md`](./decision_node.md))
   is planned for the NumPyro engine.
 - **No table sugar** for discrete utilities (analogous to the deferred

@@ -36,7 +36,7 @@ space does not depend on the information set's size, so adding or removing an
 information parent never invalidates it.
 
 The *solving* of decisions is partially implemented: **bucket elimination**
-([`bucket_elim.md`](../inference/bucket_elim.md), `decisionpy.inference.id`)
+([`bucket_elim.md`](../inference/bucket_elim.md), `decisionpy.inference.exact.categorical`)
 gives exact optimal policies for all-categorical diagrams — the discrete case.
 Strategy B (intervention-scan, NumPyro) for the approximate path and Strategy A
 (policy-as-parameters) for continuous decisions remain planned. The node's
@@ -93,7 +93,7 @@ with the highest EU wins.
 | Verifiability       | hard to tell convergence from correctness | trivially correct — EU measured per action |
 
 The exact graph-native alternative to both — **bucket elimination**
-([`bucket_elim.md`](../inference/bucket_elim.md), `decisionpy.inference.id`) — is
+([`bucket_elim.md`](../inference/bucket_elim.md), `decisionpy.inference.exact.categorical`) — is
 the solver that actually landed for v0: same factor machinery as variable
 elimination, exact optimal policies for all-categorical diagrams, numpy-only.
 

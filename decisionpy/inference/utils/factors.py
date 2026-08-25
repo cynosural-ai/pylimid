@@ -1,8 +1,8 @@
 """
 Factor builders shared by the graph-native inference engines.
 
-Both variable elimination (``decisionpy.inference.ve``) and the
-influence-diagram solvers (``decisionpy.inference.id``) consume a validated
+Both variable elimination (``decisionpy.inference.exact.categorical``) and the
+influence-diagram solvers (same package) consume a validated
 Snapshot and need to turn a node's configurable callable into a Factor over
 its variables:
 

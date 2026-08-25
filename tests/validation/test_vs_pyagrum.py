@@ -20,7 +20,7 @@ from validation._id_fixtures import (
     TwoDecisionsIndependent,
 )
 
-from decisionpy.inference.id import solve
+from decisionpy.inference.exact.categorical import solve
 
 # -- shared check --------------------------------------------------------------
 

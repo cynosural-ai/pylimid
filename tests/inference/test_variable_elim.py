@@ -1,4 +1,4 @@
-"""Tests for :mod:`decisionpy.inference.ve`."""
+"""Tests for :mod:`decisionpy.inference.exact.categorical` — variable elimination."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import pytest
 
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.diagram import InfluenceDiagram
-from decisionpy.inference.ve import query
+from decisionpy.inference.exact.categorical import query
 
 # --- helpers ----------------------------------------------------------------
 

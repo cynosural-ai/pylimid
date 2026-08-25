@@ -8,7 +8,7 @@ import pytest
 
 from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
 from decisionpy.inference import InferenceError, solve
-from decisionpy.inference.id import solve as id_solve
+from decisionpy.inference.exact.categorical import solve as id_solve
 
 # --- helpers -----------------------------------------------------------------
 

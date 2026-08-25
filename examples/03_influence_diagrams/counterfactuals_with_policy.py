@@ -118,7 +118,7 @@ for disease_label, disease_state in [("healthy", 0), ("sick", 1)]:
 # in `observed` — confirming the `policy=` path computes the exact posterior.
 
 # %%
-from decisionpy.inference.ve import query
+from decisionpy.inference.exact.categorical import query
 
 direct = query(
     diag.snapshot(),

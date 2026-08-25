@@ -17,7 +17,7 @@ from validation._fixtures import (
     VStructure,
 )
 
-from decisionpy.inference.ve import query as dp_query
+from decisionpy.inference.exact.categorical import query as dp_query
 
 # -- shared fixture factory ---------------------------------------------------
 

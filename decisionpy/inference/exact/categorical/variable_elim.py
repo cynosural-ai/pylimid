@@ -4,7 +4,8 @@ Variable elimination — exact marginal inference on discrete Bayesian networks.
 Bound decisions behave as evidence (each must appear in ``observed``).
 
 Graph-native, zero heavy dependencies.  Works directly against a
-Snapshot.
+Snapshot. Part of the categorical exact-engine family in
+decisionpy.inference.exact.categorical.
 
 Algorithm (for a single query variable)
 ---------------------------------------
@@ -21,7 +22,7 @@ Algorithm (for a single query variable)
 Example:
 -------
 >>> from decisionpy.graph import ChanceNode, InfluenceDiagram
->>> from decisionpy.inference.ve import query
+>>> from decisionpy.inference.exact.categorical import query
 >>> import numpyro.distributions as dist
 >>> d = InfluenceDiagram()
 >>> d.add_node(
