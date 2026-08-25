@@ -41,7 +41,6 @@ def test_from_cpd_two_parents():
     factor = GaussianFactor.from_cpd(
         "y", ["a", "b"], intercept=1.0, slopes=[2.0, -3.0], scale=2.0
     )
-    variance = 4.0
     expected_precision = jnp.array(
         [
             [4.0 / 4.0, -6.0 / 4.0, -2.0 / 4.0],
@@ -59,9 +58,7 @@ def test_from_cpd_two_parents():
 
 def test_multiply_shared_variable_joint():
     f_x1 = GaussianFactor.from_cpd("x1", [], intercept=0.0, slopes=[], scale=1.0)
-    f_x2 = GaussianFactor.from_cpd(
-        "x2", ["x1"], intercept=2.0, slopes=[1.5], scale=0.5
-    )
+    f_x2 = GaussianFactor.from_cpd("x2", ["x1"], intercept=2.0, slopes=[1.5], scale=0.5)
     joint = f_x1 * f_x2
     assert joint.variables == ("x1", "x2")
     expected_precision = jnp.array([[10.0, -6.0], [-6.0, 4.0]])
@@ -81,9 +78,7 @@ def test_multiply_disjoint_variables():
 
 def test_multiply_commutes():
     f_x1 = GaussianFactor.from_cpd("x1", [], intercept=0.0, slopes=[], scale=1.0)
-    f_x2 = GaussianFactor.from_cpd(
-        "x2", ["x1"], intercept=2.0, slopes=[1.5], scale=0.5
-    )
+    f_x2 = GaussianFactor.from_cpd("x2", ["x1"], intercept=2.0, slopes=[1.5], scale=0.5)
     ab = f_x1 * f_x2
     ba = f_x2 * f_x1
     assert ab.variables == ("x1", "x2")
@@ -97,9 +92,7 @@ def test_multiply_commutes():
 
 def test_marginal_prior_of_child():
     f_x1 = GaussianFactor.from_cpd("x1", [], intercept=0.0, slopes=[], scale=1.0)
-    f_x2 = GaussianFactor.from_cpd(
-        "x2", ["x1"], intercept=2.0, slopes=[1.5], scale=0.5
-    )
+    f_x2 = GaussianFactor.from_cpd("x2", ["x1"], intercept=2.0, slopes=[1.5], scale=0.5)
     joint = f_x1 * f_x2
     child = joint.marginal(["x2"])
     mean, variance = _moments(child)
@@ -109,9 +102,7 @@ def test_marginal_prior_of_child():
 
 def test_marginal_prior_of_parent():
     f_x1 = GaussianFactor.from_cpd("x1", [], intercept=0.0, slopes=[], scale=1.0)
-    f_x2 = GaussianFactor.from_cpd(
-        "x2", ["x1"], intercept=2.0, slopes=[1.5], scale=0.5
-    )
+    f_x2 = GaussianFactor.from_cpd("x2", ["x1"], intercept=2.0, slopes=[1.5], scale=0.5)
     joint = f_x1 * f_x2
     parent = joint.marginal(["x1"])
     mean, variance = _moments(parent)
@@ -121,9 +112,7 @@ def test_marginal_prior_of_parent():
 
 def test_marginal_keeps_scope_order():
     f_x1 = GaussianFactor.from_cpd("x1", [], intercept=0.0, slopes=[], scale=1.0)
-    f_x2 = GaussianFactor.from_cpd(
-        "x2", ["x1"], intercept=2.0, slopes=[1.5], scale=0.5
-    )
+    f_x2 = GaussianFactor.from_cpd("x2", ["x1"], intercept=2.0, slopes=[1.5], scale=0.5)
     joint = f_x1 * f_x2
     kept = joint.marginal(["x2", "x1"])
     assert kept.variables == ("x1", "x2")
@@ -134,9 +123,7 @@ def test_marginal_keeps_scope_order():
 
 def test_condition_posterior():
     f_x1 = GaussianFactor.from_cpd("x1", [], intercept=0.0, slopes=[], scale=1.0)
-    f_x2 = GaussianFactor.from_cpd(
-        "x2", ["x1"], intercept=2.0, slopes=[1.5], scale=0.5
-    )
+    f_x2 = GaussianFactor.from_cpd("x2", ["x1"], intercept=2.0, slopes=[1.5], scale=0.5)
     joint = f_x1 * f_x2
     conditioned = joint.condition({"x2": 0.4})
     assert conditioned.variables == ("x1",)

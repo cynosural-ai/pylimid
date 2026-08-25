@@ -84,9 +84,7 @@ class GaussianFactor:
         info = jnp.zeros((n,))
         for factor in (self, other):
             rows = jnp.asarray([variables.index(v) for v in factor.variables])
-            precision = precision.at[rows[:, None], rows[None, :]].add(
-                factor.precision
-            )
+            precision = precision.at[rows[:, None], rows[None, :]].add(factor.precision)
             info = info.at[rows].add(factor.info)
         return GaussianFactor(variables=variables, precision=precision, info=info)
 
@@ -132,14 +130,10 @@ class GaussianFactor:
         Returns:
             A factor over the remaining variables.
         """
-        kept = [
-            i for i, v in enumerate(self.variables) if v not in evidence
-        ]
+        kept = [i for i, v in enumerate(self.variables) if v not in evidence]
         if len(kept) == len(self.variables):
             return self
-        removed = [
-            (i, v) for i, v in enumerate(self.variables) if v in evidence
-        ]
+        removed = [(i, v) for i, v in enumerate(self.variables) if v in evidence]
         kept_idx = jnp.asarray(kept)
         remove_idx = jnp.asarray([i for i, _ in removed])
         values = jnp.asarray([evidence[v] for _, v in removed])
@@ -175,9 +169,7 @@ class GaussianFactor:
         n = n_parents + 1
         variance = scale**2
         precision = jnp.zeros((n, n))
-        precision = precision.at[:n_parents, :n_parents].set(
-            jnp.outer(b, b) / variance
-        )
+        precision = precision.at[:n_parents, :n_parents].set(jnp.outer(b, b) / variance)
         precision = precision.at[:n_parents, n_parents].set(-b / variance)
         precision = precision.at[n_parents, :n_parents].set(-b / variance)
         precision = precision.at[n_parents, n_parents].set(1.0 / variance)
