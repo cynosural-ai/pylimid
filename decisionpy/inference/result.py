@@ -56,9 +56,8 @@ class Posterior:
             ValueError: If the variable is continuous (``states`` is None):
                 a continuous posterior has no per-state probability mass.
         """
-        self._require_discrete()
-        assert self.states is not None  # the guard above guarantees it
-        counts = [0] * len(self.states)
+        states = self._require_discrete()
+        counts = [0] * len(states)
         for value in self.values:
             counts[int(value)] += 1
         total = sum(counts)
@@ -113,14 +112,20 @@ class Posterior:
         )
         return (ordered[start], ordered[start + k - 1])
 
-    def _require_discrete(self) -> None:
-        """Fail loudly on a continuous posterior: no per-state mass exists."""
+    def _require_discrete(self) -> tuple[str, ...]:
+        """
+        Fail loudly on a continuous posterior, else return the states.
+
+        The return value is the narrowing: the caller gets the guaranteed
+        non-None states from the type checker's perspective.
+        """
         if self.states is None:
             raise ValueError(
                 "marginal() requires a discrete variable; this posterior is "
                 "continuous (states is None). Summarize with mean(), std(), "
                 "hdi(), or use the raw values."
             )
+        return self.states
 
     def _require_continuous(self) -> None:
         """Fail loudly on a discrete posterior: indices are not moments."""
