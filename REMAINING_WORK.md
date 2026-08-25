@@ -10,10 +10,16 @@ Per `docs/ADR/25_08_2026_numpyro_only_engine.md`, the library is numpyro-only.
 
 3. **Policy-as-parameters solving (Strategy A)** — deferred: continuous information sets (a decision observing a continuous parent) cannot be tabulated by the intervention scan. The parameterized-policy path (per `decision_node.md`, Strategy A) extends solving to those diagrams.
 
+## Solver performance
+
+4. **Batch the policy scan (Level 1)** — the intervention scan evaluates each policy with its own `jax.vmap` call, so JAX re-traces per policy (measured ~260ms per 500-sample evaluation, ~60% of it traced `arr[idx]` dynamic-slice machinery from user dist callables). Evaluate all policies in one vmapped call with the policy arrays as a leading batch dimension and jit the forward step once: one trace, one dispatch for the whole solve — expected 10-50× on the scan fixtures, same semantics.
+
+5. **Per-decision backward induction (Level 2)** — replace the full policy-product enumeration with choosing one decision at a time in reverse order, estimating E[U | info] per action by stratified forward sampling. Removes the exponential in the policy space; introduces estimator variance per info-set group, so it needs careful design after Level 1.
+
 ## Validation
 
-4. **Rewrite the comparison tests against pyAgrum** — DONE: the numpyro engine is validated against pyAgrum's exact engines (LazyPropagation for categorical BNs, the ShaferShenoy LIMID solver for `solve()`, `pyagrum.clg` for continuous BNs) at Monte-Carlo tolerances, in `tests/inference/numpyro/test_compare_pyagrum*.py`. pgmpy dropped from the test dependencies — pyAgrum is the single external reference library.
+6. **Rewrite the comparison tests against pyAgrum** — DONE: the numpyro engine is validated against pyAgrum's exact engines (LazyPropagation for categorical BNs, the ShaferShenoy LIMID solver for `solve()`, `pyagrum.clg` for continuous BNs) at Monte-Carlo tolerances, in `tests/inference/numpyro/test_compare_pyagrum*.py`. pgmpy dropped from the test dependencies — pyAgrum is the single external reference library.
 
-5. **Docs sweep** — DONE: the living docs now describe the numpyro-only world — `decision_node.md` (Strategy B implemented, bucket elimination historical), `utility_node.md`, `backend_numpyro.md` (solver section added), `inference_strategy.md` (rewritten), `docs/README.md` (status table + code status), and the superseded ADRs (`23_07`, `13_08`) carry banner notes.
+7. **Docs sweep** — DONE: the living docs now describe the numpyro-only world — `decision_node.md` (Strategy B implemented, bucket elimination historical), `utility_node.md`, `backend_numpyro.md` (solver section added), `inference_strategy.md` (rewritten), `docs/README.md` (status table + code status), and the superseded ADRs (`23_07`, `13_08`) carry banner notes.
 
-6. **pyAgrum side-by-side in the examples** — add pyAgrum's exact solutions to `solver_comparison.py` (exact LIMID vs the scan) and `categorical_bn.py` (exact VE vs enumeration), move `pyagrum` into the `dev` dependency group, and note it in `examples/README.md`.
+8. **pyAgrum side-by-side in the examples** — add pyAgrum's exact solutions to `solver_comparison.py` (exact LIMID vs the scan) and `categorical_bn.py` (exact VE vs enumeration), move `pyagrum` into the `dev` dependency group, and note it in `examples/README.md`.
