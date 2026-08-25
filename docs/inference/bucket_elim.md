@@ -1,6 +1,13 @@
 # Bucket elimination — exact policies for discrete influence diagrams
 
-The graph-native influence-diagram solver in `decisionpy.inference.exact.categorical`, the counterpart to variable elimination: same factor machinery, but for the full decision objective — maximize expected total utility by choosing, per decision, the best action given its observed information set. Numpy-only, exact, and the primary engine behind `solve()`.
+> **Historical reference.** The exact engines were retired in favor of the
+> NumPyro-only engine (see
+> [`25_08_2026_numpyro_only_engine.md`](../ADR/25_08_2026_numpyro_only_engine.md));
+> `decisionpy.inference.exact.categorical` no longer exists. This note is
+> kept as the record of how the solver worked, for recoverability.
+
+The graph-native influence-diagram solver that lived in
+`decisionpy.inference.exact.categorical`, the counterpart to variable elimination: same factor machinery, but for the full decision objective — maximize expected total utility by choosing, per decision, the best action given its observed information set. Numpy-only, exact, and the primary engine behind `solve()` before the NumPyro intervention scan took over.
 
 > **Where this fits.** [`decision_node.md`](../graph/decision_node.md) settles the decision-node representation and the solving strategies (intervention-scan vs. policy-as-parameters); this note is about the *implemented* exact solver. It consumes a validated `Snapshot` (see [`diagram.md`](../graph/diagram.md)) and the shared factor primitives in `decisionpy.inference.utils` (same as [`variable elimination`](./backend_numpyro.md)'s sibling in the same package).
 

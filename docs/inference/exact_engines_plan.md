@@ -1,5 +1,12 @@
 # Exact inference engines — phased plan
 
+> **Historical reference.** The exact engines were built to this plan and
+> then retired in favor of the NumPyro-only engine (see
+> [`25_08_2026_numpyro_only_engine.md`](../ADR/25_08_2026_numpyro_only_engine.md)).
+> This document is kept as the design-and-validation record so a future
+> rebuild starts from a documented plan; it does not describe the current
+> library.
+
 This is the execution plan for the exact continuous-inference roadmap
 (REMAINING_WORK.md items 2 and 3) plus the package reorganization that
 prepares for it. Each phase is independently shippable, keeps the test

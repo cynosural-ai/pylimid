@@ -111,23 +111,6 @@ for disease_label, disease_state in [("healthy", 0), ("sick", 1)]:
     )
 
 # %% [markdown]
-# ## Exact cross-check
-#
-# A bound decision behaves as ordinary evidence to the engine, so the same
-# result is available through variable elimination directly with the decision
-# in `observed` — confirming the `policy=` path computes the exact posterior.
-
-# %%
-from decisionpy.inference.exact.categorical import query
-
-direct = query(
-    diag.snapshot(),
-    variables=["recovery"],
-    observed={"disease": 1, "treat": 1},
-)
-print("ve with treat=1 in observed ->", [round(p, 3) for p in direct["recovery"]])
-
-# %% [markdown]
 # ## The full loop
 #
 # 1. `solve()` finds the optimal policy.

@@ -7,8 +7,7 @@ import numpyro.distributions as dist
 import pytest
 
 from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from decisionpy.inference import InferenceError, solve
-from decisionpy.inference.numpyro.solver import solve as numpyro_solve
+from decisionpy.inference.numpyro.solver import solve
 
 # --- helpers ----------------------------------------------------------------
 
@@ -86,44 +85,29 @@ def _mixed_diagram() -> InfluenceDiagram:
     return diag
 
 
-# --- categorical: agrees with bucket elimination -----------------------------
+# --- categorical -------------------------------------------------------------
 
 
-def test_umbrella_policy_matches_bucket_elim():
-    exact = solve(_umbrella_diagram())
-    approx = solve(_umbrella_diagram(), engine="numpyro")
-    assert approx.policy == exact.policy == {"umbrella": {(0,): 0, (1,): 1}}
-    assert approx.expected_utility == pytest.approx(1.0, abs=0.05)
-    assert exact.exact is True
-    assert approx.exact is False
+def test_umbrella_policy():
+    solution = solve(_umbrella_diagram().snapshot())
+    assert solution.policy == {"umbrella": {(0,): 0, (1,): 1}}
+    assert solution.expected_utility == pytest.approx(1.0, abs=0.05)
 
 
-def test_two_decisions_match_bucket_elim():
-    exact = solve(_two_decisions_diagram())
-    approx = solve(_two_decisions_diagram(), engine="numpyro")
-    assert approx.expected_utility == pytest.approx(exact.expected_utility, abs=0.05)
-    assert approx.policy["d1"] == exact.policy["d1"] == {(0,): 0, (1,): 1}
-    # d2's optimum is unique only on reachable cells: under d1 = x, the
-    # assignments (x=0, d1=1) and (x=1, d1=0) never occur, so any action
-    # there ties and the two solvers may break the tie differently.
-    for assignment in ((0, 0), (1, 1)):
-        assert approx.policy["d2"][assignment] == exact.policy["d2"][assignment]
+def test_two_decisions():
+    solution = solve(_two_decisions_diagram().snapshot())
+    assert solution.policy["d1"] == {(0,): 0, (1,): 1}
+    assert solution.expected_utility == pytest.approx(2.0, abs=0.05)
 
 
 # --- mixed diagrams ----------------------------------------------------------
 
 
 def test_mixed_diagram_optimal_policy():
-    solution = solve(_mixed_diagram(), engine="numpyro")
+    solution = solve(_mixed_diagram().snapshot())
     # E[x | s=0] = -1 → d=0; E[x | s=1] = 1 → d=1; E[U] = 0.7.
     assert solution.policy == {"d": {(0,): 0, (1,): 1}}
     assert solution.expected_utility == pytest.approx(0.7, abs=0.15)
-    assert solution.exact is False
-
-
-def test_mixed_diagram_bucket_elim_cannot_handle():
-    with pytest.raises(InferenceError, match="all-categorical"):
-        solve(_mixed_diagram())
 
 
 # --- scope and determinism ---------------------------------------------------
@@ -140,11 +124,11 @@ def test_continuous_information_set_raises():
             values=lambda x, d: float(x) * float(d),
         )
     )
-    with pytest.raises(InferenceError, match="continuous"):
-        solve(diag, engine="numpyro")
+    with pytest.raises(ValueError, match="continuous"):
+        solve(diag.snapshot())
 
 
 def test_solver_is_deterministic():
-    a = numpyro_solve(_mixed_diagram().snapshot())
-    b = numpyro_solve(_mixed_diagram().snapshot())
+    a = solve(_mixed_diagram().snapshot())
+    b = solve(_mixed_diagram().snapshot())
     assert a == b
