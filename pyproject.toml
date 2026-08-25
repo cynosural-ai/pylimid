@@ -20,12 +20,13 @@ dev = [
     "jupyterlab>=4.1",
     "jupytext>=1.16",
     "ipywidgets>=8.0",
-]
-test = [
-    "pytest>=8.4.0",
+    # The examples compare against pyAgrum's exact engines.
     "pyagrum>=1.12",
     # pyagrum.clg imports pandas at module load without declaring it.
     "pandas>=2.0",
+]
+test = [
+    "pytest>=8.4.0",
 ]
 
 [tool.uv]

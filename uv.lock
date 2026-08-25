@@ -532,13 +532,13 @@ dev = [
     { name = "ipywidgets" },
     { name = "jupyterlab" },
     { name = "jupytext" },
+    { name = "pandas" },
     { name = "pre-commit" },
+    { name = "pyagrum" },
     { name = "ruff" },
     { name = "ty" },
 ]
 test = [
-    { name = "pandas" },
-    { name = "pyagrum" },
     { name = "pytest" },
 ]
 
@@ -554,15 +554,13 @@ dev = [
     { name = "ipywidgets", specifier = ">=8.0" },
     { name = "jupyterlab", specifier = ">=4.1" },
     { name = "jupytext", specifier = ">=1.16" },
+    { name = "pandas", specifier = ">=2.0" },
     { name = "pre-commit", specifier = ">=3.1.1" },
+    { name = "pyagrum", specifier = ">=1.12" },
     { name = "ruff", specifier = "==0.16.0" },
     { name = "ty", specifier = "==0.0.14" },
 ]
-test = [
-    { name = "pandas", specifier = ">=2.0" },
-    { name = "pyagrum", specifier = ">=1.12" },
-    { name = "pytest", specifier = ">=8.4.0" },
-]
+test = [{ name = "pytest", specifier = ">=8.4.0" }]
 
 [[package]]
 name = "defusedxml"
