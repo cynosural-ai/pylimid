@@ -11,7 +11,10 @@ Expected runtime: ~2-3 seconds (pyAgrum import is slow).
 from __future__ import annotations
 
 import pytest
-from _pyagrum_limid_fixtures import (
+
+from decisionpy.inference.exact.categorical import solve
+
+from ._pyagrum_limid_fixtures import (
     EmptyInfoDecision,
     IrrelevantInfoDecision,
     NestedTwoDecisions,
@@ -19,8 +22,6 @@ from _pyagrum_limid_fixtures import (
     ThreeStateClimate,
     TwoDecisionsIndependent,
 )
-
-from decisionpy.inference.exact.categorical import solve
 
 # -- shared check --------------------------------------------------------------
 

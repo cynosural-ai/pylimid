@@ -10,14 +10,15 @@ Expected runtime: ~2-3 seconds (pgmpy import is slow).
 from __future__ import annotations
 
 import pytest
-from _fixtures import (
+
+from decisionpy.inference.exact.categorical import query as dp_query
+
+from ._fixtures import (
     FourNodeAsia,
     ThreeNodeChain,
     TwoNodeRainWet,
     VStructure,
 )
-
-from decisionpy.inference.exact.categorical import query as dp_query
 
 # -- shared fixture factory ---------------------------------------------------
 

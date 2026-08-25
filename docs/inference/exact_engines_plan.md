@@ -81,10 +81,13 @@ Three layers, in order of tightness:
    N(mu, Sigma) with mu = (I-B)^-1 a and Sigma = (I-B)^-1 diag(sigma^2)
    (I-B)^-T. Evidence conditioning is the closed-form Schur-complement
    conditional. Compare the engine's Gaussian posteriors against this
-   oracle at tight tolerance (~1e-9): exact, noiseless, and an
+   oracle at tight tolerance (~1e-4): exact, noiseless, and an
    implementation-independent path (global linear algebra vs graph-native
-   factor message passing). It shares only the gaussian_cpd parameter
-   extraction with the engine, so the probe itself gets direct unit tests.
+   factor message passing). The engine's canonical-form arithmetic runs in
+   float32 (JAX's default), which bounds the achievable agreement — a
+   genuine algebra bug deviates by orders of magnitude more. The oracle
+   shares only the gaussian_cpd parameter extraction with the engine, so
+   the probe itself gets direct unit tests.
 2. **pyAgrum cross-check (external).** `pyagrum.clg.CLG` +
    `CLGVariableElimination` do exact inference on pure-Gaussian networks
    with evidence — an independent implementation, already a test
