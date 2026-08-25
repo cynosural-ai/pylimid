@@ -10,7 +10,7 @@ Expected runtime: ~2-3 seconds (pgmpy import is slow).
 from __future__ import annotations
 
 import pytest
-from _pgmpy_fixtures import (
+from _fixtures import (
     FourNodeAsia,
     ThreeNodeChain,
     TwoNodeRainWet,

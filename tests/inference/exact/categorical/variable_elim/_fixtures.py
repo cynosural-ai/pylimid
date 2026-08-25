@@ -1,11 +1,20 @@
-"""Shared model factories that produce both a decisionpy and a pgmpy BN."""
+"""
+Shared model factories that produce a decisionpy, a pgmpy, and a pyAgrum BN.
+
+Each fixture is defined once and builds the same CPTs in all three
+libraries, so the comparison tests (test_compare_pgmpy.py,
+test_compare_pyagrum.py) share a single source of truth for the model
+data. If pgmpy is dropped, only the pgmpy methods and imports go.
+"""
 
 from __future__ import annotations
 
 import inspect
+from itertools import product
 
 import jax.numpy as jnp
 import numpyro.distributions as dist
+import pyagrum as gum
 from pgmpy.factors.discrete import TabularCPD
 from pgmpy.inference import VariableElimination
 from pgmpy.models import DiscreteBayesianNetwork
@@ -22,7 +31,7 @@ __all__ = [
 
 
 class BNFixture:
-    """A Bayesian network definition usable by both decisionpy and pgmpy."""
+    """A Bayesian network definition usable by decisionpy, pgmpy, and pyAgrum."""
 
     #: Edge list [(parent, child), ...]
     edges: list[tuple[str, str]]
@@ -154,9 +163,54 @@ class BNFixture:
             result[var] = [float(x) for x in post.values]
         return result
 
+    def pyagrum(self) -> gum.BayesNet:
+        """Build a pyAgrum BayesNet with the same CPTs."""
+        bn = gum.BayesNet()
+        for name, sts in self.states.items():
+            bn.add(gum.LabelizedVariable(name, name, list(sts)))
+        for parent, child in self.edges:
+            bn.addArc(bn.idFromName(parent), bn.idFromName(child))
+
+        for name, sts in self.states.items():
+            values, evidence = self.cpds[name]
+            tbl = bn.cpt(name)
+            parent_cards = [len(self.states[e]) for e in evidence]
+            rows = _rows(values, len(sts))
+            for i, assign in enumerate(product(*[range(c) for c in parent_cards])):
+                tbl[dict(zip(evidence, assign, strict=True))] = rows[i]
+        return bn
+
+    def pyagrum_query(
+        self,
+        variables: list[str],
+        observed: dict[str, int] | None = None,
+    ) -> dict[str, list[float]]:
+        """Run pyAgrum LazyPropagation; return decisionpy's query format."""
+        ie = gum.LazyPropagation(self.pyagrum())
+        evidence = {}
+        if observed:
+            for var, val in observed.items():
+                evidence[var] = self.states[var][val]
+        if evidence:
+            ie.setEvidence(evidence)
+        ie.makeInference()
+        result: dict[str, list[float]] = {}
+        for var in variables:
+            result[var] = [float(x) for x in ie.posterior(var).tolist()]
+        return result
+
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
+
+def _rows(values: list[float], var_card: int) -> list[list[float]]:
+    """Split a flat value list into rows of *var_card* entries."""
+    return [values[i : i + var_card] for i in range(0, len(values), var_card)]
+
+
+# ---------------------------------------------------------------------------
 
 TwoNodeRainWet = BNFixture()
 TwoNodeRainWet.edges = [("rain", "wet_grass")]
@@ -208,10 +262,8 @@ VStructure.cpds = {
     "a": ([0.5, 0.5], []),
     "b": ([0.6, 0.4], []),
     "c": (
-        # P(c|a,b): a fast, b slowest? No — decisionpy uses product(a,b)
-        # product(range(2), range(2)) = [(0,0),(0,1),(1,0),(1,1)]
-        # So: a=0,b=0; a=0,b=1; a=1,b=0; a=1,b=1
-        # [0.95, 0.05, 0.30, 0.70, 0.20, 0.80, 0.01, 0.99]
+        # P(c|a,b): row-major over product(a, b)
+        # a=0,b=0; a=0,b=1; a=1,b=0; a=1,b=1
         [0.95, 0.05, 0.30, 0.70, 0.20, 0.80, 0.01, 0.99],
         ["a", "b"],
     ),

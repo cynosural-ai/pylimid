@@ -4,8 +4,9 @@ Validate decisionpy VE against pyAgrum exact inference (LazyPropagation).
 Each test builds the same Bayesian network in both libraries and checks
 that priors and posteriors agree to high precision (absolute tolerance 1e-6).
 
-This is the pgmpy-free sibling of test_compare_pgmpy.py: the fixtures here
-do not import pgmpy, so this file survives if pgmpy is dropped.
+The pyAgrum sibling of test_compare_pgmpy.py; both share the fixtures in
+_fixtures.py, and this one does not import pgmpy, so it survives if pgmpy
+is dropped.
 
 Expected runtime: ~2-3 seconds (pyAgrum import is slow).
 """
@@ -13,7 +14,7 @@ Expected runtime: ~2-3 seconds (pyAgrum import is slow).
 from __future__ import annotations
 
 import pytest
-from _pyagrum_fixtures import (
+from _fixtures import (
     FourNodeAsia,
     ThreeNodeChain,
     TwoNodeRainWet,
