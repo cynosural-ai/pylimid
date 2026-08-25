@@ -161,7 +161,12 @@ One axis per parent. No new mechanism.
 
 Since categorical values are integers internally, the label list does real work:
 
-- **Validation:** `P.shape[-1] == len(states)`; each row sums to 1.
+- **Cardinality:** `len(states)` fixes the support size every engine assumes
+  for the node — the length of each `probs` vector VE extracts, the number of
+  states a marginal vector reports. Nothing validates the shape of a `dist`'s
+  probability array against `states`; a mismatched table surfaces as wrong
+  numbers, which `probe_discrete_parents()` (see [`diagram.md`](./diagram.md))
+  can flag when the wrong row is silently reused.
 - **Display:** report results as `wet_grass = soaked` rather than `wet_grass = 2`.
 - **Decision nodes too:** a discrete decision's action space is its `states`
   list, and the solver returns a policy keyed by these labels.
@@ -170,29 +175,12 @@ Since categorical values are integers internally, the label list does real work:
 
 ---
 
-## What `from_cpt` does
+## `from_cpt` (deferred)
 
-The table sugar parses a dict-keyed CPT, builds the corresponding array, and
-emits the canonical callable. Roughly:
-
-> map string labels → integer indices via the parent `states` lists,
-> assemble the probability array, return
-> `lambda *parents: dist.Categorical(probs=P[parents])`.
-
-It is a desugaring step, not a separate node type. All downstream code
+The planned table sugar parses a dict-keyed CPT, builds the corresponding
+array, and emits a callable equivalent to `lambda rain, sprinkler:
+dist.Categorical(probs=P[rain, sprinkler])` — one named parameter per parent,
+so the resulting callable satisfies the signature gate like any hand-written
+one. It is a desugaring step, not a separate node type: all downstream code
 (validator, translator, solver) only ever sees the canonical callable form.
-
----
-
-## Resolved: parent `states` access for `from_cpt`
-
-`from_cpt` for multi-parent tables needs the parent `states` lists to map
-string tuple keys → integer indices. The earlier open question was whether the
-builder would have diagram-scoped access to parent nodes.
-
-**Resolved by the mutable-diagram design** (see
-[`diagram.md`](./diagram.md)): `from_cpt` is
-offered as a method on `InfluenceDiagram`, not on the bare node, so it has
-direct access to the registered parent nodes and their `states`. The bare-node
-`ChanceNode.from_cpt` form shown in the examples above is illustrative; the
-real entry point is diagram-scoped.
+Not implemented; the dict-keyed form and the exact entry point remain open.

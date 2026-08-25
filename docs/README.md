@@ -37,9 +37,10 @@ Read in this order:
 
 1. **[`diagram.md`](./diagram.md)** — the foundational note. The diagram is a
    **mutable workspace** edited by external authors (script, UI, LLM), with
-   inference gated behind an explicit `validate()` / `snapshot()` checkpoint.
-   The seven principles here govern every node and the container. Read this
-   before the node-specific notes.
+   inference gated behind an explicit `validate()` / `snapshot()` checkpoint
+   and the on-demand runtime `probe_discrete_parents()` check. The seven
+   principles here govern every node and the container. Read this before the
+   node-specific notes.
 
 2. **[`chance_node.md`](./chance_node.md)** — settles the *distribution
    representation*: callable-primary (handles discrete, continuous, and mixed
@@ -48,22 +49,23 @@ Read in this order:
    derived.
 
 3. **[`decision_node.md`](./decision_node.md)** — settles the *solving
-   strategy*: intervention-scan (Strategy B) for v0 discrete decisions,
-   policy-as-parameters (Strategy A) for continuous, composed by a per-node
-   dispatch abstraction for mixed. Includes the `DecisionNode` *representation*
-   in `graph/` (information set, action space, consistency model). Solving
-   itself is the next milestone.
+   strategy*: bucket elimination for exact discrete diagrams (implemented),
+   intervention-scan (Strategy B) as the planned NumPyro path for
+   mixed/continuous, policy-as-parameters (Strategy A) deferred. Includes the
+   `DecisionNode` *representation* in `graph/` (information set, action space,
+   consistency model).
 
 4. **[`utility_node.md`](./utility_node.md)** — the `UtilityNode` *representation*:
    a callable `values(parent_assignments) -> float`, no dist/states, always a
    sink (enforced eagerly + defensively). Inherits the consistency model from
-   `diagram.md`. Like decisions, expected-utility *solving* is deferred.
+   `diagram.md`. Consumed by the exact solver's expected-utility computation.
 
 5. **[`backend_numpyro.md`](./backend_numpyro.md)** — the NumPyro translator:
-   turns a validated `Snapshot` into a NumPyro model. Chance nodes only in v0
-   (a Bayesian network); `samples()` covers both forward sampling and
-   posterior inference (exact enumeration / NUTS). NumPyro is a declared
-   dependency, though the graph layer itself never imports it.
+   turns a validated `Snapshot` into a NumPyro model. Chance nodes always;
+   bound decisions become degenerate observed sites and utilities are skipped.
+   `samples()` covers both forward sampling and posterior inference (exact
+   enumeration / NUTS). NumPyro is a declared dependency, though the graph
+   layer itself never imports it.
 
 6. **[`inference_strategy.md`](./inference_strategy.md)** — analysis of
    inference backends for the full influence diagram roadmap: variable
@@ -87,7 +89,7 @@ Read in this order:
 | Decision-node representation | Settled — graph layer | `decision_node.md` |
 | Utility-node representation | Settled — graph layer | `utility_node.md` |
 | Decision-node solving strategy | Settled — exact bucket elimination implemented; Strategy B (intervention-scan) planned for the NumPyro path | `decision_node.md`, `bucket_elim.md` |
-| NumPyro translator   | Chance-only; `samples()` — forward sampling and posterior inference (enumeration / NUTS) | `backend_numpyro.md` |
+| NumPyro translator   | Chance nodes; bound decisions as observed sites, utilities skipped — `samples()` forward + posterior (enumeration / NUTS) | `backend_numpyro.md` |
 | Inference strategy   | Settled — VE for exact discrete, NumPyro for mixed-type | `inference_strategy.md` |
 | Unified inference API | Settled — `infer()` / `solve()` with auto-dispatch | `ADR/23_07_2026_unified_inference_architecture.md` |
 | `infer()` result format | Settled — typed per-entry results (`Marginal` / `Draws`) | `ADR/13_08_2026_typed_inference_results.md` |
@@ -105,9 +107,11 @@ Read in this order:
   the three node types, all subclassing `Node`. A diagram with only chance
   nodes is a Bayesian network; adding a decision or utility node makes it an
   influence diagram (see `diagram.md`, `decision_node.md`, `utility_node.md`).
-- `graph/diagram.py` — the mutable container, `Snapshot`, and validation
-  (see `diagram.md`). Exports `Node`, `NodeKind`, `Consistency`, and the three
-  node types from `decisionpy.graph`.
+- `graph/diagram.py` — the mutable container and `Snapshot` (see `diagram.md`);
+  `graph/validation.py` — the `DiagramProblem` / `ProblemKind` model shared by
+  `validate()` and `probe_discrete_parents()`. Exports `Node`, `NodeKind`,
+  `Consistency`, the three node types, and the problem model from
+  `decisionpy.graph`.
 - `inference/ve/` — exact discrete inference via variable elimination:
   public `query()` returning exact probability vectors
   (see `inference_strategy.md`).
@@ -117,6 +121,7 @@ Read in this order:
 - `inference/numpyro/` — NumPyro bridge: translates a `Snapshot` into a NumPyro
   model, with public `samples()` — prior draws with no observations, posterior
   draws (exact enumeration / NUTS) with observations, as raw JAX arrays.
+  Bound decisions clamp to their policy values; utilities are skipped.
   NumPyro is a declared dependency, though nothing in `decisionpy.graph`
   imports it.
 - `inference/engine.py` — unified `infer()` / `solve()` entry-points with
