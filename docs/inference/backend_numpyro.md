@@ -99,7 +99,7 @@ only importing `decisionpy.inference` does.
 
 ## The solver — intervention scan
 
-`numpyro/solver.py` solves influence diagrams by Strategy B
+`numpyro/solvers/intervention_scan.py` solves influence diagrams by Strategy B
 ([`decision_node.md`](../graph/decision_node.md)): it does not go through
 `to_model`. It enumerates the discrete policy space — one action per
 information-set assignment per decision — and evaluates each policy by a

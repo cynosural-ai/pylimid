@@ -71,7 +71,7 @@ Read in this order:
    turns a validated `Snapshot` into a NumPyro model. Chance nodes always;
    bound decisions become degenerate observed sites and utilities are skipped.
    `samples()` covers both forward sampling and posterior inference
-   (enumeration / NUTS); `solver.solve()` runs the intervention scan for
+   (enumeration / NUTS); `solvers.intervention_scan.solve` runs the intervention scan for
    influence diagrams. NumPyro is a declared dependency, though the graph
    layer itself never imports it.
 
@@ -87,6 +87,13 @@ Read in this order:
    elimination, decision max-out), the policy representation, and the
    supported scope. Retired with the exact engines; its history is in git.
 
+8. **[`solver_algorithms.md`](./inference/solver_algorithms.md)** — the
+   solver family and the papers behind it: the intervention scan
+   (implemented), the batched scan (implemented), and backward induction /
+   single policy updating (planned), with the LIMID theory
+   (Lauritzen–Nilsson), the regularity/memory-arcs discussion, and the
+   Monte-Carlo decision-analysis references.
+
 ## Status of each decision
 
 | Topic                | Status      | Where                              |
@@ -97,8 +104,8 @@ Read in this order:
 | Chance-node distribution form | Settled | `chance_node.md`             |
 | Decision-node representation | Settled — graph layer | `decision_node.md` |
 | Utility-node representation | Settled — graph layer | `utility_node.md` |
-| Decision-node solving strategy | Settled — NumPyro intervention scan (Strategy B) implemented; bucket elimination retired (historical); Strategy A deferred | `decision_node.md`, `ADR/25_08_2026_numpyro_only_engine.md` |
-| NumPyro translator   | Chance nodes; bound decisions as observed sites, utilities skipped — `samples()` forward + posterior (enumeration / NUTS), `solver.solve()` intervention scan | `backend_numpyro.md` |
+| Decision-node solving strategy | Settled — NumPyro intervention scan and the batched scan (Strategy B) implemented; backward induction planned; bucket elimination retired (historical); Strategy A deferred | `decision_node.md`, `solver_algorithms.md`, `ADR/25_08_2026_numpyro_only_engine.md` |
+| NumPyro translator   | Chance nodes; bound decisions as observed sites, utilities skipped — `samples()` forward + posterior (enumeration / NUTS), `solvers.intervention_scan.solve` intervention scan | `backend_numpyro.md` |
 | Inference strategy   | Settled — NumPyro-only | `ADR/25_08_2026_numpyro_only_engine.md` |
 | Unified inference API | Settled — `infer()` / `solve()`, NumPyro-only | `ADR/23_07_2026_unified_inference_architecture.md`, `ADR/25_08_2026_numpyro_only_engine.md` |
 | `infer()` result format | Settled — one `Posterior` per query (draws + `states`; `marginal()`/`mean()`/`std()`/`hdi()`) | `ADR/25_08_2026_unified_posterior_result.md` |
@@ -124,7 +131,7 @@ Read in this order:
 - `inference/numpyro/` — the NumPyro engine: translates a `Snapshot` into a
   NumPyro model, with public `samples()` — prior draws with no observations,
   posterior draws (enumeration / NUTS) with observations, as raw JAX arrays —
-  and `solver.solve()` — the intervention-scan influence-diagram solver.
+  and `solvers.intervention_scan.solve` — the intervention-scan influence-diagram solver.
   Bound decisions clamp to their policy values; utilities are skipped.
   NumPyro is a declared dependency, though nothing in `decisionpy.graph`
   imports it.

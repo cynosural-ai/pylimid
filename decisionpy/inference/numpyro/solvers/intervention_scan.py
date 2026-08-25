@@ -1,11 +1,13 @@
 """
 NumPyro influence-diagram solver — Strategy B, the intervention scan.
 
-Solves a mixed-type influence diagram by Monte-Carlo: enumerate the
-discrete policy space (one action per information-set assignment per
-decision), evaluate each policy by forward-simulating the diagram with
-every decision resolved from its observed information set, and keep the
-policy with the highest estimated expected utility.
+The unbatched reference implementation: solves a mixed-type influence
+diagram by Monte-Carlo, enumerating the discrete policy space (one action
+per information-set assignment per decision) and evaluating each policy by
+forward-simulating the diagram with every decision resolved from its
+observed information set, keeping the policy with the highest estimated
+expected utility. The batched scan (batched_scan.py) is the same algorithm
+with all policies evaluated in one vmapped call.
 
 The forward pass mirrors to_model's topological walk (parents before
 children — guaranteed by the Snapshot), except that a decision node is
@@ -21,6 +23,22 @@ discrete or continuous. The policy space is exponential in the number of
 decision rules, so this engine suits diagrams with small decision spaces;
 it is the Monte-Carlo counterpart to bucket elimination, which stays the
 exact solver for all-categorical diagrams.
+
+References:
+    Lauritzen, S. L. and Nilsson, D. (2001). Representing and solving
+    decision problems with limited information. Management Science
+    47(9), 1235-1251. The LIMID formalism this solver targets and
+    single policy updating, the efficient alternative to policy
+    enumeration.
+
+    Shachter, R. D. (1986). Evaluating influence diagrams. Operations
+    Research 34(6), 871-882. Backward induction for influence diagrams,
+    the exact counterpart to this scan's full enumeration.
+
+    Bielza, C., Muller, P. and Rios Insua, D. (2007). Decision analysis
+    by augmented probability simulation. Management Science 53(7).
+    Monte-Carlo methods for decision analysis, the tradition this
+    sampling-based scan belongs to.
 """
 
 from __future__ import annotations

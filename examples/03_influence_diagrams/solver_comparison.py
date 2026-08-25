@@ -29,7 +29,9 @@ import numpyro.distributions as dist
 
 from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
 from decisionpy.inference import solve
-from decisionpy.inference.numpyro.solver import solve as numpyro_solve
+from decisionpy.inference.numpyro.solvers.intervention_scan import (
+    solve as numpyro_solve,
+)
 
 # %% [markdown]
 # ## The model (all categorical)

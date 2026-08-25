@@ -4,7 +4,7 @@
 
 Per `docs/ADR/25_08_2026_numpyro_only_engine.md`, the library is numpyro-only.
 
-1. **NumPyro intervention-scan solver** — DONE: `decisionpy/inference/numpyro/solver.py` (Strategy B per `decision_node.md`). Enumerates the discrete policy space and estimates expected utility per policy by forward sampling with each decision resolved from its observed information set. Handles mixed/continuous diagrams; requires discrete information sets.
+1. **NumPyro intervention-scan solver** — DONE: `decisionpy/inference/numpyro/solvers/intervention_scan.py` (Strategy B per `decision_node.md`). Enumerates the discrete policy space and estimates expected utility per policy by forward sampling with each decision resolved from its observed information set. Handles mixed/continuous diagrams; requires discrete information sets.
 
 2. **Retire the exact engines** — DONE: `decisionpy/inference/exact/` and `inference/utils/` deleted, the `Gaussian` result type and the `exact` flags on `Marginal`/`Solution` removed, and the `engine=` plumbing gone — `infer()` and `solve()` are numpyro-only. Recoverable via git history and `docs/inference/exact_engines_plan.md` (see the ADR).
 
@@ -12,9 +12,9 @@ Per `docs/ADR/25_08_2026_numpyro_only_engine.md`, the library is numpyro-only.
 
 ## Solver performance
 
-4. **Batch the policy scan (Level 1)** — the intervention scan evaluates each policy with its own `jax.vmap` call, so JAX re-traces per policy (measured ~260ms per 500-sample evaluation, ~60% of it traced `arr[idx]` dynamic-slice machinery from user dist callables). Evaluate all policies in one vmapped call with the policy arrays as a leading batch dimension and jit the forward step once: one trace, one dispatch for the whole solve — expected 10-50× on the scan fixtures, same semantics.
+4. **Batch the policy scan (Level 1)** — DONE: `decisionpy/inference/numpyro/solvers/batched_scan.py` evaluates all policies in one vmapped, jitted pass, with the policy arrays carrying a leading batch dimension and an RNG stream identical to the unbatched scan. Same policy and expected utility (identity tests in `tests/inference/numpyro/solvers/test_batched_scan.py`); ~220× on the Oil Wildcatter fixture (112s → 0.5s at 2000 samples). One caveat: utility `values` callables must now be JAX-traceable (no `float()`/`int()` coercion).
 
-5. **Per-decision backward induction (Level 2)** — replace the full policy-product enumeration with choosing one decision at a time in reverse order, estimating E[U | info] per action by stratified forward sampling. Removes the exponential in the policy space; introduces estimator variance per info-set group, so it needs careful design after Level 1.
+5. **Per-decision backward induction (Level 2)** — replace the full policy-product enumeration with choosing one decision at a time in reverse order, estimating E[U | info] per action by stratified forward sampling. Removes the exponential in the policy space; introduces estimator variance per info-set group, so it needs careful design after Level 1. Backward induction is only valid when the diagram is regular (info sets closed under a decision ordering), so the solver needs an `is_solvable` check (mirroring pyAgrum's `ShaferShenoyLIMIDInference.isSolvable`): regular diagrams solve in one reverse-order pass; non-regular ones fall back to the scan (or raise). The check can probably go later if SPU lands — SPU solves non-regular LIMIDs by iterating, so the gate stops being load-bearing.
 
 ## Validation
 
