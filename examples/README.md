@@ -11,6 +11,7 @@ Interactive notebooks showcasing the library's capabilities. Read in numeric ord
 | `02_bayesian_networks/conditional_linear_gaussian_bn.py` | Conditional linear-Gaussian BNs — placeholder (exact inference not implemented yet) |
 | `03_influence_diagrams/medical_treatment.ipynb` | `solve()`: optimal policy and expected utility for a treatment decision |
 | `03_influence_diagrams/counterfactuals_with_policy.ipynb` | `infer(..., policy=)`: interventional queries, unbound-decision errors, solve + evaluate loop |
+| `03_influence_diagrams/solver_comparison.py` | Two solvers for one model: bucket elimination (exact) vs the NumPyro intervention scan (Monte-Carlo), and the mixed/continuous case only the scan handles |
 
 ## Running
 
