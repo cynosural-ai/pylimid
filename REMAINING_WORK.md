@@ -2,10 +2,8 @@
 
 ## Engine roadmap
 
-1. **NumPyro intervention-scan solver** — `solve()` on mixed/continuous influence diagrams currently raises a clean `InferenceError`. The planned NumPyro intervention-scan / gradient-optimization path (per `decision_node.md`, Strategy B) makes those diagrams solvable. Deferred from PR B on purpose.
+Per `docs/ADR/25_08_2026_numpyro_only_engine.md`, the library is numpyro-only: the exact engines (`ve`, `lg`) are retired once the NumPyro solver exists, and the CLG engine is never built.
 
-2. **Exact linear-Gaussian inference** — DONE: `inference/exact/linear_gaussian` (variable elimination over canonical-form Gaussian factors, `engine="lg"`), cross-validated against the analytic joint Gaussian and pyAgrum's `pyagrum.clg`. `infer()` now defaults to the NumPyro engine; the exact engines (`ve`, `lg`) are explicit opt-ins.
+1. **NumPyro intervention-scan solver** — `solve()` on mixed/continuous influence diagrams currently raises a clean `InferenceError`. The planned NumPyro intervention-scan / gradient-optimization path (per `decision_node.md`, Strategy B) makes those diagrams solvable. The critical path: it is the prerequisite for retiring bucket elimination and the product's differentiator.
 
-3. **Exact conditional-linear-Gaussian inference** — mixed BNs (discrete children with discrete parents only; continuous children with either) currently route to NumPyro MCMC. The classic CLG propagation (Lauritzen): conditioned on a discrete assignment the continuous posterior is Gaussian; marginalizing over the discrete states yields a mixture of Gaussians. Builds on the LG engine (item 2). Two design decisions to settle when implementing:
-   - whether the discrete-parents-only constraint becomes an enforced validation rule (today it is only a modeling convention that fails loudly at inference),
-   - how exact continuous results fit the current contract, where continuous queries return `Draws` (raw samples) with no exactness flag.
+2. **Retire the exact engines** — once the solver lands, remove in one sweep: `decisionpy/inference/exact/`, the `utils/` factor builders they alone use, the `Gaussian` result type, the `exact` flag on `Marginal`, the `engine=` plumbing in `infer()`/`solve()`, the LG fixtures and comparison tests, and the exact-result sections of the examples. The pgmpy/pyAgrum comparison tests stay. Recoverable via git history and `docs/inference/exact_engines_plan.md` (see the ADR).
