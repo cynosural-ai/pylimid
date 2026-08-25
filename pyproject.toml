@@ -23,8 +23,9 @@ dev = [
 ]
 test = [
     "pytest>=8.4.0",
-    "pgmpy>=0.1",
     "pyagrum>=1.12",
+    # pyagrum.clg imports pandas at module load without declaring it.
+    "pandas>=2.0",
 ]
 
 [tool.uv]

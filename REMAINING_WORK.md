@@ -12,6 +12,6 @@ Per `docs/ADR/25_08_2026_numpyro_only_engine.md`, the library is numpyro-only.
 
 ## Validation
 
-4. **Rewrite the comparison tests against external exact libraries** — the pgmpy/pyAgrum comparison tests validated the retired engines; they should flip to validate the numpyro engine (`infer()` vs pgmpy VE, `solve()` vs pyAgrum LIMID, MCMC vs pyagrum.clg for continuous BNs) at Monte-Carlo tolerances.
+4. **Rewrite the comparison tests against pyAgrum** — DONE: the numpyro engine is validated against pyAgrum's exact engines (LazyPropagation for categorical BNs, the ShaferShenoy LIMID solver for `solve()`, `pyagrum.clg` for continuous BNs) at Monte-Carlo tolerances, in `tests/inference/numpyro/test_compare_pyagrum*.py`. pgmpy dropped from the test dependencies — pyAgrum is the single external reference library.
 
 5. **Docs sweep + pyAgrum in the examples** — banner the superseded ADRs, rewrite the living docs (`inference_strategy.md`, `backend_numpyro.md`, `decision_node.md`, `utility_node.md`, `docs/README.md`) to the numpyro-only world, and add pyAgrum side-by-side comparisons to the examples.
