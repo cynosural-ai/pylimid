@@ -10,7 +10,13 @@ from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.diagram import InfluenceDiagram
 from decisionpy.graph.utility_node import UtilityNode
-from decisionpy.inference import Draws, InferenceError, Marginal, infer
+from decisionpy.inference import (
+    Draws,
+    Gaussian,
+    InferenceError,
+    Marginal,
+    infer,
+)
 from decisionpy.inference.exact.categorical import query as ve_query
 
 # --- helpers -----------------------------------------------------------------
@@ -41,6 +47,20 @@ def _rain_wet_grass() -> InfluenceDiagram:
 def _continuous_diagram() -> InfluenceDiagram:
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="x", dist=lambda: dist.Normal(loc=5.0, scale=2.0)))
+    return diag
+
+
+def _lg_diagram() -> InfluenceDiagram:
+    """A two-node linear-Gaussian BN: x1 -> x2."""
+    diag = InfluenceDiagram()
+    diag.add_node(ChanceNode(name="x1", dist=lambda: dist.Normal(loc=0.0, scale=1.0)))
+    diag.add_node(
+        ChanceNode(
+            name="x2",
+            parents=("x1",),
+            dist=lambda x1: dist.Normal(loc=2.0 + 1.5 * x1, scale=0.5),
+        )
+    )
     return diag
 
 
@@ -171,13 +191,14 @@ def test_explicit_numpyro_discrete():
         engine="numpyro",
     )
     # P(rain=yes | wet_grass=wet) ≈ 0.543
-    assert result["rain"].values == pytest.approx([0.457, 0.543], abs=0.04)
     assert isinstance(result["rain"], Marginal)
+    assert result["rain"].values == pytest.approx([0.457, 0.543], abs=0.04)
     assert result["rain"].exact is False
 
 
 def test_explicit_numpyro_prior():
     result = infer(_rain_wet_grass(), ["rain"], engine="numpyro")
+    assert isinstance(result["rain"], Marginal)
     assert result["rain"].values == pytest.approx([0.8, 0.2], abs=0.04)
 
 
@@ -191,12 +212,15 @@ def test_result_keys_match_query():
 
 def test_probabilities_sum_to_one():
     result = infer(_rain_wet_grass(), ["rain", "wet_grass"])
+    assert isinstance(result["rain"], Marginal)
+    assert isinstance(result["wet_grass"], Marginal)
     assert sum(result["rain"].values) == pytest.approx(1.0)
     assert sum(result["wet_grass"].values) == pytest.approx(1.0)
 
 
 def test_probabilities_sum_to_one_with_observed():
     result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1})
+    assert isinstance(result["rain"], Marginal)
     assert sum(result["rain"].values) == pytest.approx(1.0)
 
 
@@ -215,6 +239,8 @@ def test_engine_choice_changes_exactness():
     """The ``exact`` flag carries what the engine name would have told you."""
     ve_result = infer(_rain_wet_grass(), ["rain"], engine="ve")
     np_result = infer(_rain_wet_grass(), ["rain"], engine="numpyro")
+    assert isinstance(ve_result["rain"], Marginal)
+    assert isinstance(np_result["rain"], Marginal)
     assert ve_result["rain"].exact is True
     assert np_result["rain"].exact is False
 
@@ -235,6 +261,45 @@ def test_mixed_result_shape_follows_variable_type():
     assert isinstance(result["temp"], Draws)
     assert len(result["temp"].values) == 2000  # raw MCMC draws
     assert sum(result["temp"].values) != pytest.approx(1.0)  # not probabilities
+
+
+# --- linear-Gaussian engine --------------------------------------------------
+
+
+def test_lg_returns_gaussian():
+    result = infer(_lg_diagram(), ["x2"], engine="lg")
+    assert isinstance(result["x2"], Gaussian)
+    assert result["x2"].mean == pytest.approx(2.0)
+    assert result["x2"].variance == pytest.approx(2.5)
+
+
+def test_lg_posterior():
+    result = infer(_lg_diagram(), ["x1"], observed={"x2": 0.4}, engine="lg")
+    assert isinstance(result["x1"], Gaussian)
+    assert result["x1"].mean == pytest.approx(-0.96, abs=1e-4)
+    assert result["x1"].variance == pytest.approx(0.1, abs=1e-4)
+
+
+def test_lg_observed_query_is_point_mass():
+    result = infer(_lg_diagram(), ["x2"], observed={"x2": 1.5}, engine="lg")
+    assert isinstance(result["x2"], Gaussian)
+    assert result["x2"].mean == 1.5
+    assert result["x2"].variance == 0.0
+
+
+def test_lg_on_discrete_raises():
+    with pytest.raises(InferenceError, match="all-continuous"):
+        infer(_rain_wet_grass(), ["rain"], engine="lg")
+
+
+def test_lg_on_non_linear_cpd_raises():
+    diag = InfluenceDiagram()
+    diag.add_node(ChanceNode(name="x", dist=lambda: dist.Normal(0.0, 1.0)))
+    diag.add_node(
+        ChanceNode("y", parents=("x",), dist=lambda x: dist.Normal(x**2, 1.0))
+    )
+    with pytest.raises(InferenceError, match="linear-Gaussian"):
+        infer(diag, ["x"], engine="lg")
 
 
 # --- errors ------------------------------------------------------------------
@@ -291,8 +356,8 @@ def test_policy_with_explicit_numpyro():
         variables=["rain"],
         observed={"umbrella": 1, "wet": 1},
     )
-    assert result["rain"].values == pytest.approx(expected["rain"], abs=0.04)
     assert isinstance(result["rain"], Marginal)
+    assert result["rain"].values == pytest.approx(expected["rain"], abs=0.04)
     assert result["rain"].exact is False
 
 

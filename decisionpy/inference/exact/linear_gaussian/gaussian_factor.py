@@ -83,6 +83,8 @@ class GaussianFactor:
         precision = jnp.zeros((n, n))
         info = jnp.zeros((n,))
         for factor in (self, other):
+            if not factor.variables:
+                continue
             rows = jnp.asarray([variables.index(v) for v in factor.variables])
             precision = precision.at[rows[:, None], rows[None, :]].add(factor.precision)
             info = info.at[rows].add(factor.info)
@@ -104,6 +106,12 @@ class GaussianFactor:
         )
         if keep == list(self.variables):
             return self
+        if not keep:
+            return GaussianFactor(
+                variables=[],
+                precision=jnp.zeros((0, 0)),
+                info=jnp.zeros((0,)),
+            )
         keep_idx = jnp.asarray([self.variables.index(v) for v in keep])
         remove_idx = jnp.asarray(
             [i for i, v in enumerate(self.variables) if v not in keep]
@@ -133,6 +141,12 @@ class GaussianFactor:
         kept = [i for i, v in enumerate(self.variables) if v not in evidence]
         if len(kept) == len(self.variables):
             return self
+        if not kept:
+            return GaussianFactor(
+                variables=[],
+                precision=jnp.zeros((0, 0)),
+                info=jnp.zeros((0,)),
+            )
         removed = [(i, v) for i, v in enumerate(self.variables) if v in evidence]
         kept_idx = jnp.asarray(kept)
         remove_idx = jnp.asarray([i for i, _ in removed])

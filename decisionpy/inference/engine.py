@@ -31,10 +31,12 @@ from decisionpy.inference.exact.categorical import (
 from decisionpy.inference.exact.categorical import (
     solve as bucket_elim_solve,
 )
+from decisionpy.inference.exact.linear_gaussian import query as lg_query
 from decisionpy.inference.numpyro import samples as numpyro_samples
 
 __all__ = [
     "Draws",
+    "Gaussian",
     "InferenceError",
     "InferenceResult",
     "Marginal",
@@ -79,17 +81,31 @@ class Draws:
     values: list[float]
 
 
+@dataclass(frozen=True)
+class Gaussian:
+    """
+    Exact posterior over a continuous variable of a linear-Gaussian BN.
+
+    Attributes:
+        mean: The posterior mean.
+        variance: The posterior variance.
+    """
+
+    mean: float
+    variance: float
+
+
 #: Result of infer(): one entry per query variable. A discrete variable
-#: (declared ``states``) maps to a Marginal; a continuous variable
-#: maps to a Draws.
-InferenceResult: TypeAlias = dict[str, Marginal | Draws]
+#: (declared ``states``) maps to a Marginal; a continuous variable maps to
+#: a Draws (numpyro) or a Gaussian (exact linear-Gaussian engine).
+InferenceResult: TypeAlias = dict[str, Marginal | Draws | Gaussian]
 
 
 def infer(
     diagram: InfluenceDiagram,
     query: list[str],
     *,
-    observed: dict[str, int] | None = None,
+    observed: dict[str, int | float] | None = None,
     policy: dict[str, int] | None = None,
     engine: str = "auto",
 ) -> InferenceResult:
@@ -105,16 +121,19 @@ def infer(
     Args:
         diagram: A validated influence diagram.
         query: Names of chance variables whose posteriors are requested.
-        observed: Map from node name to its observed integer state.
+        observed: Map from node name to its observed value — an integer
+            state for a discrete variable, a real value for a continuous
+            one.
         policy: Map from decision name to its chosen integer action. Every
             decision in *diagram* must appear.
-        engine: ``"auto"`` (default), ``"ve"``, or ``"numpyro"``.
+        engine: ``"auto"`` (default), ``"ve"``, ``"lg"``, or ``"numpyro"``.
 
     Returns:
         ``{var_name: result}`` — one entry per query variable. A discrete
         variable (declared ``states``) maps to a Marginal (its
         probability vector, plus whether it is exact); a continuous variable
-        maps to a Draws (raw posterior draws).
+        maps to a Draws (raw posterior draws) under numpyro, or a Gaussian
+        (exact mean and variance) under the linear-Gaussian engine.
 
     Raises:
         InferenceError: If a decision is unbound, if *policy* names a node
@@ -157,11 +176,14 @@ def infer(
     if engine == "ve":
         return _infer_ve(snapshot, query, evidence)
 
+    if engine == "lg":
+        return _infer_lg(snapshot, query, evidence)
+
     if engine == "numpyro":
         return _infer_numpyro(snapshot, query, evidence)
 
     raise InferenceError(
-        f"Unknown engine {engine!r}. Choose 'auto', 've', or 'numpyro'."
+        f"Unknown engine {engine!r}. Choose 'auto', 've', 'lg', or 'numpyro'."
     )
 
 
@@ -255,6 +277,23 @@ def _infer_ve(snapshot, query, observed) -> InferenceResult:
         ) from e
     return {
         name: Marginal(values=values, exact=True) for name, values in vectors.items()
+    }
+
+
+def _infer_lg(snapshot, query, observed) -> InferenceResult:
+    # A CPD that is not a linear Gaussian is rejected loudly by the probe
+    # (TypeError for a non-Normal, ValueError for a non-affine loc) and
+    # surfaced here as an InferenceError.
+    try:
+        posteriors = lg_query(snapshot, variables=query, observed=observed)
+    except (TypeError, ValueError) as e:
+        raise InferenceError(
+            f"The linear-Gaussian engine requires an all-continuous diagram "
+            f"of Normal CPDs. {e}"
+        ) from e
+    return {
+        name: Gaussian(mean=mean, variance=variance)
+        for name, (mean, variance) in posteriors.items()
     }
 
 
