@@ -7,6 +7,39 @@
 > rebuild starts from a documented plan; it does not describe the current
 > library.
 
+## Recoverability — restoring the exact engines
+
+The engines were deleted in commit `eefc26f` ("retire the exact engines").
+They remain fully available in git history; restoring them is a
+checkout, not a redesign:
+
+```bash
+# Restore the engine trees as they were immediately before the deletion.
+git checkout eefc26f^ -- decisionpy/inference/exact decisionpy/inference/utils
+git checkout eefc26f^ -- tests/inference/exact
+```
+
+What must be adapted after the restore (the rest of the library moved on):
+
+- **Result contract.** `result.py` no longer defines `Gaussian`, and
+  `Marginal`/`Solution` lost their `exact` flags. The restored engines
+  construct `Marginal(values, exact=True)`, `Solution(..., exact=True)`
+  and `Gaussian(mean, variance)` — either re-add those fields to
+  `result.py` or adapt the engines to the current types.
+- **Entry points.** `infer()`/`solve()` no longer accept `engine=`; the
+  restored engines must be re-wired as their own functions or the
+  parameter re-added.
+- **Tests.** The comparison tests referenced the pre-cleanup fixtures in
+  `tests/inference/exact/...`; the pgmpy/pyAgrum comparison tests now
+  validate the NumPyro engine instead (see REMAINING_WORK) and would
+  need to be pointed back at the restored engines if that is the goal.
+- **Validation oracles.** The analytic MVN oracle and pyAgrum `pyagrum.clg`
+  cross-checks described in this document are the reference answers to
+  re-validate against.
+
+This plan document is the design record to build from; the ADR records
+why the engines existed and why they were retired.
+
 This is the execution plan for the exact continuous-inference roadmap
 (REMAINING_WORK.md items 2 and 3) plus the package reorganization that
 prepares for it. Each phase is independently shippable, keeps the test
