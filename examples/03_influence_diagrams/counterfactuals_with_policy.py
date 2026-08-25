@@ -84,11 +84,12 @@ except InferenceError as e:
 no_treatment = infer(diag, ["recovery"], policy={"treat": 0})
 with_treatment = infer(diag, ["recovery"], policy={"treat": 1})
 print(
-    "P(recovery | treat=no)  ->", [round(p, 3) for p in no_treatment["recovery"].values]
+    "P(recovery | treat=no)  ->",
+    [round(p, 3) for p in no_treatment["recovery"].marginal()],
 )
 print(
     "P(recovery | treat=yes) ->",
-    [round(p, 3) for p in with_treatment["recovery"].values],
+    [round(p, 3) for p in with_treatment["recovery"].marginal()],
 )
 
 # %% [markdown]
@@ -106,26 +107,9 @@ for disease_label, disease_state in [("healthy", 0), ("sick", 1)]:
         diag, ["recovery"], observed={"disease": disease_state}, policy={"treat": 1}
     )
     print(
-        f"{disease_label}: no treat -> {[round(p, 3) for p in no['recovery'].values]} | "
-        f"treat -> {[round(p, 3) for p in yes['recovery'].values]}"
+        f"{disease_label}: no treat -> {[round(p, 3) for p in no['recovery'].marginal()]} | "
+        f"treat -> {[round(p, 3) for p in yes['recovery'].marginal()]}"
     )
-
-# %% [markdown]
-# ## Exact cross-check
-#
-# A bound decision behaves as ordinary evidence to the engine, so the same
-# result is available through variable elimination directly with the decision
-# in `observed` — confirming the `policy=` path computes the exact posterior.
-
-# %%
-from decisionpy.inference.exact.categorical import query
-
-direct = query(
-    diag.snapshot(),
-    variables=["recovery"],
-    observed={"disease": 1, "treat": 1},
-)
-print("ve with treat=1 in observed ->", [round(p, 3) for p in direct["recovery"]])
 
 # %% [markdown]
 # ## The full loop

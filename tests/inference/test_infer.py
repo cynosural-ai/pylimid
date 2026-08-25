@@ -10,14 +10,7 @@ from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.diagram import InfluenceDiagram
 from decisionpy.graph.utility_node import UtilityNode
-from decisionpy.inference import (
-    Draws,
-    Gaussian,
-    InferenceError,
-    Marginal,
-    infer,
-)
-from decisionpy.inference.exact.categorical import query as ve_query
+from decisionpy.inference import InferenceError, Posterior, infer
 
 # --- helpers -----------------------------------------------------------------
 
@@ -47,20 +40,6 @@ def _rain_wet_grass() -> InfluenceDiagram:
 def _continuous_diagram() -> InfluenceDiagram:
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="x", dist=lambda: dist.Normal(loc=5.0, scale=2.0)))
-    return diag
-
-
-def _lg_diagram() -> InfluenceDiagram:
-    """A two-node linear-Gaussian BN: x1 -> x2."""
-    diag = InfluenceDiagram()
-    diag.add_node(ChanceNode(name="x1", dist=lambda: dist.Normal(loc=0.0, scale=1.0)))
-    diag.add_node(
-        ChanceNode(
-            name="x2",
-            parents=("x1",),
-            dist=lambda x1: dist.Normal(loc=2.0 + 1.5 * x1, scale=0.5),
-        )
-    )
     return diag
 
 
@@ -146,168 +125,98 @@ def _umbrella_diagram() -> InfluenceDiagram:
     return diag
 
 
-# --- default engine (numpyro) ------------------------------------------------
+# --- results -----------------------------------------------------------------
 
 
-def test_default_engine_is_numpyro():
-    """infer() defaults to the Monte-Carlo engine; results are never exact."""
+def test_discrete_prior():
     result = infer(_rain_wet_grass(), ["rain"])
-    assert isinstance(result["rain"], Marginal)
-    assert result["rain"].values == pytest.approx([0.8, 0.2], abs=0.04)
-    assert result["rain"].exact is False
+    assert isinstance(result["rain"], Posterior)
+    assert result["rain"].states == ("no", "yes")
+    assert result["rain"].is_discrete
+    assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
 
 
-def test_default_engine_with_observed():
+def test_discrete_posterior_with_observed():
     result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1})
-    assert isinstance(result["rain"], Marginal)
-    assert result["rain"].values == pytest.approx([0.457, 0.543], abs=0.04)
-    assert result["rain"].exact is False
-
-
-def test_default_engine_on_continuous_returns_draws():
-    result = infer(_continuous_diagram(), ["x"])
-    assert isinstance(result["x"], Draws)
-
-
-# --- explicit engine selection -----------------------------------------------
-
-
-def test_explicit_ve():
-    result = infer(_rain_wet_grass(), ["wet_grass"], engine="ve")
-    expected = ve_query(_rain_wet_grass().snapshot(), variables=["wet_grass"])
-    assert result["wet_grass"] == Marginal(values=expected["wet_grass"], exact=True)
-
-
-def test_explicit_numpyro_discrete():
-    result = infer(
-        _rain_wet_grass(),
-        ["rain"],
-        observed={"wet_grass": 1},
-        engine="numpyro",
-    )
-    # P(rain=yes | wet_grass=wet) ≈ 0.543
-    assert isinstance(result["rain"], Marginal)
-    assert result["rain"].values == pytest.approx([0.457, 0.543], abs=0.04)
-    assert result["rain"].exact is False
-
-
-def test_explicit_numpyro_prior():
-    result = infer(_rain_wet_grass(), ["rain"], engine="numpyro")
-    assert isinstance(result["rain"], Marginal)
-    assert result["rain"].values == pytest.approx([0.8, 0.2], abs=0.04)
-
-
-# --- result format -----------------------------------------------------------
+    assert isinstance(result["rain"], Posterior)
+    assert result["rain"].states == ("no", "yes")
+    assert result["rain"].marginal() == pytest.approx([0.457, 0.543], abs=0.04)
 
 
 def test_result_keys_match_query():
-    result = infer(_rain_wet_grass(), ["rain", "wet_grass"], engine="ve")
+    result = infer(_rain_wet_grass(), ["rain", "wet_grass"])
     assert set(result.keys()) == {"rain", "wet_grass"}
 
 
 def test_probabilities_sum_to_one():
-    result = infer(_rain_wet_grass(), ["rain", "wet_grass"], engine="ve")
-    assert isinstance(result["rain"], Marginal)
-    assert isinstance(result["wet_grass"], Marginal)
-    assert sum(result["rain"].values) == pytest.approx(1.0)
-    assert sum(result["wet_grass"].values) == pytest.approx(1.0)
+    result = infer(_rain_wet_grass(), ["rain", "wet_grass"])
+    assert isinstance(result["rain"], Posterior)
+    assert isinstance(result["wet_grass"], Posterior)
+    assert sum(result["rain"].marginal()) == pytest.approx(1.0)
+    assert sum(result["wet_grass"].marginal()) == pytest.approx(1.0)
 
 
 def test_probabilities_sum_to_one_with_observed():
-    result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1}, engine="ve")
-    assert isinstance(result["rain"], Marginal)
-    assert sum(result["rain"].values) == pytest.approx(1.0)
+    result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1})
+    assert isinstance(result["rain"], Posterior)
+    assert sum(result["rain"].marginal()) == pytest.approx(1.0)
+    assert all(isinstance(p, float) for p in result["rain"].marginal())
 
 
-def test_engine_choice_does_not_change_result_shape():
-    """Discrete queries are Marginals no matter which engine runs."""
-    ve_result = infer(_rain_wet_grass(), ["rain"], engine="ve")
-    np_result = infer(_rain_wet_grass(), ["rain"], engine="numpyro")
-    assert isinstance(ve_result["rain"], Marginal)
-    assert isinstance(np_result["rain"], Marginal)
-    assert len(ve_result["rain"].values) == len(np_result["rain"].values) == 2
-    assert sum(np_result["rain"].values) == pytest.approx(1.0)
-    assert all(isinstance(p, float) for p in np_result["rain"].values)
-
-
-def test_engine_choice_changes_exactness():
-    """The ``exact`` flag carries what the engine name would have told you."""
-    ve_result = infer(_rain_wet_grass(), ["rain"], engine="ve")
-    np_result = infer(_rain_wet_grass(), ["rain"], engine="numpyro")
-    assert isinstance(ve_result["rain"], Marginal)
-    assert isinstance(np_result["rain"], Marginal)
-    assert ve_result["rain"].exact is True
-    assert np_result["rain"].exact is False
-
-
-def test_continuous_returns_draws():
-    """Continuous queries return Draws, not probabilities."""
-    result = infer(_continuous_diagram(), ["x"], engine="numpyro")
-    assert isinstance(result["x"], Draws)
+def test_continuous_posterior_keeps_raw_draws():
+    """Continuous posteriors store raw draws and carry no states."""
+    result = infer(_continuous_diagram(), ["x"])
+    assert isinstance(result["x"], Posterior)
+    assert result["x"].states is None
+    assert not result["x"].is_discrete
     assert len(result["x"].values) == 2000  # raw MCMC draws
-    assert sum(result["x"].values) != pytest.approx(1.0)  # not probabilities
+    assert result["x"].mean() == pytest.approx(5.0, abs=0.2)
+    assert result["x"].std() == pytest.approx(2.0, abs=0.15)
+    lo, hi = result["x"].hdi()
+    assert lo < 5.0 < hi
 
 
 def test_mixed_result_shape_follows_variable_type():
-    """Discrete queries return Marginals; continuous return Draws."""
-    result = infer(_mixed_diagram(), ["rain", "temp"], engine="numpyro")
-    assert isinstance(result["rain"], Marginal)
-    assert sum(result["rain"].values) == pytest.approx(1.0)  # probability vector
-    assert isinstance(result["temp"], Draws)
+    """One Posterior type; states distinguish discrete from continuous."""
+    result = infer(_mixed_diagram(), ["rain", "temp"])
+    assert isinstance(result["rain"], Posterior)
+    assert result["rain"].states == ("no", "yes")
+    assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
+    assert isinstance(result["temp"], Posterior)
+    assert result["temp"].states is None
     assert len(result["temp"].values) == 2000  # raw MCMC draws
-    assert sum(result["temp"].values) != pytest.approx(1.0)  # not probabilities
+    assert result["temp"].mean() == pytest.approx(20.0, abs=0.3)
 
 
-# --- linear-Gaussian engine --------------------------------------------------
+def test_discrete_posterior_stores_state_index_draws():
+    """Discrete draws are integer state indices; the vector is derived."""
+    result = infer(_rain_wet_grass(), ["rain"])
+    assert all(v in (0.0, 1.0) for v in result["rain"].values)
+    assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
 
 
-def test_lg_returns_gaussian():
-    result = infer(_lg_diagram(), ["x2"], engine="lg")
-    assert isinstance(result["x2"], Gaussian)
-    assert result["x2"].mean == pytest.approx(2.0)
-    assert result["x2"].variance == pytest.approx(2.5)
+def test_summaries_on_discrete_raise():
+    """Index draws are not moments: mean/std/hdi refuse discrete posteriors."""
+    result = infer(_rain_wet_grass(), ["rain"])
+    for method in ("mean", "std", "hdi"):
+        with pytest.raises(ValueError, match="requires a continuous"):
+            getattr(result["rain"], method)()
 
 
-def test_lg_posterior():
-    result = infer(_lg_diagram(), ["x1"], observed={"x2": 0.4}, engine="lg")
-    assert isinstance(result["x1"], Gaussian)
-    assert result["x1"].mean == pytest.approx(-0.96, abs=1e-4)
-    assert result["x1"].variance == pytest.approx(0.1, abs=1e-4)
+def test_marginal_on_continuous_raises():
+    result = infer(_continuous_diagram(), ["x"])
+    with pytest.raises(ValueError, match="marginal\\(\\) requires a discrete"):
+        result["x"].marginal()
 
 
-def test_lg_observed_query_is_point_mass():
-    result = infer(_lg_diagram(), ["x2"], observed={"x2": 1.5}, engine="lg")
-    assert isinstance(result["x2"], Gaussian)
-    assert result["x2"].mean == 1.5
-    assert result["x2"].variance == 0.0
-
-
-def test_lg_on_discrete_raises():
-    with pytest.raises(InferenceError, match="all-continuous"):
-        infer(_rain_wet_grass(), ["rain"], engine="lg")
-
-
-def test_lg_on_non_linear_cpd_raises():
-    diag = InfluenceDiagram()
-    diag.add_node(ChanceNode(name="x", dist=lambda: dist.Normal(0.0, 1.0)))
-    diag.add_node(
-        ChanceNode("y", parents=("x",), dist=lambda x: dist.Normal(x**2, 1.0))
-    )
-    with pytest.raises(InferenceError, match="linear-Gaussian"):
-        infer(diag, ["x"], engine="lg")
+def test_hdi_invalid_coverage_raises():
+    result = infer(_continuous_diagram(), ["x"])
+    for bad in (0.0, -0.5, 1.5):
+        with pytest.raises(ValueError, match="coverage must be in"):
+            result["x"].hdi(prob=bad)
 
 
 # --- errors ------------------------------------------------------------------
-
-
-def test_unknown_engine_raises():
-    with pytest.raises(InferenceError, match="Unknown engine"):
-        infer(_rain_wet_grass(), ["rain"], engine="bogus")
-
-
-def test_ve_on_continuous_raises():
-    with pytest.raises(InferenceError, match="all-discrete"):
-        infer(_continuous_diagram(), ["x"], engine="ve")
 
 
 def test_unbound_decision_raises():
@@ -315,47 +224,24 @@ def test_unbound_decision_raises():
         infer(_decision_diagram(), ["rain"])
 
 
-def test_unbound_decision_raises_with_explicit_engine():
-    for engine in ("ve", "numpyro"):
-        with pytest.raises(InferenceError, match="unbound decision"):
-            infer(_decision_diagram(), ["rain"], engine=engine)
-
-
 # --- policy binding -----------------------------------------------------------
 
 
 def test_policy_collapses_id_to_bn():
-    """A fully bound ID behaves like a BN with the decisions as evidence."""
-    diag = _umbrella_diagram()
-    result = infer(
-        diag, ["rain"], observed={"wet": 1}, policy={"umbrella": 1}, engine="ve"
-    )
-    expected = ve_query(
-        diag.snapshot(),
-        variables=["rain"],
-        observed={"umbrella": 1, "wet": 1},
-    )
-    assert result["rain"] == Marginal(values=expected["rain"], exact=True)
+    """
+    A fully bound ID behaves like a BN with the decisions as evidence.
 
-
-def test_policy_with_explicit_numpyro():
-    """The numpyro engine sees the bound decision as an observed site."""
-    diag = _umbrella_diagram()
+    Exact posterior: P(rain=yes | umbrella=1, wet=1) = 0.2 * 0.95 / 0.43
+    ≈ 0.442.
+    """
     result = infer(
-        diag,
+        _umbrella_diagram(),
         ["rain"],
         observed={"wet": 1},
         policy={"umbrella": 1},
-        engine="numpyro",
     )
-    expected = ve_query(
-        diag.snapshot(),
-        variables=["rain"],
-        observed={"umbrella": 1, "wet": 1},
-    )
-    assert isinstance(result["rain"], Marginal)
-    assert result["rain"].values == pytest.approx(expected["rain"], abs=0.04)
-    assert result["rain"].exact is False
+    assert isinstance(result["rain"], Posterior)
+    assert result["rain"].marginal() == pytest.approx([0.558, 0.442], abs=0.04)
 
 
 def test_policy_on_continuous_diagram():
@@ -373,9 +259,10 @@ def test_policy_on_continuous_diagram():
         )
     )
     result = infer(diag, ["x"], policy={"d": 1})
-    assert isinstance(result["x"], Draws)
+    assert isinstance(result["x"], Posterior)
+    assert result["x"].states is None
     assert len(result["x"].values) == 2000
-    assert jnp.mean(jnp.array(result["x"].values)) == pytest.approx(2.0, abs=0.2)
+    assert result["x"].mean() == pytest.approx(2.0, abs=0.2)
 
 
 def test_utility_node_alone_does_not_block_infer():
@@ -395,8 +282,9 @@ def test_utility_node_alone_does_not_block_infer():
             values=lambda rain: float(rain),
         )
     )
-    result = infer(diag, ["rain"], engine="ve")
-    assert result["rain"] == Marginal(values=[0.8, 0.2], exact=True)
+    result = infer(diag, ["rain"])
+    assert isinstance(result["rain"], Posterior)
+    assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
 
 
 def test_partially_bound_decisions_raise():

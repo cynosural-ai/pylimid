@@ -1,4 +1,4 @@
-"""Tests for :func:`decisionpy.inference.solve` — engine-level solve dispatch."""
+"""Tests for :func:`decisionpy.inference.solve` — the intervention scan."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ import pytest
 
 from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
 from decisionpy.inference import InferenceError, solve
-from decisionpy.inference.exact.categorical import solve as id_solve
 
 # --- helpers -----------------------------------------------------------------
 
@@ -36,14 +35,42 @@ def _umbrella_diagram() -> InfluenceDiagram:
     return diag
 
 
-def _mixed_decision_diagram() -> InfluenceDiagram:
-    """A continuous chance node rules bucket elimination out."""
+def _continuous_info_diagram() -> InfluenceDiagram:
+    """A decision observing a continuous parent: an untabulated info set."""
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="x", dist=lambda: dist.Normal(loc=0.0, scale=1.0)))
     diag.add_node(DecisionNode(name="d", parents=("x",), states=("no", "yes")))
     diag.add_node(
         UtilityNode(
             name="u", parents=("x", "d"), values=lambda x, d: float(x) * float(d)
+        )
+    )
+    return diag
+
+
+def _mixed_diagram() -> InfluenceDiagram:
+    """Discrete signal, continuous outcome: s -> x | s -> d(s) -> U."""
+    diag = InfluenceDiagram()
+    diag.add_node(
+        ChanceNode(
+            name="s",
+            states=("low", "high"),
+            dist=lambda: dist.Categorical(probs=jnp.array([0.3, 0.7])),
+        )
+    )
+    diag.add_node(
+        ChanceNode(
+            name="x",
+            parents=("s",),
+            dist=lambda s: dist.Normal(loc=-1.0 + 2.0 * s, scale=1.0),
+        )
+    )
+    diag.add_node(DecisionNode(name="d", parents=("s",), states=("no", "yes")))
+    diag.add_node(
+        UtilityNode(
+            name="u",
+            parents=("x", "d"),
+            values=lambda x, d: float(x) * float(d),
         )
     )
     return diag
@@ -61,19 +88,30 @@ def _bayesian_network() -> InfluenceDiagram:
     return diag
 
 
-# --- dispatch ----------------------------------------------------------------
-
-
-def test_solve_matches_bucket_elim():
-    diag = _umbrella_diagram()
-    assert solve(diag) == id_solve(diag.snapshot())
+# --- solving -----------------------------------------------------------------
 
 
 def test_solve_policy_is_optimal():
     """Umbrella should mirror rain: {(0,): 0, (1,): 1} with E[U] = 1.0."""
     solution = solve(_umbrella_diagram())
     assert solution.policy == {"umbrella": {(0,): 0, (1,): 1}}
-    assert solution.expected_utility == pytest.approx(1.0)
+    assert solution.expected_utility == pytest.approx(1.0, abs=0.05)
+
+
+def test_solve_is_a_monte_carlo_estimate():
+    """The MEU is a sample estimate; it wobbles with the seed."""
+    import jax
+
+    from decisionpy.inference.numpyro.solver import solve as numpyro_solve
+
+    estimates = {
+        numpyro_solve(
+            _mixed_diagram().snapshot(), rng_key=jax.random.PRNGKey(seed)
+        ).expected_utility
+        for seed in range(3)
+    }
+    assert len(estimates) >= 2  # different seeds, different estimates
+    assert all(value == pytest.approx(0.7, abs=0.15) for value in estimates)
 
 
 def test_solve_no_decisions_raises():
@@ -81,29 +119,17 @@ def test_solve_no_decisions_raises():
         solve(_bayesian_network())
 
 
-def test_solve_mixed_diagram_raises_under_default_bucket_elim():
-    with pytest.raises(InferenceError, match="all-categorical"):
-        solve(_mixed_decision_diagram())
+def test_solve_mixed_diagram_solves():
+    """
+    Continuous chance nodes do not rule the solver out.
+
+    E[x | s=0] = -1 → d=0; E[x | s=1] = 1 → d=1; E[U] = 0.7.
+    """
+    solution = solve(_mixed_diagram())
+    assert solution.policy == {"d": {(0,): 0, (1,): 1}}
+    assert solution.expected_utility == pytest.approx(0.7, abs=0.15)
 
 
-def test_solve_numpyro_estimates():
-    """The intervention scan finds the same policy; the MEU is an estimate."""
-    solution = solve(_umbrella_diagram(), engine="numpyro")
-    assert solution.policy == {"umbrella": {(0,): 0, (1,): 1}}
-    assert solution.expected_utility == pytest.approx(1.0, abs=0.05)
-    assert solution.exact is False
-
-
-def test_solve_default_is_exact_bucket_elim():
-    solution = solve(_umbrella_diagram())
-    assert solution.exact is True
-
-
-def test_solve_explicit_bucket_elim_on_mixed_raises():
-    with pytest.raises(InferenceError, match="all-categorical"):
-        solve(_mixed_decision_diagram(), engine="bucket_elim")
-
-
-def test_solve_unknown_engine_raises():
-    with pytest.raises(InferenceError, match="Unknown engine"):
-        solve(_umbrella_diagram(), engine="bogus")
+def test_solve_continuous_information_set_raises():
+    with pytest.raises(InferenceError, match="continuous"):
+        solve(_continuous_info_diagram())

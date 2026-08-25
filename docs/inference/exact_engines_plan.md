@@ -1,5 +1,26 @@
 # Exact inference engines — phased plan
 
+> **Historical reference.** The exact engines were built to this plan and
+> then retired in favor of the NumPyro-only engine (see
+> [`25_08_2026_numpyro_only_engine.md`](../ADR/25_08_2026_numpyro_only_engine.md)).
+> This document is kept so the work is not lost to institutional memory:
+> the phases that were executed, the design decisions, and the validation
+> oracles.
+
+## The history is in git
+
+The engines lived at `decisionpy/inference/exact/` (with their tests at
+`tests/inference/exact/`) from the reorganization commit `ceb671f`
+through their retirement in `eefc26f`. Their full history — every
+commit, the build and the removal — is there:
+
+```bash
+git log --all -- decisionpy/inference/exact
+```
+
+Any point in that history can be checked out as it was; nothing was
+thrown away, it just stopped being maintained.
+
 This is the execution plan for the exact continuous-inference roadmap
 (REMAINING_WORK.md items 2 and 3) plus the package reorganization that
 prepares for it. Each phase is independently shippable, keeps the test

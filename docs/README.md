@@ -28,8 +28,11 @@ The docs split into two kinds:
    separate `backend/` directory.
 
 4. **[`13_08_2026_typed_inference_results.md`](./ADR/13_08_2026_typed_inference_results.md)**
-   — commits `infer()` to typed per-entry results: `Marginal(values, exact)`
-   for discrete variables, `Draws(values)` for continuous ones.
+   — committed `infer()` to typed per-entry results: `Marginal` for discrete
+   variables, `Draws` for continuous ones. **Superseded** by
+   [`25_08_2026_unified_posterior_result.md`](./ADR/25_08_2026_unified_posterior_result.md),
+   which unifies both into a single `Posterior` (draws + `states`, with
+   `marginal()` / `mean()` / `std()` / `hdi()` methods).
 
 ## Living design notes
 
@@ -92,7 +95,7 @@ Read in this order:
 | NumPyro translator   | Chance nodes; bound decisions as observed sites, utilities skipped — `samples()` forward + posterior (enumeration / NUTS) | `backend_numpyro.md` |
 | Inference strategy   | Settled — VE for exact discrete, NumPyro for mixed-type | `inference_strategy.md` |
 | Unified inference API | Settled — `infer()` / `solve()` with auto-dispatch | `ADR/23_07_2026_unified_inference_architecture.md` |
-| `infer()` result format | Settled — typed per-entry results (`Marginal` / `Draws`) | `ADR/13_08_2026_typed_inference_results.md` |
+| `infer()` result format | Settled — one `Posterior` per query (draws + `states`; `marginal()`/`mean()`/`std()`/`hdi()`) | `ADR/25_08_2026_unified_posterior_result.md` |
 | `from_cpt` sugar     | Deferred    | `chance_node.md` (resolved q)      |
 | Parametric learning (`fit`) | Deferred | `diagram.md`                 |
 
@@ -124,17 +127,14 @@ Read in this order:
   Bound decisions clamp to their policy values; utilities are skipped.
   NumPyro is a declared dependency, though nothing in `decisionpy.graph`
   imports it.
-- `inference/engine.py` — unified `infer()` / `solve()` entry-points.
-  `infer()` defaults to the NumPyro engine and returns typed results:
-  `Marginal(values, exact)` for discrete and `Draws(values)` for
-  continuous queries, or exact `Gaussian(mean, variance)` under
-  `engine="lg"`; the exact engines (`ve`, `lg`) are explicit opt-ins that
-  validate the diagram's preconditions. `infer()` takes an all-or-nothing
-  `policy=` binding (unbound decisions raise a clean `InferenceError`);
-  `solve()` defaults to bucket elimination for all-categorical
-  diagrams.
-- Planned: the NumPyro intervention-scan solver for mixed/continuous
-  influence diagrams (a clean `InferenceError` for now).
+- `inference/engine.py` — unified `infer()` / `solve()` entry-points
+  (NumPyro-only). `infer()` returns one `Posterior` per query variable: raw
+  draws plus the variable's `states` (`None` for continuous); `marginal()`
+  bincounts a discrete posterior into its probability vector and raises on a
+  continuous one. `infer()` takes an all-or-nothing `policy=` binding
+  (unbound decisions raise a clean `InferenceError`); `solve()` runs the
+  NumPyro intervention-scan solver for mixed/continuous influence diagrams
+  with discrete information sets.
 
 The build-once prototype that preceded this design has been removed; see
 [`ADR/17_07_2026_mutability_design_decision.md`](./ADR/17_07_2026_mutability_design_decision.md).

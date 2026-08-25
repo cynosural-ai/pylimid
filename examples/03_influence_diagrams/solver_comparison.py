@@ -11,13 +11,13 @@
 # ---
 
 # %% [markdown]
-# # Influence diagrams — two solvers for one model
+# # Influence diagrams — solve() with the NumPyro intervention scan
 #
-# `solve()` has two engines behind it: bucket elimination (exact, the default
-# for all-categorical diagrams) and the NumPyro intervention scan (a
-# Monte-Carlo estimate, and the only one that handles mixed and continuous
-# diagrams). Same model, same question — "what should I do?" — answered two
-# ways.
+# `solve()` runs the NumPyro intervention scan (Strategy B): it enumerates
+# the discrete policy space and estimates each policy's expected utility by
+# forward sampling, keeping the best. The expected utility is a Monte-Carlo
+# estimate — the seed makes it reproducible, and mixed and continuous
+# diagrams are handled by the same forward sampling.
 #
 # Model: does the patient have the disease? Do we treat? Does the patient
 # recover? The payoff is 100 per recovery minus 20 if we treated.
@@ -28,7 +28,7 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 
 from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from decisionpy.inference import InferenceError, solve
+from decisionpy.inference import solve
 from decisionpy.inference.numpyro.solver import solve as numpyro_solve
 
 # %% [markdown]
@@ -73,30 +73,25 @@ diag.add_node(
 print(diag.validate())
 
 # %% [markdown]
-# ## Both solvers agree on what to do
+# ## The optimal policy
 #
-# Bucket elimination computes the exact optimum; the intervention scan
-# enumerates the same policy space and estimates each policy's expected
-# utility by forward sampling. Both land on the same policy — do not treat
-# the healthy, do treat the sick — and the same expected utility, 78.
+# `solve()` returns a Solution: the optimal action per information-set
+# assignment, and the expected utility under that policy — do not treat the
+# healthy, do treat the sick. The exact value of the optimum is 78:
+# `0.6 * 90 + 0.4 * 60`; the estimate lands close.
 
 # %%
-exact = solve(diag)
-mc = solve(diag, engine="numpyro")
-
-for label, solution in (("bucket elimination", exact), ("numpyro (2000 samples)", mc)):
-    print(f"{label}:")
-    print("  policy:", solution.policy["treat"])
-    print("  expected utility:", round(solution.expected_utility, 3))
-    print("  exact:", solution.exact)
+solution = solve(diag)
+print("policy:", solution.policy["treat"])
+print("expected utility:", round(solution.expected_utility, 3))
 
 # %% [markdown]
-# ## The difference is the noise
+# ## The estimate wobbles with the seed
 #
-# The `exact` flag tells the two apart: bucket elimination returns the
-# mathematical optimum, the intervention scan a Monte-Carlo estimate of it.
-# Run the scan a few times and the estimate wobbles around 78 — the seed is
-# fixed by default, but each engine is honest about what it computed.
+# The expected utility is a Monte-Carlo estimate, not the mathematical
+# optimum. Run the scan with different seeds and it wobbles around 78 —
+# close enough to choose between actions, but honest about being an
+# estimate.
 
 # %%
 for seed in range(3):
@@ -107,12 +102,11 @@ for seed in range(3):
     )
 
 # %% [markdown]
-# ## Where they part ways: continuous outcomes
+# ## Continuous outcomes are no obstacle
 #
-# Now make `recovery` a continuous health score: `health | disease, treat`
-# is Gaussian. The intervention scan handles it unchanged — forward
-# sampling does not care whether a chance node is discrete or continuous.
-# Bucket elimination refuses it loudly.
+# Make `recovery` a continuous health score: `health | disease, treat` is
+# Gaussian. The intervention scan handles it unchanged — forward sampling
+# does not care whether a chance node is discrete or continuous.
 
 # %%
 mixed = InfluenceDiagram()
@@ -123,9 +117,7 @@ mixed.add_node(
         dist=lambda: dist.Categorical(probs=jnp.array([0.6, 0.4])),
     )
 )
-mixed.add_node(
-    DecisionNode(name="treat", parents=("disease",), states=("no", "yes"))
-)
+mixed.add_node(DecisionNode(name="treat", parents=("disease",), states=("no", "yes")))
 mixed.add_node(
     ChanceNode(
         name="health",
@@ -149,13 +141,8 @@ mixed.add_node(
     )
 )
 
-try:
-    solve(mixed)
-except InferenceError as e:
-    print("bucket elimination:", e)
-
-mc = solve(mixed, engine="numpyro")
-print("numpyro:      policy:", mc.policy["treat"], "EU:", round(mc.expected_utility, 2))
+mc = solve(mixed)
+print("policy:", mc.policy["treat"], "EU:", round(mc.expected_utility, 2))
 
 # %% [markdown]
 # ## Same decision, same expected value
@@ -164,9 +151,6 @@ print("numpyro:      policy:", mc.policy["treat"], "EU:", round(mc.expected_util
 # treating the healthy buys 2 points of health for 20 of cost, treating the
 # sick buys 40 for 20. So the optimal policy is the same — treat only the
 # sick — and the expected utility is again `0.6 * 90 + 0.4 * 60 = 78`.
-#
-# The estimate lands close to 78; the remaining gap is the Monte-Carlo
-# noise, exactly what `exact=False` announces.
 
 # %%
 print("0.6 * 90 + 0.4 * 60 =", 0.6 * 90 + 0.4 * 60)

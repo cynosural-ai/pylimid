@@ -11,7 +11,7 @@
 # ---
 
 # %% [markdown]
-# # Linear-Gaussian Bayesian networks — exact Gaussian inference
+# # Linear-Gaussian Bayesian networks
 #
 # An all-continuous network: every node is Gaussian and its mean is a linear
 # function of its parents' values,
@@ -21,7 +21,8 @@
 # with every parent continuous too. A 3-node chain: `x1` is a unit Gaussian,
 # `x2` depends on `x1`, and `x3` on `x2`. Unlike the categorical examples,
 # there is no probability table — the `dist` callable just builds a `Normal`
-# whose `loc` is a linear expression in the parents.
+# whose `loc` is a linear expression in the parents. The NumPyro engine
+# samples the posterior with NUTS.
 
 # %%
 import numpyro.distributions as dist
@@ -52,49 +53,30 @@ diag.add_node(
 print(diag.validate())
 
 # %% [markdown]
-# ## Exact priors
+# ## The priors
 #
-# `engine="lg"` runs exact linear-Gaussian variable elimination: the
-# posterior of every query variable is a `Gaussian(mean, variance)`, not raw
-# draws. For comparison, the analytic marginals are
-# x2 ~ N(2, 2.5) and x3 ~ N(-2.4, 1.315).
+# The NumPyro engine runs NUTS on the continuous model: the posterior of
+# every query variable is the raw draws. The analytic marginals are
+# x2 ~ N(2, 2.5) and x3 ~ N(-2.4, 1.315) — the empirical moments of the
+# draws land close.
 
 # %%
-prior = infer(diag, ["x1", "x2", "x3"], engine="lg")
-for name, g in prior.items():
-    print(name, "->", f"N(mean={g.mean:.4f}, var={g.variance:.4f})")
+import jax.numpy as jnp
+
+prior = infer(diag, ["x1", "x2", "x3"])
+for name, d in prior.items():
+    draws = jnp.array(d.values)
+    print(name, "->", f"mean={float(draws.mean()):.4f}, var={float(draws.var()):.4f}")
 
 # %% [markdown]
 # ## Evidence
 #
 # Observing `x3 = 0.4` sharpens the posterior on its ancestors. The exact
 # answer is x1 | x3=0.4 ~ N(-2.2357, 0.1616) — the evidence pushes x1 down
-# because it must explain a small x3.
+# because it must explain a small x3. The draws follow it.
 
 # %%
-post = infer(diag, ["x1", "x2"], observed={"x3": 0.4}, engine="lg")
-for name, g in post.items():
-    print(name, "->", f"N(mean={g.mean:.4f}, var={g.variance:.4f})")
-
-# %% [markdown]
-# ## The engines agree
-#
-# Exact (linear-Gaussian elimination) and Monte-Carlo (NumPyro NUTS) on the
-# same query. The draws are approximate, so their empirical mean and
-# standard deviation should land close to the exact Gaussian.
-
-# %%
-import jax.numpy as jnp
-
-exact = infer(diag, ["x1"], observed={"x3": 0.4}, engine="lg")
-mc = infer(diag, ["x1"], observed={"x3": 0.4}, engine="numpyro")
-draws = jnp.array(mc["x1"].values)
-print(
-    "exact   ->",
-    f"N(mean={exact['x1'].mean:.4f}, var={exact['x1'].variance:.4f})",
-)
-print(
-    "numpyro ->",
-    f"mean={float(draws.mean()):.4f}, std={float(draws.std()):.4f} "
-    f"(from {len(draws)} draws)",
-)
+post = infer(diag, ["x1", "x2"], observed={"x3": 0.4})
+for name, d in post.items():
+    draws = jnp.array(d.values)
+    print(name, "->", f"mean={float(draws.mean()):.4f}, var={float(draws.var()):.4f}")

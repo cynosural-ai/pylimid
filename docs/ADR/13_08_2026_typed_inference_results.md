@@ -1,7 +1,7 @@
 # Typed per-entry inference results: Marginal / Draws
 
 **Date:** 2026-08-13
-**Status:** Settled
+**Status:** Superseded by [25_08_2026_unified_posterior_result.md](./25_08_2026_unified_posterior_result.md)
 
 > **Where this fits.** This is a *decision record* — it records the call and what changed in the tree. It is a contract change to `infer()`, whose previous result format was documented and pinned by tests.
 
