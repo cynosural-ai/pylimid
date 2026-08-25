@@ -215,3 +215,71 @@ print("policy:", mc.policy["treat"], "EU:", round(mc.expected_utility, 2))
 
 # %%
 print("0.6 * 90 + 0.4 * 60 =", 0.6 * 90 + 0.4 * 60)
+
+# %% [markdown]
+# ## The Oil Wildcatter — pyAgrum exact vs the scan
+#
+# Up to now the reference answers were computed by hand on small models. For
+# a bigger, classic problem we let pyAgrum solve the diagram *exactly* (LIMID
+# with the Shafer-Shenoy algorithm) and compare its answer against the scan.
+#
+# The Oil Wildcatter is the textbook example of a decision under uncertainty
+# (Raiffa's classic, and the model shipped with pyAgrum's tutorials). An oil
+# deposit may be Dry, Wet, or Soaking. We may run an expensive test whose
+# report — closed, open, or diffuse — is informative about the deposit;
+# then we decide whether to drill. Drilling pays off per deposit type, the
+# test costs 10. Six nodes, two decisions, and the drilling decision
+# observes the test report.
+#
+# The exact optimum: run the test, then drill unless the report is
+# "diffuse". MEU = 22.5.
+
+# %%
+from _oil_wildcatter import decisionpy_diagram, pyagrum_solution
+
+oil = decisionpy_diagram()
+print(oil.validate())
+
+meu, exact_policy = pyagrum_solution()
+print("pyAgrum MEU:", meu)
+print("pyAgrum Testing:", exact_policy["Testing"])
+reports = {
+    r: exact_policy["Drilling"][(1, i)]
+    for i, r in enumerate(("closed", "open", "diffuse"))
+}
+print("pyAgrum Drilling (report -> action):", reports)
+
+# %% [markdown]
+# ## The scan agrees on the realized policy
+#
+# The scan evaluates every policy by forward sampling — with 128 candidate
+# policies (the drilling rule has 2 actions over its 6-assignment
+# information set) that takes about half a minute at 500 samples each, so
+# this cell passes fewer samples than the default.
+
+# %%
+oil_solution = numpyro_solve(oil.snapshot(), num_samples=500)
+print("scan MEU:", round(oil_solution.expected_utility, 3))
+
+# Drilling's info set is (Testing, TestResult); the branch that matters is
+# the one the optimal policy realizes — the test runs (Testing=Yes).
+reports = {
+    r: oil_solution.policy["Drilling"][(1, i)]
+    for i, r in enumerate(("closed", "open", "diffuse"))
+}
+print("scan Drilling given the test ran:", reports)
+
+# %% [markdown]
+# ## Reading the comparison
+#
+# - **MEU**: the exact answer is 22.5; the scan's estimate lands within its
+#   Monte-Carlo noise (the reward spreads over −70..200, so a 2–3 point
+#   wobble is expected even at 2000 samples).
+# - **The decision rule**: restricted to the branch that actually occurs —
+#   the test is run, so the drilling rule conditions on the report — both
+#   engines agree: drill on closed and open, not on diffuse.
+# - **The no-test branch**: the scan fills in a rule for `Testing=No` rows
+#   too, but that branch is never realized under the optimal policy (its
+#   prior probability under the policy is zero), so those rows do not
+#   affect the expected utility. pyAgrum's `optimalDecision` drops the
+#   decision parent from the returned table entirely.

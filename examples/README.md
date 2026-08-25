@@ -11,7 +11,7 @@ Interactive notebooks showcasing the library's capabilities. Read in numeric ord
 | `02_bayesian_networks/conditional_linear_gaussian_bn.py` | Conditional linear-Gaussian BNs — placeholder |
 | `03_influence_diagrams/medical_treatment.ipynb` | `solve()`: optimal policy and expected utility for a treatment decision |
 | `03_influence_diagrams/counterfactuals_with_policy.ipynb` | `infer(..., policy=)`: interventional queries, unbound-decision errors, solve + evaluate loop |
-| `03_influence_diagrams/solver_comparison.py` | The NumPyro intervention scan: optimal policy, Monte-Carlo noise across seeds, mixed/continuous outcomes, and pyAgrum's exact solution as the reference |
+| `03_influence_diagrams/solver_comparison.py` | The NumPyro intervention scan: optimal policy, Monte-Carlo noise across seeds, mixed/continuous outcomes, pyAgrum's exact solution as the reference, and the Oil Wildcatter ID compared against pyAgrum's exact LIMID solver |
 
 ## Running
 
@@ -20,9 +20,13 @@ uv sync                          # installs jupyterlab + pyagrum as dev dependen
 uv run jupyter lab examples/
 ```
 
-Two examples (`solver_comparison.py`, `categorical_bn.py`) build the same
-models in pyAgrum to show the exact answer next to the Monte-Carlo
-estimate; pyagrum is in the `dev` dependency group, so `uv sync` installs it.
+Three examples (`solver_comparison.py`, `categorical_bn.py`, and the
+`solver_comparison.py` Oil Wildcatter section) build the same models in
+pyAgrum to show the exact answer next to the Monte-Carlo estimate; pyagrum
+is in the `dev` dependency group, so `uv sync` installs it. The Oil
+Wildcatter shares one spec between both libraries
+(`03_influence_diagrams/_oil_wildcatter.py`), so the comparison is exact
+engine vs Monte-Carlo scan on identical tables.
 
 Each notebook is paired with a `.py` twin (Jupyter percent format, kept in sync
 with jupytext) so the examples are greppable and reviewable. Regenerate a
