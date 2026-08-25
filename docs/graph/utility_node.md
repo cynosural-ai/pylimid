@@ -8,12 +8,13 @@ its consistency model works, and why utility nodes are *sinks*.
 > types of an influence diagram. The *mutability and validation model* —
 > editable fields, the `UNCONFIGURED`/`STALE`/`CONSISTENT` consistency states,
 > the editing-vs-inference gate — is settled in [`diagram.md`](./diagram.md) and
-> now lives on the shared `Node` base (see [`node.py`](../decisionpy/graph/node.py)).
+> lives on the shared `Node` base (see [`node.py`](../decisionpy/graph/node.py)).
 > The *solving strategy* that consumes utilities is in
 > [`decision_node.md`](./decision_node.md); this note covers only the node's
-> representation. Exact expected-utility solving for the discrete case is
-> implemented via bucket elimination ([`bucket_elim.md`](../inference/bucket_elim.md),
-> `decisionpy.inference.exact.categorical`); the NumPyro intervention-scan path is planned.
+> representation. Expected-utility solving is implemented by the NumPyro
+> intervention scan (`decisionpy.inference.numpyro.solver`); bucket elimination
+> ([`bucket_elim.md`](../inference/bucket_elim.md)) served as the v0 exact
+> solver and is retired.
 
 ---
 
@@ -97,11 +98,11 @@ describes its own configurable field.
 
 ## What is deliberately deferred
 
-- **No NumPyro intervention-scan solver.** The graph layer represents the
-  utility; the exact discrete solver (bucket elimination,
-  `decisionpy.inference.exact.categorical`) is implemented, and the Monte-Carlo
-  intervention-scan path (Strategy B from [`decision_node.md`](./decision_node.md))
-  is planned for the NumPyro engine.
+- **No policy-as-parameters solving (Strategy A).** The graph layer
+  represents the utility; the NumPyro intervention scan (Strategy B from
+  [`decision_node.md`](./decision_node.md)) evaluates it by forward sampling
+  per candidate policy. Continuous information sets and continuous decisions
+  — the Strategy A path — are deferred.
 - **No table sugar** for discrete utilities (analogous to the deferred
   `from_cpt` for chance nodes). A discrete utility is a callable wrapping an
   array today.
