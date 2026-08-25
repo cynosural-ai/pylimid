@@ -83,8 +83,8 @@ print(diag.validate())
 
 # %%
 prior = infer(diag, ["smoking", "pollution", "cancer", "xray"])
-for name, m in prior.items():
-    print(name, "->", [round(p, 3) for p in m.values])
+for name, posterior in prior.items():
+    print(name, "->", [round(p, 3) for p in posterior.marginal()])
 
 # %% [markdown]
 # ## Evidence
@@ -94,8 +94,8 @@ for name, m in prior.items():
 
 # %%
 post = infer(diag, ["smoking", "pollution", "cancer"], observed={"xray": 1})
-for name, m in post.items():
-    print(name, "->", [round(p, 3) for p in m.values])
+for name, posterior in post.items():
+    print(name, "->", [round(p, 3) for p in posterior.marginal()])
 
 # %% [markdown]
 # ## Explaining away
@@ -110,11 +110,11 @@ for name, m in post.items():
 post_with_pollution = infer(diag, ["smoking"], observed={"xray": 1, "pollution": 1})
 print(
     "P(smoking | xray=pos)                  ->",
-    [round(p, 3) for p in post["smoking"].values],
+    [round(p, 3) for p in post["smoking"].marginal()],
 )
 print(
     "P(smoking | xray=pos, pollution=high)  ->",
-    [round(p, 3) for p in post_with_pollution["smoking"].values],
+    [round(p, 3) for p in post_with_pollution["smoking"].marginal()],
 )
 
 # %% [markdown]
@@ -126,4 +126,7 @@ print(
 
 # %%
 post_cancer = infer(diag, ["cancer"], observed={"xray": 1})
-print("P(cancer | xray=pos) ->", [round(p, 3) for p in post_cancer["cancer"].values])
+print(
+    "P(cancer | xray=pos) ->",
+    [round(p, 3) for p in post_cancer["cancer"].marginal()],
+)

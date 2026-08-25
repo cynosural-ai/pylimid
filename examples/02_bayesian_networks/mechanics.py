@@ -58,15 +58,16 @@ print(diag.validate())
 # %% [markdown]
 # ## The prior
 #
-# `infer()` returns one typed result per query variable: a `Marginal`
-# (probability vector) for discrete variables. For an all-discrete diagram the
-# NumPyro engine enumerates the discrete space, so the estimates are very
-# close to the true probabilities.
+# `infer()` returns one `Posterior` per query variable: raw draws plus the
+# variable's states. For a discrete variable, `.marginal()` bincounts the
+# draws into a probability vector. For an all-discrete diagram the NumPyro
+# engine enumerates the discrete space, so the estimates are very close to
+# the true probabilities.
 
 # %%
 result = infer(diag, ["rain", "wet_grass"])
-for name, marginal in result.items():
-    print(name, "->", [round(p, 3) for p in marginal.values])
+for name, posterior in result.items():
+    print(name, "->", [round(p, 3) for p in posterior.marginal()])
 
 # %% [markdown]
 # ## Evidence
@@ -77,17 +78,17 @@ for name, marginal in result.items():
 
 # %%
 post = infer(diag, ["rain"], observed={"wet_grass": 1})
-print("P(rain | wet_grass=wet) ->", [round(p, 3) for p in post["rain"].values])
+print("P(rain | wet_grass=wet) ->", [round(p, 3) for p in post["rain"].marginal()])
 
 # %% [markdown]
 # ## Continuous variables: raw draws
 #
-# A continuous variable has no per-state probability mass, so its result is
-# the raw posterior draws. Adding a continuous node switches the engine from
-# enumeration to NUTS.
+# A continuous variable has no per-state probability mass, so its result
+# keeps the raw posterior draws (and `states=None`). Adding a continuous
+# node switches the engine from enumeration to NUTS.
 
 # %%
 diag.add_node(ChanceNode(name="temp", dist=lambda: dist.Normal(loc=20.0, scale=3.0)))
-draws = infer(diag, ["temp"])
-print("temp draws:", draws["temp"].values[:5], "...")
-print("mean ≈", round(sum(draws["temp"].values) / len(draws["temp"].values), 2))
+posterior = infer(diag, ["temp"])
+print("temp draws:", posterior["temp"].values[:5], "...")
+print("mean ≈", round(posterior["temp"].mean(), 2))

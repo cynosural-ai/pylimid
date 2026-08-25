@@ -6,7 +6,7 @@ Public API::
     from decisionpy.inference import infer, solve
 
     result = infer(diagram, query=["rain"], observed={"wet_grass": 1})
-    result["rain"].values  # probability vector (Marginal) or draws (Draws)
+    result["rain"].values  # raw posterior draws; marginal() for probabilities
 
     solution = solve(diagram)
     solution.policy  # decision name -> info-set assignment -> action
@@ -21,11 +21,10 @@ See decisionpy.inference.engine for the full dispatch logic.
 """
 
 from decisionpy.inference.engine import (  # noqa: F401
-    Draws,
     InferenceError,
     InferenceResult,
-    Marginal,
     Policy,
+    Posterior,
     Solution,
     infer,
     solve,

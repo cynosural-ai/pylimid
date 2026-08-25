@@ -17,8 +17,9 @@ continuous child z linear in y.
 
 Current status:
 - The models themselves can be built with the existing graph layer and run
-  through the NumPyro engine (approximate Monte-Carlo draws; the discrete
-  node's posterior comes back as a Marginal, the continuous ones as Draws).
+  through the NumPyro engine (approximate Monte-Carlo draws; every query
+  variable comes back as a Posterior — raw draws plus states, with
+  `.marginal()` for the discrete nodes' probability vectors).
 - Exact CLG inference (Lauritzen-style propagation: a Gaussian posterior per
   discrete assignment, a Gaussian mixture once the discrete states are
   marginalized) is not implemented yet. The discrete-parents-only constraint

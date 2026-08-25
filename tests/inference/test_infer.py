@@ -10,7 +10,7 @@ from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.diagram import InfluenceDiagram
 from decisionpy.graph.utility_node import UtilityNode
-from decisionpy.inference import Draws, InferenceError, Marginal, infer
+from decisionpy.inference import InferenceError, Posterior, infer
 
 # --- helpers -----------------------------------------------------------------
 
@@ -130,14 +130,17 @@ def _umbrella_diagram() -> InfluenceDiagram:
 
 def test_discrete_prior():
     result = infer(_rain_wet_grass(), ["rain"])
-    assert isinstance(result["rain"], Marginal)
-    assert result["rain"].values == pytest.approx([0.8, 0.2], abs=0.04)
+    assert isinstance(result["rain"], Posterior)
+    assert result["rain"].states == ("no", "yes")
+    assert result["rain"].is_discrete
+    assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
 
 
 def test_discrete_posterior_with_observed():
     result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1})
-    assert isinstance(result["rain"], Marginal)
-    assert result["rain"].values == pytest.approx([0.457, 0.543], abs=0.04)
+    assert isinstance(result["rain"], Posterior)
+    assert result["rain"].states == ("no", "yes")
+    assert result["rain"].marginal() == pytest.approx([0.457, 0.543], abs=0.04)
 
 
 def test_result_keys_match_query():
@@ -147,35 +150,70 @@ def test_result_keys_match_query():
 
 def test_probabilities_sum_to_one():
     result = infer(_rain_wet_grass(), ["rain", "wet_grass"])
-    assert isinstance(result["rain"], Marginal)
-    assert isinstance(result["wet_grass"], Marginal)
-    assert sum(result["rain"].values) == pytest.approx(1.0)
-    assert sum(result["wet_grass"].values) == pytest.approx(1.0)
+    assert isinstance(result["rain"], Posterior)
+    assert isinstance(result["wet_grass"], Posterior)
+    assert sum(result["rain"].marginal()) == pytest.approx(1.0)
+    assert sum(result["wet_grass"].marginal()) == pytest.approx(1.0)
 
 
 def test_probabilities_sum_to_one_with_observed():
     result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1})
-    assert isinstance(result["rain"], Marginal)
-    assert sum(result["rain"].values) == pytest.approx(1.0)
-    assert all(isinstance(p, float) for p in result["rain"].values)
+    assert isinstance(result["rain"], Posterior)
+    assert sum(result["rain"].marginal()) == pytest.approx(1.0)
+    assert all(isinstance(p, float) for p in result["rain"].marginal())
 
 
-def test_continuous_returns_draws():
-    """Continuous queries return Draws, not probabilities."""
+def test_continuous_posterior_keeps_raw_draws():
+    """Continuous posteriors store raw draws and carry no states."""
     result = infer(_continuous_diagram(), ["x"])
-    assert isinstance(result["x"], Draws)
+    assert isinstance(result["x"], Posterior)
+    assert result["x"].states is None
+    assert not result["x"].is_discrete
     assert len(result["x"].values) == 2000  # raw MCMC draws
-    assert sum(result["x"].values) != pytest.approx(1.0)  # not probabilities
+    assert result["x"].mean() == pytest.approx(5.0, abs=0.2)
+    assert result["x"].std() == pytest.approx(2.0, abs=0.15)
+    lo, hi = result["x"].hdi()
+    assert lo < 5.0 < hi
 
 
 def test_mixed_result_shape_follows_variable_type():
-    """Discrete queries return Marginals; continuous return Draws."""
+    """One Posterior type; states distinguish discrete from continuous."""
     result = infer(_mixed_diagram(), ["rain", "temp"])
-    assert isinstance(result["rain"], Marginal)
-    assert sum(result["rain"].values) == pytest.approx(1.0)  # probability vector
-    assert isinstance(result["temp"], Draws)
+    assert isinstance(result["rain"], Posterior)
+    assert result["rain"].states == ("no", "yes")
+    assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
+    assert isinstance(result["temp"], Posterior)
+    assert result["temp"].states is None
     assert len(result["temp"].values) == 2000  # raw MCMC draws
-    assert sum(result["temp"].values) != pytest.approx(1.0)  # not probabilities
+    assert result["temp"].mean() == pytest.approx(20.0, abs=0.3)
+
+
+def test_discrete_posterior_stores_state_index_draws():
+    """Discrete draws are integer state indices; the vector is derived."""
+    result = infer(_rain_wet_grass(), ["rain"])
+    assert all(v in (0.0, 1.0) for v in result["rain"].values)
+    assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
+
+
+def test_summaries_on_discrete_raise():
+    """Index draws are not moments: mean/std/hdi refuse discrete posteriors."""
+    result = infer(_rain_wet_grass(), ["rain"])
+    for method in ("mean", "std", "hdi"):
+        with pytest.raises(ValueError, match="requires a continuous"):
+            getattr(result["rain"], method)()
+
+
+def test_marginal_on_continuous_raises():
+    result = infer(_continuous_diagram(), ["x"])
+    with pytest.raises(ValueError, match="marginal\\(\\) requires a discrete"):
+        result["x"].marginal()
+
+
+def test_hdi_invalid_coverage_raises():
+    result = infer(_continuous_diagram(), ["x"])
+    for bad in (0.0, -0.5, 1.5):
+        with pytest.raises(ValueError, match="coverage must be in"):
+            result["x"].hdi(prob=bad)
 
 
 # --- errors ------------------------------------------------------------------
@@ -202,8 +240,8 @@ def test_policy_collapses_id_to_bn():
         observed={"wet": 1},
         policy={"umbrella": 1},
     )
-    assert isinstance(result["rain"], Marginal)
-    assert result["rain"].values == pytest.approx([0.558, 0.442], abs=0.04)
+    assert isinstance(result["rain"], Posterior)
+    assert result["rain"].marginal() == pytest.approx([0.558, 0.442], abs=0.04)
 
 
 def test_policy_on_continuous_diagram():
@@ -221,9 +259,10 @@ def test_policy_on_continuous_diagram():
         )
     )
     result = infer(diag, ["x"], policy={"d": 1})
-    assert isinstance(result["x"], Draws)
+    assert isinstance(result["x"], Posterior)
+    assert result["x"].states is None
     assert len(result["x"].values) == 2000
-    assert jnp.mean(jnp.array(result["x"].values)) == pytest.approx(2.0, abs=0.2)
+    assert result["x"].mean() == pytest.approx(2.0, abs=0.2)
 
 
 def test_utility_node_alone_does_not_block_infer():
@@ -244,8 +283,8 @@ def test_utility_node_alone_does_not_block_infer():
         )
     )
     result = infer(diag, ["rain"])
-    assert isinstance(result["rain"], Marginal)
-    assert result["rain"].values == pytest.approx([0.8, 0.2], abs=0.04)
+    assert isinstance(result["rain"], Posterior)
+    assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
 
 
 def test_partially_bound_decisions_raise():

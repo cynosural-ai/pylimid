@@ -6,7 +6,7 @@ Unified inference entry-point.
     from decisionpy.inference import infer, solve
 
     result = infer(diagram, query=["rain"], observed={"wet_grass": 1})
-    # → {"rain": Marginal(values=[0.456, 0.544])}
+    # → {"rain": Posterior(values=[...], states=("no", "yes"))}
 
     solution = solve(diagram)
     # → Solution(policy={"treat": {(0,): 0, (1,): 1}}, expected_utility=78.3)
@@ -14,26 +14,22 @@ Unified inference entry-point.
 
 from __future__ import annotations
 
-import jax.numpy as jnp
-
 from decisionpy.graph.diagram import InfluenceDiagram
 from decisionpy.graph.node import NodeKind
 from decisionpy.inference.numpyro import samples as numpyro_samples
 from decisionpy.inference.numpyro.solver import solve as numpyro_solve
 from decisionpy.inference.result import (
-    Draws,
     InferenceResult,
-    Marginal,
     Policy,
+    Posterior,
     Solution,
 )
 
 __all__ = [
-    "Draws",
     "InferenceError",
     "InferenceResult",
-    "Marginal",
     "Policy",
+    "Posterior",
     "Solution",
     "infer",
     "solve",
@@ -74,10 +70,13 @@ def infer(
             decision in *diagram* must appear.
 
     Returns:
-        ``{var_name: result}`` — one entry per query variable. A discrete
-        variable (declared ``states``) maps to a Marginal (its probability
-        vector, a Monte-Carlo estimate); a continuous variable maps to
-        raw Draws.
+        ``{var_name: result}`` — one Posterior per query variable: raw
+        posterior draws plus the variable's states (None for continuous).
+        Each summary method is valid for exactly one kind: marginal()
+        bincounts a discrete posterior into its probability vector, and
+        mean()/std()/hdi() summarize the draws of a continuous one —
+        calling the wrong kind raises. Everything is a Monte-Carlo
+        estimate.
 
     Raises:
         InferenceError: If a decision is unbound, if *policy* names a node
@@ -166,20 +165,16 @@ def _validate_query(snapshot, query: list[str]) -> None:
 
 
 def _infer_numpyro(snapshot, query, observed) -> InferenceResult:
-    # ``samples()`` returns raw draws; ``infer()`` normalizes them to the
-    # per-type contract: a Marginal for discrete variables, raw Draws for
-    # continuous ones. Everything is a Monte-Carlo estimate (enumerated
-    # draws bincounted).
+    # ``samples()`` returns raw draws; ``infer()`` wraps them in a
+    # Posterior, keeping the draws and the variable's states together.
+    # Everything is a Monte-Carlo estimate.
     draws = numpyro_samples(snapshot, observed=observed, query=query)
     result: InferenceResult = {}
     for name in query:
         node = _find_node(snapshot, name)
-        if node.is_discrete:
-            counts = jnp.bincount(draws[name], length=len(node.states))
-            probs = counts / counts.sum()
-            result[name] = Marginal(values=[float(p) for p in probs])
-        else:
-            result[name] = Draws(values=[float(x) for x in draws[name]])
+        result[name] = Posterior(
+            values=[float(x) for x in draws[name]], states=node.states
+        )
     return result
 
 
