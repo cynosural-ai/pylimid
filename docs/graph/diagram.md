@@ -52,12 +52,22 @@ incomplete (only for being *malformed* — see Principle 2). `validate()` /
 | ------------------ | ------------------- | -------------------------------------------- |
 | Field validation   | every assignment    | a *malformed* value — empty name, non-callable dist, duplicate parent |
 | Cross-field / graph | `validate()` only  | an *incomplete or inconsistent* state — dangling parent, stale dist signature, cycle |
+| Runtime probe      | `probe_discrete_parents()` on demand | a callable that ignores a discrete parent (same output for every parent value) |
 
 A malformed value (empty name) is never a useful intermediate state, so it is
 rejected the instant it is set. An incomplete state (dist not yet configured)
 *is* a useful intermediate, so it is permitted during editing and gated only at
 inference time. Conflating the two — rejecting incompleteness at set-time —
 breaks incremental construction and is the mistake the build-once design made.
+
+`validate()` is structural: it inspects signatures and graph shape but never
+executes a `dist`. `probe_discrete_parents()` is the runtime counterpart — it
+executes each callable (explicitly, on demand, never automatically) and flags
+a discrete parent whose value never changes the output, the classic silent
+mistake of a probability table with too few rows under JAX's clamping
+semantics. The two share the `DiagramProblem` reporting model in
+`decisionpy.graph.validation`. A probe finding is a warning, not an error: a
+deliberately independent node looks identical.
 
 ---
 
@@ -111,9 +121,9 @@ later matters.
 ## Principle 7 — the snapshot is logical, not deep-frozen
 
 `snapshot()` returns references to the still-mutable nodes in topological
-order. Editing the diagram after snapshotting invalidates the snapshot. A
-genuinely immutable deep copy is deferred until the translator exists and pins
-down the shape it needs; freezing prematurely would guess at that shape.
+order. Editing the diagram after snapshotting invalidates the snapshot.
+Freezing the nodes is a documented future tightening; the v0 contract is that
+the caller does not mutate captured nodes before inference runs.
 
 ---
 

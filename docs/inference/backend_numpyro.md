@@ -1,4 +1,4 @@
-# NumPyro backend — chance-node translator
+# NumPyro backend — snapshot translator
 
 The bridge between the backend-agnostic graph layer and a concrete
 probabilistic programming system. This is the most bug-prone layer (per
@@ -7,25 +7,33 @@ probabilistic programming system. This is the most bug-prone layer (per
 > **Where this fits.** The graph layer ([`diagram.md`](./diagram.md)) settles
 > the container and the `dist` calling convention; the translator consumes a
 > validated `Snapshot` and turns it into a runnable model. A chance-node-only
-> diagram *is* a Bayesian network, so v0 is a BN translator.
+> diagram *is* a Bayesian network; an influence diagram is translated once
+> every decision is bound by a policy (see the `policy=` binding in
+> [`bucket_elim.md`](./bucket_elim.md)).
 
 ---
 
 ## What it does
 
-`to_model(snapshot) -> model` walks the snapshot's nodes in topological order
-(parents before children — guaranteed by the snapshot) and emits one
-`numpyro.sample` per node, with parents resolved **by name**:
+`to_model(snapshot, observed) -> model` walks the snapshot's nodes in
+topological order (parents before children — guaranteed by the snapshot) and
+emits, per node:
 
-```python
-fn = node.dist(**{parent: sampled_value_of(parent) for parent in node.parents})
-value = numpyro.sample(node.name, fn)
-```
+- **chance node** — one `numpyro.sample` with parents resolved **by name**:
 
-This is exactly the per-node emission pattern fixed by
-[`diagram.md`](./diagram.md) — one path, no branching on node sub-type. The
-translator does *translation only*; how the returned `model` is then sampled or
-inferred is the caller's concern:
+  ```python
+  fn = node.dist(**{parent: sampled_value_of(parent) for parent in node.parents})
+  value = numpyro.sample(node.name, fn)
+  ```
+
+- **bound decision** — a degenerate observed site at its policy value
+  (`infer(policy=...)` merges the policy into `observed`; unbound decisions
+  never reach the translator).
+- **utility node** — skipped entirely (a payoff is never sampled and is never
+  a parent).
+
+The translator does *translation only*; how the returned `model` is then
+sampled or inferred is the caller's concern:
 
 ```python
 from numpyro.infer import Predictive
@@ -60,10 +68,12 @@ only importing `decisionpy.inference` does.
 
 ---
 
-## v0 scope, and what is deferred
+## Scope
 
-**In scope:**
-- Chance nodes only (a Bayesian network).
+**Handled:**
+- Chance nodes — the Bayesian-network case.
+- Bound decisions — clamped by a policy, emitted as degenerate observed sites.
+- Utility nodes — skipped.
 - Forward / prior-predictive sampling: `samples(snapshot)` with no
   `observed` — direct, independent draws.
 - Posterior inference: `samples(snapshot, observed=...)`. When every latent
@@ -73,12 +83,10 @@ only importing `decisionpy.inference` does.
   discrete latents given the continuous draws. The returned dict covers
   every node; observed nodes appear as their clamped values.
 
-**Deliberately deferred:**
-- **Unbound decisions.** A bound decision (clamped by `infer(policy=...)`)
-  is emitted as a degenerate observed site; a utility node is skipped. The
-  translator does not check binding itself — an unbound decision fails with
-  a `KeyError`, and `infer()` rejects unbound diagrams with a clean
-  `InferenceError` before any engine runs.
+**Not handled here:**
+- **Unbound decisions.** The translator does not check binding itself — an
+  unbound decision fails with a `KeyError`, and `infer()` rejects unbound
+  diagrams with a clean `InferenceError` before any engine runs.
 - **A deep-frozen snapshot.** A `Snapshot` holds references to still-mutable
   nodes ([`diagram.md`](./diagram.md), "the snapshot is logical, not
   deep-frozen"). The node list is captured once at `to_model` time, so
