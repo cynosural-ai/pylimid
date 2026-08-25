@@ -81,12 +81,12 @@ def test_solve_no_decisions_raises():
         solve(_bayesian_network())
 
 
-def test_solve_mixed_diagram_raises():
-    with pytest.raises(InferenceError, match="not implemented"):
+def test_solve_mixed_diagram_raises_under_default_bucket_elim():
+    with pytest.raises(InferenceError, match="all-categorical"):
         solve(_mixed_decision_diagram())
 
 
-def test_solve_explicit_numpyro_raises_not_implemented():
+def test_solve_numpyro_raises_not_implemented():
     with pytest.raises(InferenceError, match="not implemented"):
         solve(_umbrella_diagram(), engine="numpyro")
 

@@ -124,12 +124,15 @@ Read in this order:
   Bound decisions clamp to their policy values; utilities are skipped.
   NumPyro is a declared dependency, though nothing in `decisionpy.graph`
   imports it.
-- `inference/engine.py` — unified `infer()` / `solve()` entry-points with
-  auto-dispatch, returning typed results: `Marginal(values, exact)` for
-  discrete and `Draws(values)` for continuous queries; `Solution(policy,
-  expected_utility)` for solving. `infer()` takes an all-or-nothing
+- `inference/engine.py` — unified `infer()` / `solve()` entry-points.
+  `infer()` defaults to the NumPyro engine and returns typed results:
+  `Marginal(values, exact)` for discrete and `Draws(values)` for
+  continuous queries, or exact `Gaussian(mean, variance)` under
+  `engine="lg"`; the exact engines (`ve`, `lg`) are explicit opt-ins that
+  validate the diagram's preconditions. `infer()` takes an all-or-nothing
   `policy=` binding (unbound decisions raise a clean `InferenceError`);
-  `solve()` dispatches to bucket elimination for all-categorical diagrams.
+  `solve()` defaults to bucket elimination for all-categorical
+  diagrams.
 - Planned: the NumPyro intervention-scan solver for mixed/continuous
   influence diagrams (a clean `InferenceError` for now).
 

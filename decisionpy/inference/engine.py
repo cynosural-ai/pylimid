@@ -107,7 +107,7 @@ def infer(
     *,
     observed: dict[str, int | float] | None = None,
     policy: dict[str, int] | None = None,
-    engine: str = "auto",
+    engine: str = "numpyro",
 ) -> InferenceResult:
     """
     Compute posterior marginals for *query* variables given *observed* evidence.
@@ -126,7 +126,11 @@ def infer(
             one.
         policy: Map from decision name to its chosen integer action. Every
             decision in *diagram* must appear.
-        engine: ``"auto"`` (default), ``"ve"``, ``"lg"``, or ``"numpyro"``.
+        engine: ``"numpyro"`` (default, Monte-Carlo), ``"ve"`` (exact
+            discrete), or ``"lg"`` (exact linear-Gaussian). The exact
+            engines are explicit opt-ins: they validate the diagram
+            against their preconditions and fail loudly when it does not
+            satisfy them.
 
     Returns:
         ``{var_name: result}`` — one entry per query variable. A discrete
@@ -170,9 +174,6 @@ def infer(
 
     evidence = {**observed, **policy}
 
-    if engine == "auto":
-        engine = _choose_engine(snapshot)
-
     if engine == "ve":
         return _infer_ve(snapshot, query, evidence)
 
@@ -182,18 +183,17 @@ def infer(
     if engine == "numpyro":
         return _infer_numpyro(snapshot, query, evidence)
 
-    raise InferenceError(
-        f"Unknown engine {engine!r}. Choose 'auto', 've', 'lg', or 'numpyro'."
-    )
+    raise InferenceError(f"Unknown engine {engine!r}. Choose 'numpyro', 've', or 'lg'.")
 
 
-def solve(diagram: InfluenceDiagram, *, engine: str = "auto") -> Solution:
+def solve(diagram: InfluenceDiagram, *, engine: str = "bucket_elim") -> Solution:
     """
     Solve an influence diagram: the optimal policy and its expected utility.
 
     Args:
         diagram: A validated influence diagram with at least one decision.
-        engine: ``"auto"`` (default) or ``"bucket_elim"``.
+        engine: ``"bucket_elim"`` (default, exact) or ``"numpyro"`` (the
+            intervention-scan solver is planned, not yet implemented).
 
     Returns:
         A Solution with the optimal per-decision policy (decision
@@ -212,9 +212,6 @@ def solve(diagram: InfluenceDiagram, *, engine: str = "auto") -> Solution:
             "node; this diagram has none. Use infer() for Bayesian networks."
         )
 
-    if engine == "auto":
-        engine = _choose_solver(snapshot)
-
     if engine == "bucket_elim":
         return _solve_bucket_elim(snapshot)
 
@@ -225,33 +222,9 @@ def solve(diagram: InfluenceDiagram, *, engine: str = "auto") -> Solution:
             "handles all-categorical diagrams."
         )
 
-    raise InferenceError(f"Unknown engine {engine!r}. Choose 'auto' or 'bucket_elim'.")
-
-
-# -- engine selection ---------------------------------------------------------
-
-
-def _choose_engine(snapshot) -> str:
-    # Discrete chance nodes decide between the exact (ve) and Monte-Carlo
-    # (numpyro) engines. Decisions are clamped constants in either engine,
-    # and a utility node's ``is_discrete`` is vacuous (always ``False``) —
-    # only chance nodes are ever classified.
-    if all(
-        node.is_discrete for _, node in snapshot.nodes if node.kind is NodeKind.CHANCE
-    ):
-        return "ve"
-    return "numpyro"
-
-
-def _choose_solver(snapshot) -> str:
-    # Decisions are categorical by construction (``states`` are mandatory),
-    # so continuous chance nodes are the only thing that rules bucket
-    # elimination out — same kind-based classification as ``infer()``.
-    if all(
-        node.is_discrete for _, node in snapshot.nodes if node.kind is NodeKind.CHANCE
-    ):
-        return "bucket_elim"
-    return "numpyro"
+    raise InferenceError(
+        f"Unknown engine {engine!r}. Choose 'bucket_elim' or 'numpyro'."
+    )
 
 
 def _validate_query(snapshot, query: list[str]) -> None:
