@@ -14,17 +14,10 @@ Unified inference entry-point.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TypeAlias
-
 import jax.numpy as jnp
 
 from decisionpy.graph.diagram import InfluenceDiagram
 from decisionpy.graph.node import NodeKind
-from decisionpy.inference.exact.categorical import (
-    Policy,
-    Solution,
-)
 from decisionpy.inference.exact.categorical import (
     query as ve_query,
 )
@@ -33,6 +26,15 @@ from decisionpy.inference.exact.categorical import (
 )
 from decisionpy.inference.exact.linear_gaussian import query as lg_query
 from decisionpy.inference.numpyro import samples as numpyro_samples
+from decisionpy.inference.numpyro.solver import solve as numpyro_solve
+from decisionpy.inference.result import (
+    Draws,
+    Gaussian,
+    InferenceResult,
+    Marginal,
+    Policy,
+    Solution,
+)
 
 __all__ = [
     "Draws",
@@ -49,56 +51,6 @@ __all__ = [
 
 class InferenceError(Exception):
     """Asked for an inference method that cannot handle the given diagram."""
-
-
-@dataclass(frozen=True)
-class Marginal:
-    """
-    Posterior over a discrete variable: a probability vector over its states.
-
-    Attributes:
-        values: ``[P(0), P(1), ...]`` — sums to 1.
-        exact: Whether ``values`` is exact (variable elimination) or a
-            Monte-Carlo estimate (numpyro enumeration/MCMC draws).
-    """
-
-    values: list[float]
-    exact: bool
-
-
-@dataclass(frozen=True)
-class Draws:
-    """
-    Posterior over a continuous variable: raw posterior draws.
-
-    A continuous variable has no per-state probability mass, so its result
-    is the raw sample list.
-
-    Attributes:
-        values: One posterior draw per entry.
-    """
-
-    values: list[float]
-
-
-@dataclass(frozen=True)
-class Gaussian:
-    """
-    Exact posterior over a continuous variable of a linear-Gaussian BN.
-
-    Attributes:
-        mean: The posterior mean.
-        variance: The posterior variance.
-    """
-
-    mean: float
-    variance: float
-
-
-#: Result of infer(): one entry per query variable. A discrete variable
-#: (declared ``states``) maps to a Marginal; a continuous variable maps to
-#: a Draws (numpyro) or a Gaussian (exact linear-Gaussian engine).
-InferenceResult: TypeAlias = dict[str, Marginal | Draws | Gaussian]
 
 
 def infer(
@@ -192,13 +144,15 @@ def solve(diagram: InfluenceDiagram, *, engine: str = "bucket_elim") -> Solution
 
     Args:
         diagram: A validated influence diagram with at least one decision.
-        engine: ``"bucket_elim"`` (default, exact) or ``"numpyro"`` (the
-            intervention-scan solver is planned, not yet implemented).
+        engine: ``"bucket_elim"`` (default) — exact, all-categorical
+            diagrams — or ``"numpyro"`` — the Monte-Carlo intervention
+            scan, which also handles mixed/continuous diagrams with
+            discrete information sets.
 
     Returns:
         A Solution with the optimal per-decision policy (decision
         name to information-set assignment to chosen action) and the
-        maximum expected total utility.
+        expected total utility, flagged exact or Monte-Carlo per engine.
 
     Raises:
         InferenceError: If the diagram has no decision nodes, or if the
@@ -216,11 +170,7 @@ def solve(diagram: InfluenceDiagram, *, engine: str = "bucket_elim") -> Solution
         return _solve_bucket_elim(snapshot)
 
     if engine == "numpyro":
-        raise InferenceError(
-            "The NumPyro intervention-scan solver for mixed/continuous "
-            "influence diagrams is not implemented yet; bucket elimination "
-            "handles all-categorical diagrams."
-        )
+        return _solve_numpyro(snapshot)
 
     raise InferenceError(
         f"Unknown engine {engine!r}. Choose 'bucket_elim' or 'numpyro'."
@@ -294,6 +244,15 @@ def _solve_bucket_elim(snapshot) -> Solution:
     except TypeError as e:
         raise InferenceError(
             f"Bucket elimination requires an all-categorical diagram. {e}"
+        ) from e
+
+
+def _solve_numpyro(snapshot) -> Solution:
+    try:
+        return numpyro_solve(snapshot)
+    except ValueError as e:
+        raise InferenceError(
+            f"The intervention-scan solver cannot handle this diagram. {e}"
         ) from e
 
 

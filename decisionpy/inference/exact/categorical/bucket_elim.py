@@ -35,7 +35,6 @@ raises — that structure needs arc reversal, deferred to a later milestone.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from itertools import product
 
 from decisionpy.graph.chance_node import ChanceNode
@@ -43,28 +42,11 @@ from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.diagram import Snapshot
 from decisionpy.graph.node import Node
 from decisionpy.graph.utility_node import UtilityNode
+from decisionpy.inference.result import Policy, Solution
 from decisionpy.inference.utils.factor import Factor
 from decisionpy.inference.utils.factors import cardinalities, cpt, utility_factor
 
 __all__ = ["Policy", "Solution", "solve"]
-
-#: Optimal policy: decision name -> {information-set assignment: chosen action}.
-Policy = dict[str, dict[tuple[int, ...], int]]
-
-
-@dataclass(frozen=True)
-class Solution:
-    """
-    Result of solving an influence diagram.
-
-    Attributes:
-        policy: Per-decision optimal action for every instantiation of the
-            decision's information set.
-        expected_utility: Maximum expected total utility under *policy*.
-    """
-
-    policy: Policy
-    expected_utility: float
 
 
 def solve(snapshot: Snapshot) -> Solution:
@@ -140,7 +122,7 @@ def solve(snapshot: Snapshot) -> Solution:
     expected_utility = utility.values[0]
     for f in probs:
         expected_utility *= f.values[0]
-    return Solution(policy=policy, expected_utility=expected_utility)
+    return Solution(policy=policy, expected_utility=expected_utility, exact=True)
 
 
 # ---------------------------------------------------------------------------

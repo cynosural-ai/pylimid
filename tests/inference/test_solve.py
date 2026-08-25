@@ -86,9 +86,17 @@ def test_solve_mixed_diagram_raises_under_default_bucket_elim():
         solve(_mixed_decision_diagram())
 
 
-def test_solve_numpyro_raises_not_implemented():
-    with pytest.raises(InferenceError, match="not implemented"):
-        solve(_umbrella_diagram(), engine="numpyro")
+def test_solve_numpyro_estimates():
+    """The intervention scan finds the same policy; the MEU is an estimate."""
+    solution = solve(_umbrella_diagram(), engine="numpyro")
+    assert solution.policy == {"umbrella": {(0,): 0, (1,): 1}}
+    assert solution.expected_utility == pytest.approx(1.0, abs=0.05)
+    assert solution.exact is False
+
+
+def test_solve_default_is_exact_bucket_elim():
+    solution = solve(_umbrella_diagram())
+    assert solution.exact is True
 
 
 def test_solve_explicit_bucket_elim_on_mixed_raises():
