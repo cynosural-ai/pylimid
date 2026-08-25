@@ -22,4 +22,4 @@ Per `docs/ADR/25_08_2026_numpyro_only_engine.md`, the library is numpyro-only.
 
 7. **Docs sweep** — DONE: the living docs now describe the numpyro-only world — `decision_node.md` (Strategy B implemented, bucket elimination historical), `utility_node.md`, `backend_numpyro.md` (solver section added), `inference_strategy.md` (rewritten), `docs/README.md` (status table + code status), and the superseded ADRs (`23_07`, `13_08`) carry banner notes.
 
-8. **pyAgrum side-by-side in the examples** — add pyAgrum's exact solutions to `solver_comparison.py` (exact LIMID vs the scan) and `categorical_bn.py` (exact VE vs enumeration), move `pyagrum` into the `dev` dependency group, and note it in `examples/README.md`.
+8. **pyAgrum side-by-side in the examples** — DONE: `solver_comparison.py` shows pyAgrum's exact LIMID solution (MEU 78.0, same policy) next to the scan's estimate, and `categorical_bn.py` shows pyAgrum's exact posterior next to the enumeration estimate. pyagrum moved into the `dev` dependency group and noted in `examples/README.md`.

@@ -533,6 +533,7 @@ dev = [
     { name = "jupyterlab" },
     { name = "jupytext" },
     { name = "pre-commit" },
+    { name = "pyagrum" },
     { name = "ruff" },
     { name = "ty" },
 ]
@@ -555,6 +556,7 @@ dev = [
     { name = "jupyterlab", specifier = ">=4.1" },
     { name = "jupytext", specifier = ">=1.16" },
     { name = "pre-commit", specifier = ">=3.1.1" },
+    { name = "pyagrum", specifier = ">=1.12" },
     { name = "ruff", specifier = "==0.16.0" },
     { name = "ty", specifier = "==0.0.14" },
 ]
