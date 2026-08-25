@@ -1,7 +1,11 @@
 # Unified inference layer: two verbs, auto-dispatch
 
 **Date:** 2026-07-23
-**Status:** Settled
+**Status:** Superseded in part by
+[`25_08_2026_numpyro_only_engine.md`](./25_08_2026_numpyro_only_engine.md) —
+the unified package and the two verbs (`infer`, `solve`) remain; the
+auto-dispatch and the multi-engine table below do not describe the current
+library (NumPyro is the only engine).
 **Supersedes:** the single-backend `backend/numpyro.py` as the sole inference
 surface.
 
@@ -63,8 +67,7 @@ The existing `src/decisionpy/backend/` directory is removed.
 `infer()` accepts an optional `policy` argument:
 
 ```python
-result = infer(diagram, query=["disease"], observed={"symptom": 1},
-               policy={"treat": 0})
+result = infer(diagram, query=["disease"], observed={"symptom": 1}, policy={"treat": 0})
 ```
 
 Binding a decision clamps it to a fixed value — the node behaves like observed
@@ -78,7 +81,7 @@ This enables interventional / counterfactual queries without calling `solve()`:
 
 ```python
 # Hypothesis test: P(recovery | treat=0, symptom) vs P(recovery | treat=1, symptom)
-no_treatment  = infer(diagram, query=["recovery"], observed={...}, policy={"treat": 0})
+no_treatment = infer(diagram, query=["recovery"], observed={...}, policy={"treat": 0})
 with_treatment = infer(diagram, query=["recovery"], observed={...}, policy={"treat": 1})
 ```
 

@@ -1,4 +1,4 @@
-# NumPyro backend — snapshot translator
+# NumPyro engine — translator, samplers, solver
 
 The bridge between the backend-agnostic graph layer and a concrete
 probabilistic programming system. This is the most bug-prone layer (per
@@ -8,8 +8,8 @@ probabilistic programming system. This is the most bug-prone layer (per
 > the container and the `dist` calling convention; the translator consumes a
 > validated `Snapshot` and turns it into a runnable model. A chance-node-only
 > diagram *is* a Bayesian network; an influence diagram is translated once
-> every decision is bound by a policy (see the `policy=` binding in
-> [`bucket_elim.md`](./bucket_elim.md)).
+> every decision is bound by a policy (the `policy=` binding on `infer()`,
+> see `decisionpy.inference.engine`).
 
 ---
 
@@ -94,3 +94,31 @@ only importing `decisionpy.inference` does.
   mutation on a captured node *before* sampling would be seen by the model.
   Freezing is the documented future tightening; v0 assumes the caller does not
   mutate captured nodes.
+
+---
+
+## The solver — intervention scan
+
+`numpyro/solver.py` solves influence diagrams by Strategy B
+([`decision_node.md`](../graph/decision_node.md)): it does not go through
+`to_model`. It enumerates the discrete policy space — one action per
+information-set assignment per decision — and evaluates each policy by a
+forward simulation that mirrors the translator's topological walk, except
+that a decision node is not a sample site: its action is looked up from
+the candidate policy as a deterministic function of the realized
+information-set values (`jax.vmap` over the samples). Utility nodes are
+evaluated on the sampled values after the walk; their average over the
+samples is the expected-utility estimate, and the argmax policy is
+returned as a `Solution`.
+
+Scope and cost, per the strategy analysis in `decision_node.md`:
+
+- **Discrete decisions with discrete information sets** — a continuous
+  information set cannot be tabulated and raises a clean `InferenceError`;
+  that is the policy-as-parameters path (Strategy A), deferred.
+- **Exponential in the policy space** — the product over decisions of
+  actions-per-information-set-assignment; forward passes per policy are
+  the Monte-Carlo evaluations. Suits small decision spaces.
+
+The implementation is cross-validated against pyAgrum's exact LIMID solver
+(`tests/inference/numpyro/test_compare_pyagrum_limid.py`).

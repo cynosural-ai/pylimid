@@ -14,4 +14,6 @@ Per `docs/ADR/25_08_2026_numpyro_only_engine.md`, the library is numpyro-only.
 
 4. **Rewrite the comparison tests against pyAgrum** — DONE: the numpyro engine is validated against pyAgrum's exact engines (LazyPropagation for categorical BNs, the ShaferShenoy LIMID solver for `solve()`, `pyagrum.clg` for continuous BNs) at Monte-Carlo tolerances, in `tests/inference/numpyro/test_compare_pyagrum*.py`. pgmpy dropped from the test dependencies — pyAgrum is the single external reference library.
 
-5. **Docs sweep + pyAgrum in the examples** — banner the superseded ADRs, rewrite the living docs (`inference_strategy.md`, `backend_numpyro.md`, `decision_node.md`, `utility_node.md`, `docs/README.md`) to the numpyro-only world, and add pyAgrum side-by-side comparisons to the examples.
+5. **Docs sweep** — DONE: the living docs now describe the numpyro-only world — `decision_node.md` (Strategy B implemented, bucket elimination historical), `utility_node.md`, `backend_numpyro.md` (solver section added), `inference_strategy.md` (rewritten), `docs/README.md` (status table + code status), and the superseded ADRs (`23_07`, `13_08`) carry banner notes.
+
+6. **pyAgrum side-by-side in the examples** — add pyAgrum's exact solutions to `solver_comparison.py` (exact LIMID vs the scan) and `categorical_bn.py` (exact VE vs enumeration), move `pyagrum` into the `dev` dependency group, and note it in `examples/README.md`.

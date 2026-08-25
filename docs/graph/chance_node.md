@@ -64,9 +64,9 @@ into a separate node type with a separate code path — which fights the
   cannot be recovered.
 
 The richer representation should be canonical. The callable does not prevent
-exact discrete inference later (variable elimination, junction tree) — table
-construction is simply deferred to translation time, when the parent domain is
-enumerated.
+exact discrete inference (variable elimination, junction tree): a table can
+always be materialized by evaluating the callable over every parent
+assignment.
 
 ### Uniform translator
 
@@ -117,10 +117,12 @@ rain=yes [ 0.05  0.35  0.60 ]
 becomes:
 
 ```python
-P = jnp.array([
-    [0.80, 0.15, 0.05],   # rain=0 (no)
-    [0.05, 0.35, 0.60],   # rain=1 (yes)
-])
+P = jnp.array(
+    [
+        [0.80, 0.15, 0.05],  # rain=0 (no)
+        [0.05, 0.35, 0.60],  # rain=1 (yes)
+    ]
+)
 
 ChanceNode(
     name="wet_grass",
@@ -148,9 +150,9 @@ For a finite domain there is nothing *but* a table; the callable just wraps
 `wet_grass` depending on `rain` and `sprinkler` (both binary):
 
 ```python
-P = jnp.zeros((2, 2, 3))   # (rain, sprinkler, wet_grass)
+P = jnp.zeros((2, 2, 3))  # (rain, sprinkler, wet_grass)
 # ...fill...
-dist=lambda rain, sprinkler: dist.Categorical(probs=P[rain, sprinkler])
+dist = lambda rain, sprinkler: dist.Categorical(probs=P[rain, sprinkler])
 ```
 
 One axis per parent. No new mechanism.
