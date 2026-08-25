@@ -11,7 +11,7 @@
 # ---
 
 # %% [markdown]
-# # Bayesian networks — inference with infer()
+# # Inference mechanics — the smallest Bayesian network
 #
 # A Bayesian network is an influence diagram with only chance nodes. Once the
 # diagram is built (see `01_model_creation/workspace_and_validation.ipynb`),

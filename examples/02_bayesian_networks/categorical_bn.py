@@ -11,7 +11,7 @@
 # ---
 
 # %% [markdown]
-# # Bayesian networks — the Asia-style network
+# # Categorical Bayesian networks — the Asia-style network
 #
 # A 4-node network: `smoking` and `pollution` both cause `cancer`, and cancer
 # shows up on an `xray`. This adds what the two-node example cannot show:
