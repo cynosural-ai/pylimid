@@ -3,42 +3,23 @@
 > **Historical reference.** The exact engines were built to this plan and
 > then retired in favor of the NumPyro-only engine (see
 > [`25_08_2026_numpyro_only_engine.md`](../ADR/25_08_2026_numpyro_only_engine.md)).
-> This document is kept as the design-and-validation record so a future
-> rebuild starts from a documented plan; it does not describe the current
-> library.
+> This document is kept so the work is not lost to institutional memory:
+> the phases that were executed, the design decisions, and the validation
+> oracles.
 
-## Recoverability — restoring the exact engines
+## The history is in git
 
-The engines were deleted in commit `eefc26f` ("retire the exact engines").
-They remain fully available in git history; restoring them is a
-checkout, not a redesign:
+The engines lived at `decisionpy/inference/exact/` (with their tests at
+`tests/inference/exact/`) from the reorganization commit `ceb671f`
+through their retirement in `eefc26f`. Their full history — every
+commit, the build and the removal — is there:
 
 ```bash
-# Restore the engine trees as they were immediately before the deletion.
-git checkout eefc26f^ -- decisionpy/inference/exact decisionpy/inference/utils
-git checkout eefc26f^ -- tests/inference/exact
+git log --all -- decisionpy/inference/exact
 ```
 
-What must be adapted after the restore (the rest of the library moved on):
-
-- **Result contract.** `result.py` no longer defines `Gaussian`, and
-  `Marginal`/`Solution` lost their `exact` flags. The restored engines
-  construct `Marginal(values, exact=True)`, `Solution(..., exact=True)`
-  and `Gaussian(mean, variance)` — either re-add those fields to
-  `result.py` or adapt the engines to the current types.
-- **Entry points.** `infer()`/`solve()` no longer accept `engine=`; the
-  restored engines must be re-wired as their own functions or the
-  parameter re-added.
-- **Tests.** The comparison tests referenced the pre-cleanup fixtures in
-  `tests/inference/exact/...`; the pgmpy/pyAgrum comparison tests now
-  validate the NumPyro engine instead (see REMAINING_WORK) and would
-  need to be pointed back at the restored engines if that is the goal.
-- **Validation oracles.** The analytic MVN oracle and pyAgrum `pyagrum.clg`
-  cross-checks described in this document are the reference answers to
-  re-validate against.
-
-This plan document is the design record to build from; the ADR records
-why the engines existed and why they were retired.
+Any point in that history can be checked out as it was; nothing was
+thrown away, it just stopped being maintained.
 
 This is the execution plan for the exact continuous-inference roadmap
 (REMAINING_WORK.md items 2 and 3) plus the package reorganization that
