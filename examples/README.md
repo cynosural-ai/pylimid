@@ -11,7 +11,7 @@ Interactive notebooks showcasing the library's capabilities. Read in numeric ord
 | `02_bayesian_networks/conditional_linear_gaussian_bn.py` | Conditional linear-Gaussian BNs — placeholder |
 | `03_influence_diagrams/medical_treatment.ipynb` | `solve()`: optimal policy and expected utility for a treatment decision |
 | `03_influence_diagrams/counterfactuals_with_policy.ipynb` | `infer(..., policy=)`: interventional queries, unbound-decision errors, solve + evaluate loop |
-| `03_influence_diagrams/solver_comparison.py` | The NumPyro intervention scan: optimal policy, Monte-Carlo noise across seeds, mixed/continuous outcomes, pyAgrum's exact solution as the reference, and the Oil Wildcatter ID compared against pyAgrum's exact LIMID solver |
+| `03_influence_diagrams/solver_comparison.py` | The batched NumPyro intervention scan: optimal policy, Monte-Carlo noise across seeds, mixed/continuous outcomes, pyAgrum's exact solution as the reference, and the Oil Wildcatter ID compared against pyAgrum's exact LIMID solver |
 
 ## Running
 

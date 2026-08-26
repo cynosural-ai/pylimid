@@ -27,7 +27,7 @@ import numpyro.distributions as dist
 from IPython.display import Markdown
 
 from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from decisionpy.inference import solve
+from decisionpy.inference.numpyro.solvers import batched_solve
 
 # %% [markdown]
 # ## The model
@@ -86,7 +86,7 @@ Markdown(f"```mermaid\n{diag.to_mermaid()}\n```")
 # assignment, and the expected utility under that policy.
 
 # %%
-solution = solve(diag)
+solution = batched_solve(diag.snapshot())
 print("expected utility:", round(solution.expected_utility, 3))
 print("policy:")
 for decision, info in solution.policy.items():

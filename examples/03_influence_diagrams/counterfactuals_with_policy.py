@@ -119,8 +119,8 @@ for disease_label, disease_state in [("healthy", 0), ("sick", 1)]:
 #    including the optimal one.
 
 # %%
-from decisionpy.inference import solve
+from decisionpy.inference.numpyro.solvers import batched_solve
 
-solution = solve(diag)
+solution = batched_solve(diag.snapshot())
 print("optimal policy:", solution.policy)
 print("expected utility:", round(solution.expected_utility, 3))
