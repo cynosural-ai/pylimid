@@ -102,7 +102,9 @@ def test_solve_is_a_monte_carlo_estimate():
     """The MEU is a sample estimate; it wobbles with the seed."""
     import jax
 
-    from decisionpy.inference.numpyro.solver import solve as numpyro_solve
+    from decisionpy.inference.numpyro.solvers.intervention_scan import (
+        solve as numpyro_solve,
+    )
 
     estimates = {
         numpyro_solve(

@@ -1,4 +1,4 @@
-"""Tests for :func:`decisionpy.inference.numpyro.solver.solve`."""
+"""Tests for :func:`decisionpy.inference.numpyro.solvers.intervention_scan.solve`."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import numpyro.distributions as dist
 import pytest
 
 from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from decisionpy.inference.numpyro.solver import solve
+from decisionpy.inference.numpyro.solvers.intervention_scan import solve
 
 # --- helpers ----------------------------------------------------------------
 

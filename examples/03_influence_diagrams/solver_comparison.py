@@ -11,13 +11,14 @@
 # ---
 
 # %% [markdown]
-# # Influence diagrams — solve() with the NumPyro intervention scan
+# # Influence diagrams — solve() with the batched NumPyro intervention scan
 #
-# `solve()` runs the NumPyro intervention scan (Strategy B): it enumerates
-# the discrete policy space and estimates each policy's expected utility by
-# forward sampling, keeping the best. The expected utility is a Monte-Carlo
-# estimate — the seed makes it reproducible, and mixed and continuous
-# diagrams are handled by the same forward sampling.
+# This notebook uses the batched scan (`batched_solve`): the intervention
+# scan (Strategy B) enumerates the discrete policy space and estimates each
+# policy's expected utility by forward sampling, keeping the best — with
+# every policy evaluated in one vmapped pass. The expected utility is a
+# Monte-Carlo estimate — the seed makes it reproducible, and mixed and
+# continuous diagrams are handled by the same forward sampling.
 #
 # Model: does the patient have the disease? Do we treat? Does the patient
 # recover? The payoff is 100 per recovery minus 20 if we treated.
@@ -28,8 +29,7 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 
 from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from decisionpy.inference import solve
-from decisionpy.inference.numpyro.solver import solve as numpyro_solve
+from decisionpy.inference.numpyro.solvers import batched_solve
 
 # %% [markdown]
 # ## The model (all categorical)
@@ -81,7 +81,7 @@ print(diag.validate())
 # `0.6 * 90 + 0.4 * 60`; the estimate lands close.
 
 # %%
-solution = solve(diag)
+solution = batched_solve(diag.snapshot())
 print("policy:", solution.policy["treat"])
 print("expected utility:", round(solution.expected_utility, 3))
 
@@ -156,7 +156,7 @@ print("pyagrum (exact):       ", exact_meu, exact_policy)
 
 # %%
 for seed in range(3):
-    solution = numpyro_solve(diag.snapshot(), rng_key=jax.random.PRNGKey(seed))
+    solution = batched_solve(diag.snapshot(), rng_key=jax.random.PRNGKey(seed))
     print(
         f"seed {seed}: EU = {solution.expected_utility:.3f}",
         f"policy = {solution.policy['treat']}",
@@ -198,11 +198,11 @@ mixed.add_node(
     UtilityNode(
         name="utility",
         parents=("health", "treat"),
-        values=lambda health, treat: float(health) - 20.0 * treat,
+        values=lambda health, treat: health - 20.0 * treat,
     )
 )
 
-mc = solve(mixed)
+mc = batched_solve(mixed.snapshot())
 print("policy:", mc.policy["treat"], "EU:", round(mc.expected_utility, 2))
 
 # %% [markdown]
@@ -250,15 +250,16 @@ reports = {
 print("pyAgrum Drilling (report -> action):", reports)
 
 # %% [markdown]
-# ## The scan agrees on the realized policy
+# ## The batched scan agrees on the realized policy
 #
 # The scan evaluates every policy by forward sampling — with 128 candidate
 # policies (the drilling rule has 2 actions over its 6-assignment
-# information set) that takes about half a minute at 500 samples each, so
-# this cell passes fewer samples than the default.
+# information set) the batched solver runs the whole enumeration in one
+# vmapped pass, so this cell uses the default 2000 samples and still
+# finishes in well under a second.
 
 # %%
-oil_solution = numpyro_solve(oil.snapshot(), num_samples=500)
+oil_solution = batched_solve(oil.snapshot())
 print("scan MEU:", round(oil_solution.expected_utility, 3))
 
 # Drilling's info set is (Testing, TestResult); the branch that matters is

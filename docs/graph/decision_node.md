@@ -36,7 +36,7 @@ space does not depend on the information set's size, so adding or removing an
 information parent never invalidates it.
 
 The *solving* of decisions is implemented: the **NumPyro intervention scan**
-(Strategy B, `decisionpy.inference.numpyro.solver`) — `solve()` enumerates
+(Strategy B, `decisionpy.inference.numpyro.solvers`) — `solve()` enumerates
 the discrete policy space (one action per information-set assignment per
 decision) and estimates each policy's expected utility by forward sampling
 with every decision resolved from its observed information set, keeping the
@@ -89,7 +89,10 @@ estimates each policy's expected utility by forward-sampling the diagram
 with every decision resolved deterministically from its observed
 information set (a Monte-Carlo estimate per policy). The policy with the
 highest estimated EU wins. Implemented as
-`decisionpy.inference.numpyro.solver.solve`.
+`decisionpy.inference.numpyro.solvers.intervention_scan.solve`. The full solver family — the
+scan, the planned batched scan, and the planned backward-induction / SPU
+path — and the papers behind them are in
+[`solver_algorithms.md`](../inference/solver_algorithms.md).
 
 ### Trade-offs
 

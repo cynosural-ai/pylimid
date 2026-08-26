@@ -209,12 +209,13 @@ def _values_factory(arr, evidence: list[str]):
 
     The body resolves parents through ``kwargs``; the signature is declared
     with one named parameter per evidence variable so the consistency gate
-    can verify parent coverage.
+    can verify parent coverage. Returns a JAX scalar so the callable is
+    traceable inside the batched scan's vmapped evaluation.
     """
 
     def fn(**kwargs):
         idx = tuple(kwargs[p] for p in evidence)
-        return float(arr[idx])
+        return arr[idx]
 
     return _declare_signature(fn, evidence)
 

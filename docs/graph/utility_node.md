@@ -12,7 +12,7 @@ its consistency model works, and why utility nodes are *sinks*.
 > The *solving strategy* that consumes utilities is in
 > [`decision_node.md`](./decision_node.md); this note covers only the node's
 > representation. Expected-utility solving is implemented by the NumPyro
-> intervention scan (`decisionpy.inference.numpyro.solver`); bucket elimination
+> intervention scan (`decisionpy.inference.numpyro.solvers`); bucket elimination
 > ([`bucket_elim.md`](../inference/bucket_elim.md)) served as the v0 exact
 > solver and is retired.
 

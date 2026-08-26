@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import pytest
 
-from decisionpy.inference.numpyro.solver import solve as numpyro_solve
+from decisionpy.inference.numpyro.solvers.intervention_scan import (
+    solve as numpyro_solve,
+)
 
 from ._limid_fixtures import (
     EmptyInfoDecision,

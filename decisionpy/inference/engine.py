@@ -17,7 +17,9 @@ from __future__ import annotations
 from decisionpy.graph.diagram import InfluenceDiagram
 from decisionpy.graph.node import NodeKind
 from decisionpy.inference.numpyro import samples as numpyro_samples
-from decisionpy.inference.numpyro.solver import solve as numpyro_solve
+from decisionpy.inference.numpyro.solvers.intervention_scan import (
+    solve as numpyro_solve,
+)
 from decisionpy.inference.result import (
     InferenceResult,
     Policy,
@@ -120,7 +122,8 @@ def solve(diagram: InfluenceDiagram) -> Solution:
     Runs the NumPyro intervention scan (Strategy B): enumerates the
     discrete policy space and estimates expected utility per policy by
     forward sampling with each decision resolved from its observed
-    information set.
+    information set. The algorithm and its references are in
+    decisionpy.inference.numpyro.solvers.
 
     Args:
         diagram: A validated influence diagram with at least one decision.
