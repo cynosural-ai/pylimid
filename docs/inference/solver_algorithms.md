@@ -27,6 +27,8 @@ The cost stays exponential (the enumeration is the same); what goes away is the 
 
 ## Tier 3 — backward induction / single policy updating (planned, Level 2)
 
+The estimator design — what is sampled, what is grouped, variance and validation — is pinned down in [`backward_induction.md`](./backward_induction.md).
+
 The efficient alternative: solve one decision at a time, from the last to the first.
 
 The principle is dynamic programming: consider the last decision. For each info-set assignment and each action, estimate the continuation value — the expected utility of everything that follows, given that assignment and action — by forward sampling (each assignment gets its own dedicated samples: stratified). Pick the best action per assignment; the decision is resolved. Fold the resolved decision back into the problem and repeat for the previous decision. The key fact that makes this legal is that a later decision's optimal rule depends only on its information set, not on which actions earlier decisions will choose, so it can be solved before they are.
@@ -40,6 +42,17 @@ Guarantees split along the regularity line:
 
 Adding memory arcs (from an earlier decision or its observations to a later one) converts a true LIMID into a regular one — the classical no-forgetting assumption made explicit — at the price of larger information sets. It is a modeling change, not a solver trick: more memory can only weakly improve the achievable expected utility, but it is a different decision problem.
 
+### pyAgrum's LIMID solver (the external reference)
+
+Learned by testing pyAgrum against the fixtures: `ShaferShenoyLIMIDInference` implements the exact/general split as follows.
+
+- It *is* backward induction, implemented as Shafer-Shenoy message passing in reverse decision order (the API exposes `reversePartialOrder`, `junctionTree`, `optimalDecision`, `MEU`), exact in one pass.
+- It only solves regular ("solvable") LIMIDs: `isSolvable()` is the gate, and a non-regular diagram makes `makeInference()` raise "This LIMID/Influence Diagram is not solvable.".
+- It has no SPU iteration — there is no `maxIteration` knob or iterative fallback. The remedy it offers is `addNoForgettingAssumption([...])`: add the memory arcs and change the model, then solve exactly.
+- The planned `is_solvable` gate in our Level 2 solver mirrors this check; the difference is that our values are Monte-Carlo estimates, so a regular diagram still needs the usual MC tolerances.
+
+This matters for validation: for regular diagrams pyAgrum gives the exact reference, but for true LIMIDs there is no external exact solver to compare against — pyAgrum refuses them, so the scan is the only ground truth.
+
 ## The papers
 
 - **Bellman, R. (1957). Dynamic Programming. Princeton University Press.** — the origin of the backward-induction principle; decision trees have been solved this way since long before influence diagrams existed.
@@ -52,8 +65,8 @@ Adding memory arcs (from an earlier decision or its observations to a later one)
 ## How each tier is validated
 
 - **Batched scan:** must reproduce the scan bit-for-bit (same PRNG key schedule) — a pure-performance change with no behavior change.
-- **Backward induction (regular diagrams):** compare against pyAgrum's exact LIMID solver (Shafer-Shenoy) at Monte-Carlo tolerances — the Oil Wildcatter is a natural fixture.
-- **SPU (true LIMIDs):** compare against the scan at Monte-Carlo tolerances — the scan is the only global reference here (pyAgrum's SPU is local too).
+- **Backward induction (regular diagrams):** compare against pyAgrum's exact LIMID solver (Shafer-Shenoy message passing) at Monte-Carlo tolerances — the Oil Wildcatter is a natural fixture, and `isSolvable()` must be true for it.
+- **SPU (true LIMIDs):** compare against the scan at Monte-Carlo tolerances — pyAgrum refuses non-regular LIMIDs outright (it has no SPU), so the scan is the only global reference for that case.
 
 ## Status
 

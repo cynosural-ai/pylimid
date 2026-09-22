@@ -94,6 +94,12 @@ Read in this order:
    (Lauritzen–Nilsson), the regularity/memory-arcs discussion, and the
    Monte-Carlo decision-analysis references.
 
+9. **[`backward_induction.md`](./inference/backward_induction.md)** — the
+   Level 2 estimator design (planned): the per-decision `Q(a, k)`
+   conditional expectation, stratified grouping over information-set
+   assignments, the regularity gate, variance expectations, and the
+   validation plan against pyAgrum.
+
 ## Status of each decision
 
 | Topic                | Status      | Where                              |
