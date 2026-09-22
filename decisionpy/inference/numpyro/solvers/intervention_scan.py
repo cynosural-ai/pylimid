@@ -43,15 +43,18 @@ References:
 
 from __future__ import annotations
 
-from itertools import product
-
 import jax
-import jax.numpy as jnp
 
 from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.diagram import Snapshot
 from decisionpy.graph.utility_node import UtilityNode
+from decisionpy.inference.numpyro.solvers._policy import (
+    Rule,
+    info_assignments,
+    policy_array,
+    policy_space,
+)
 from decisionpy.inference.result import Policy, Solution
 
 __all__ = ["solve"]
@@ -97,13 +100,13 @@ def solve(
         (name, node) for name, node in snapshot.nodes if isinstance(node, DecisionNode)
     ]
 
-    rules: list[tuple[str, DecisionNode, list[tuple[int, ...]]]] = []
+    rules: list[Rule] = []
     for name, node in decisions:
-        assignments = _info_assignments(node, node_map)
+        assignments = info_assignments(node, node_map)
         rules.append((name, node, assignments))
 
     best: tuple[float, Policy] | None = None
-    for policy in _policy_space(rules):
+    for policy in policy_space(rules):
         expected_utility = _estimate_eu(
             snapshot, policy, num_samples, rng_key, node_map
         )
@@ -112,54 +115,6 @@ def solve(
 
     assert best is not None
     return Solution(policy=best[1], expected_utility=best[0])
-
-
-# ---------------------------------------------------------------------------
-# Policy space
-# ---------------------------------------------------------------------------
-
-
-def _info_assignments(
-    decision: DecisionNode,
-    node_map: dict[str, ChanceNode | DecisionNode],
-) -> list[tuple[int, ...]]:
-    """
-    Every assignment of the decision's information set, in parent order.
-
-    Raises:
-        ValueError: If an information-set parent is continuous.
-    """
-    cards: list[int] = []
-    for parent in decision.parents:
-        states = node_map[parent].states
-        if states is None:
-            raise ValueError(
-                f"Decision {decision.name!r} has continuous parent "
-                f"{parent!r} in its information set; the intervention-scan "
-                f"solver requires discrete information sets."
-            )
-        cards.append(len(states))
-    return list(product(*[range(c) for c in cards]))
-
-
-def _policy_space(
-    rules: list[tuple[str, DecisionNode, list[tuple[int, ...]]]],
-):
-    """
-    Yield every policy over the decision rules.
-
-    One action per information-set assignment per decision, in decision
-    (topological) order.
-    """
-    action_rules = []
-    for _, node, assignments in rules:
-        assert node.states is not None  # decisions always declare states
-        action_rules.append(product(range(len(node.states)), repeat=len(assignments)))
-    for combination in product(*action_rules):
-        policy: Policy = {}
-        for (name, _node, assignments), actions in zip(rules, combination, strict=True):
-            policy[name] = dict(zip(assignments, actions, strict=True))
-        yield policy
 
 
 # ---------------------------------------------------------------------------
@@ -177,7 +132,7 @@ def _estimate_eu(
     """Estimate E[U | policy] by forward sampling with decisions resolved."""
     nodes = snapshot.nodes
     decision_arrays = {
-        name: _policy_array(node, policy[name], node_map)
+        name: policy_array(node, policy[name], node_map)
         for name, node in nodes
         if isinstance(node, DecisionNode)
     }
@@ -214,20 +169,3 @@ def _estimate_eu(
             assert node.values is not None
             total += float(node.values(**{p: row[p] for p in node.parents}))
     return total / num_samples
-
-
-def _policy_array(
-    decision: DecisionNode,
-    sub_policy: dict[tuple[int, ...], int],
-    node_map: dict[str, ChanceNode | DecisionNode],
-) -> jax.Array:
-    """The decision's sub-policy as an array indexed by the info assignment."""
-    cards: list[int] = []
-    for parent in decision.parents:
-        states = node_map[parent].states
-        assert states is not None  # _info_assignments rejected continuous info
-        cards.append(len(states))
-    arr = jnp.zeros(tuple(cards), dtype=jnp.int32)
-    for assignment, action in sub_policy.items():
-        arr = arr.at[assignment].set(action)
-    return arr
