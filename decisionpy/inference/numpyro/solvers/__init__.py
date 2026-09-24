@@ -9,9 +9,16 @@ Each module implements one approach to solving an influence diagram:
 - batched_scan: the same algorithm with every policy evaluated in one
   vmapped, jitted pass. Same policy and expected utility as the unbatched
   scan, at a fraction of the runtime.
+- backward_induction: resolves the decisions in reverse order from the
+  utilities, estimating the per-assignment continuation values by
+  stratified forward sampling. Additive in the decisions; requires a
+  solvable (regular) diagram.
 """
 
+from decisionpy.inference.numpyro.solvers.backward_induction import (
+    solve as backward_induction_solve,
+)
 from decisionpy.inference.numpyro.solvers.batched_scan import solve as batched_solve
 from decisionpy.inference.numpyro.solvers.intervention_scan import solve  # noqa: F401
 
-__all__ = ["batched_solve", "solve"]
+__all__ = ["backward_induction_solve", "batched_solve", "solve"]

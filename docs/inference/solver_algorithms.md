@@ -4,7 +4,7 @@ This note collects the influence-diagram solving approaches — implemented and 
 
 ## The problem
 
-Solving an influence diagram means finding the decision rules — one action per information-set assignment per decision — that maximize the expected total utility, and reporting that optimum. decisionpy diagrams are LIMIDs by construction: a decision's information set is exactly its drawn parents, with no implicit memory (see decision_node.md). The scan and the planned backward-induction path below are both Monte-Carlo solvers: they never build closed-form posteriors, which is what lets them handle mixed and continuous diagrams.
+Solving an influence diagram means finding the decision rules — one action per information-set assignment per decision — that maximize the expected total utility, and reporting that optimum. decisionpy diagrams are LIMIDs by construction: a decision's information set is exactly its drawn parents, with no implicit memory (see decision_node.md). The scan and the backward-induction path below are both Monte-Carlo solvers: they never build closed-form posteriors, which is what lets them handle mixed and continuous diagrams.
 
 ## Tier 1 — intervention scan (implemented)
 
@@ -25,7 +25,7 @@ The same algorithm with the same semantics and the same guarantees, engineered t
 
 The cost stays exponential (the enumeration is the same); what goes away is the per-policy JAX re-trace overhead, which dominated the runtime (measured ~260ms per 500-sample evaluation, ~60% of it trace machinery from user `dist` callables). Measured ~220× on the Oil Wildcatter fixture: 112s → 0.5s at 2000 samples per policy. One constraint: utility `values` callables must be JAX-traceable (no `float()`/`int()` coercion), because they are evaluated inside the vmapped walk. Implementation: `decisionpy.inference.numpyro.solvers.batched_scan`.
 
-## Tier 3 — backward induction / single policy updating (planned, Level 2)
+## Tier 3 — backward induction / single policy updating (regular diagrams implemented)
 
 The estimator design — what is sampled, what is grouped, variance and validation — is pinned down in [`backward_induction.md`](./backward_induction.md).
 
@@ -72,4 +72,7 @@ This matters for validation: for regular diagrams pyAgrum gives the exact refere
 
 - Tier 1: implemented (`decisionpy.inference.numpyro.solvers.intervention_scan`).
 - Tier 2: implemented (`decisionpy.inference.numpyro.solvers.batched_scan`).
-- Tier 3: planned — REMAINING_WORK item 5 (regular case first, SPU after).
+- Tier 3: implemented for regular diagrams
+  (`decisionpy.inference.numpyro.solvers.backward_induction`), gated by
+  `...solvers.regularity` and validated against pyAgrum and the scan;
+  SPU for non-regular LIMIDs planned — REMAINING_WORK item 5.

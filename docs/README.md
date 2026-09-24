@@ -110,7 +110,7 @@ Read in this order:
 | Chance-node distribution form | Settled | `chance_node.md`             |
 | Decision-node representation | Settled — graph layer | `decision_node.md` |
 | Utility-node representation | Settled — graph layer | `utility_node.md` |
-| Decision-node solving strategy | Settled — NumPyro intervention scan and the batched scan (Strategy B) implemented; backward induction planned; bucket elimination retired (historical); Strategy A deferred | `decision_node.md`, `solver_algorithms.md`, `ADR/25_08_2026_numpyro_only_engine.md` |
+| Decision-node solving strategy | Settled — NumPyro intervention scan, batched scan, and backward induction (regular diagrams) implemented; SPU for non-regular LIMIDs deferred; bucket elimination retired (historical); Strategy A deferred | `decision_node.md`, `solver_algorithms.md`, `ADR/25_08_2026_numpyro_only_engine.md` |
 | NumPyro translator   | Chance nodes; bound decisions as observed sites, utilities skipped — `samples()` forward + posterior (enumeration / NUTS), `solvers.intervention_scan.solve` intervention scan | `backend_numpyro.md` |
 | Inference strategy   | Settled — NumPyro-only | `ADR/25_08_2026_numpyro_only_engine.md` |
 | Unified inference API | Settled — `infer()` / `solve()`, NumPyro-only | `ADR/23_07_2026_unified_inference_architecture.md`, `ADR/25_08_2026_numpyro_only_engine.md` |
