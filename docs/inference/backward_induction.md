@@ -16,7 +16,7 @@ For decision `d`, information-set assignment `a` and action `k`:
 
 with every *later* decision resolved by its already-computed rule, and every *earlier* decision acting under a placeholder rule.
 
-The later rules are fixed by the time `d` is solved, so the estimate depends on them — that is the point of the reverse order. The placeholder rules for earlier decisions must not matter, and under regularity they don't: `info(d) = a` determines every earlier decision's action (their information sets are contained in `d`'s), so the conditional expectation is invariant to how those actions were generated. That invariance is what makes the reverse pass sound.
+The later rules are fixed by the time `d` is solved, so the estimate depends on them — that is the point of the reverse order. The placeholder rules for earlier decisions must not matter. Solvability is exactly the condition that they don't: every earlier decision whose action could influence `d`'s downstream utilities is either observed in `info(d)` or d-separated from those utilities by it, so the conditional expectation is invariant to how those actions were generated. That invariance is what makes the reverse pass sound.
 
 ## How it is estimated: stratified grouping
 
@@ -39,11 +39,18 @@ Batching follows the batched scan: the per-action passes are vmapped forward wal
 
 ## Regularity: `is_solvable`
 
-The deciding property: the decisions admit an ordering `d1 < ... < dn` such that each `di`'s information set contains all earlier decisions and their information sets. The check mirrors pyAgrum's `ShaferShenoyLIMIDInference.isSolvable()` — implement it and pin agreement on the LIMID fixtures and the Oil Wildcatter. Adding memory arcs turns a non-regular diagram into a regular one, but that is a modeling change the user makes (pyAgrum's `addNoForgettingAssumption`), not something the solver does.
+Implemented in `solvers/regularity.py`, mirroring pyAgrum's `ShaferShenoyLIMIDInference.isSolvable()`. The criterion has two stages:
+
+1. Nodes are levelled by distance from the utilities — `level(utility) = 0`, `level(x) = max over children c of level(c) + (1 if c is a decision)` — so decisions close to the utilities (the last ones) sit at low levels.
+2. Levels are emptied from the utilities upward; within a level, a decision can be ordered next when its downstream utilities are d-separated from the remaining same-level decisions (and their information sets) given its own information set. A level that cannot be emptied means the diagram is not solvable.
+
+This is weaker than the "contains all earlier information sets" closure: decisions with separate utilities, or whose influence is blocked by an observed node, need not observe each other — all solvable. The order built this way is the solving order (first entry solved first), which is what the solver processes.
+
+Adding memory arcs turns a non-solvable diagram into a regular one, but that is a modeling change the user makes (pyAgrum's `addNoForgettingAssumption`), not something the solver does.
 
 ## Validation plan
 
-- `is_solvable` equals pyAgrum's `isSolvable()` on every fixture (regular and non-regular).
+- `is_solvable` equals pyAgrum's `isSolvable()` on every fixture and on a structural battery (separate-utility decisions sharing info, d-separated influence chains, forgotten irrelevant observations, unordered decisions) — the zero-tolerance test.
 - Regular diagrams: policy and expected utility against pyAgrum's exact solver at Monte-Carlo tolerances (LIMID fixtures + Oil Wildcatter).
 - Non-regular: the error path; when SPU lands, against the scan at MC tolerance — the scan is the only global reference there, since pyAgrum refuses non-regular LIMIDs.
 - Determinism: a fixed `rng_key` reproduces the same policy.
