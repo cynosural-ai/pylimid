@@ -89,9 +89,9 @@ estimates each policy's expected utility by forward-sampling the diagram
 with every decision resolved deterministically from its observed
 information set (a Monte-Carlo estimate per policy). The policy with the
 highest estimated EU wins. Implemented as
-`decisionpy.inference.numpyro.solvers.intervention_scan.solve`. The full solver family — the
-scan, the planned batched scan, and the planned backward-induction / SPU
-path — and the papers behind them are in
+`decisionpy.inference.numpyro.solvers.intervention_scan.solve`. The full
+solver family — the scan, the batched scan, and the backward-induction /
+SPU path — and the papers behind them are in
 [`solver_algorithms.md`](../inference/solver_algorithms.md).
 
 ### Trade-offs

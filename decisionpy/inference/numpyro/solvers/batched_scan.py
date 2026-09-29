@@ -37,8 +37,6 @@ References:
 
 from __future__ import annotations
 
-from itertools import product
-
 import jax
 import jax.numpy as jnp
 
@@ -46,7 +44,13 @@ from decisionpy.graph.chance_node import ChanceNode
 from decisionpy.graph.decision_node import DecisionNode
 from decisionpy.graph.diagram import Snapshot
 from decisionpy.graph.utility_node import UtilityNode
-from decisionpy.inference.result import Policy, Solution
+from decisionpy.inference.numpyro.solvers._policy import (
+    Rule,
+    batched_policy_array,
+    info_assignments,
+    policy_space,
+)
+from decisionpy.inference.result import Solution
 
 __all__ = ["solve"]
 
@@ -93,14 +97,14 @@ def solve(
         (name, node) for name, node in snapshot.nodes if isinstance(node, DecisionNode)
     ]
 
-    rules: list[tuple[str, DecisionNode, list[tuple[int, ...]]]] = []
+    rules: list[Rule] = []
     for name, node in decisions:
-        assignments = _info_assignments(node, node_map)
+        assignments = info_assignments(node, node_map)
         rules.append((name, node, assignments))
 
-    policies = list(_policy_space(rules))
+    policies = list(policy_space(rules))
     policy_arrays = {
-        name: _batched_policy_array(
+        name: batched_policy_array(
             node, [policy[name] for policy in policies], node_map
         )
         for name, node in decisions
@@ -108,78 +112,6 @@ def solve(
     eu = _estimate_eu(snapshot, policy_arrays, num_samples, rng_key, node_map)
     best = int(jnp.argmax(eu))
     return Solution(policy=policies[best], expected_utility=float(eu[best]))
-
-
-# ---------------------------------------------------------------------------
-# Policy space
-# ---------------------------------------------------------------------------
-
-
-def _info_assignments(
-    decision: DecisionNode,
-    node_map: dict[str, ChanceNode | DecisionNode],
-) -> list[tuple[int, ...]]:
-    """
-    Every assignment of the decision's information set, in parent order.
-
-    Raises:
-        ValueError: If an information-set parent is continuous.
-    """
-    cards: list[int] = []
-    for parent in decision.parents:
-        states = node_map[parent].states
-        if states is None:
-            raise ValueError(
-                f"Decision {decision.name!r} has continuous parent "
-                f"{parent!r} in its information set; the intervention-scan "
-                f"solver requires discrete information sets."
-            )
-        cards.append(len(states))
-    return list(product(*[range(c) for c in cards]))
-
-
-def _policy_space(
-    rules: list[tuple[str, DecisionNode, list[tuple[int, ...]]]],
-):
-    """
-    Yield every policy over the decision rules.
-
-    One action per information-set assignment per decision, in decision
-    (topological) order.
-    """
-    action_rules = []
-    for _, node, assignments in rules:
-        assert node.states is not None  # decisions always declare states
-        action_rules.append(product(range(len(node.states)), repeat=len(assignments)))
-    for combination in product(*action_rules):
-        policy: Policy = {}
-        for (name, _node, assignments), actions in zip(rules, combination, strict=True):
-            policy[name] = dict(zip(assignments, actions, strict=True))
-        yield policy
-
-
-def _batched_policy_array(
-    decision: DecisionNode,
-    sub_policies: list[dict[tuple[int, ...], int]],
-    node_map: dict[str, ChanceNode | DecisionNode],
-) -> jax.Array:
-    """
-    All of *decision*'s sub-policies as one array over (policy, info set).
-
-    The leading axis indexes *sub_policies*; the remaining axes are
-    indexed by the information-set assignment, mirroring the unbatched
-    _policy_array per policy.
-    """
-    cards: list[int] = []
-    for parent in decision.parents:
-        states = node_map[parent].states
-        assert states is not None  # _info_assignments rejected continuous info
-        cards.append(len(states))
-    arr = jnp.zeros((len(sub_policies), *cards), dtype=jnp.int32)
-    for i, sub_policy in enumerate(sub_policies):
-        for assignment, action in sub_policy.items():
-            arr = arr.at[(i,) + assignment].set(action)
-    return arr
 
 
 # ---------------------------------------------------------------------------

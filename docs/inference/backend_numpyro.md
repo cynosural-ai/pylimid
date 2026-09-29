@@ -122,3 +122,18 @@ Scope and cost, per the strategy analysis in `decision_node.md`:
 
 The implementation is cross-validated against pyAgrum's exact LIMID solver
 (`tests/inference/numpyro/test_compare_pyagrum_limid.py`).
+
+Two more solvers live beside it in `numpyro/solvers/`:
+
+- `batched_scan.py` — the same scan with every policy evaluated in one
+  vmapped, jitted pass; same policy and expected utility, a fraction of
+  the runtime.
+- `backward_induction.py` — resolves the decisions in reverse order from
+  the utilities, estimating each action's continuation value per
+  information-set assignment by stratified forward sampling (trajectories
+  grouped by the realized assignment). Additive in the decisions instead
+  of exponential in the policy space. It requires a solvable diagram —
+  the regularity gate is `numpyro/solvers/regularity.py`, mirroring
+  pyAgrum's `isSolvable()`; a non-solvable diagram raises. Validated
+  against both pyAgrum's exact solver and the scan
+  (`tests/inference/numpyro/solvers/test_backward_induction.py`).

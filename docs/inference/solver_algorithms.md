@@ -4,7 +4,7 @@ This note collects the influence-diagram solving approaches — implemented and 
 
 ## The problem
 
-Solving an influence diagram means finding the decision rules — one action per information-set assignment per decision — that maximize the expected total utility, and reporting that optimum. decisionpy diagrams are LIMIDs by construction: a decision's information set is exactly its drawn parents, with no implicit memory (see decision_node.md). The scan and the planned backward-induction path below are both Monte-Carlo solvers: they never build closed-form posteriors, which is what lets them handle mixed and continuous diagrams.
+Solving an influence diagram means finding the decision rules — one action per information-set assignment per decision — that maximize the expected total utility, and reporting that optimum. decisionpy diagrams are LIMIDs by construction: a decision's information set is exactly its drawn parents, with no implicit memory (see decision_node.md). The scan and the backward-induction path below are both Monte-Carlo solvers: they never build closed-form posteriors, which is what lets them handle mixed and continuous diagrams.
 
 ## Tier 1 — intervention scan (implemented)
 
@@ -25,7 +25,9 @@ The same algorithm with the same semantics and the same guarantees, engineered t
 
 The cost stays exponential (the enumeration is the same); what goes away is the per-policy JAX re-trace overhead, which dominated the runtime (measured ~260ms per 500-sample evaluation, ~60% of it trace machinery from user `dist` callables). Measured ~220× on the Oil Wildcatter fixture: 112s → 0.5s at 2000 samples per policy. One constraint: utility `values` callables must be JAX-traceable (no `float()`/`int()` coercion), because they are evaluated inside the vmapped walk. Implementation: `decisionpy.inference.numpyro.solvers.batched_scan`.
 
-## Tier 3 — backward induction / single policy updating (planned, Level 2)
+## Tier 3 — backward induction / single policy updating (regular diagrams implemented)
+
+The estimator design — what is sampled, what is grouped, variance and validation — is pinned down in [`backward_induction.md`](./backward_induction.md).
 
 The efficient alternative: solve one decision at a time, from the last to the first.
 
@@ -40,6 +42,17 @@ Guarantees split along the regularity line:
 
 Adding memory arcs (from an earlier decision or its observations to a later one) converts a true LIMID into a regular one — the classical no-forgetting assumption made explicit — at the price of larger information sets. It is a modeling change, not a solver trick: more memory can only weakly improve the achievable expected utility, but it is a different decision problem.
 
+### pyAgrum's LIMID solver (the external reference)
+
+Learned by testing pyAgrum against the fixtures: `ShaferShenoyLIMIDInference` implements the exact/general split as follows.
+
+- It *is* backward induction, implemented as Shafer-Shenoy message passing in reverse decision order (the API exposes `reversePartialOrder`, `junctionTree`, `optimalDecision`, `MEU`), exact in one pass.
+- It only solves regular ("solvable") LIMIDs: `isSolvable()` is the gate, and a non-regular diagram makes `makeInference()` raise "This LIMID/Influence Diagram is not solvable.".
+- It has no SPU iteration — there is no `maxIteration` knob or iterative fallback. The remedy it offers is `addNoForgettingAssumption([...])`: add the memory arcs and change the model, then solve exactly.
+- The planned `is_solvable` gate in our Level 2 solver mirrors this check; the difference is that our values are Monte-Carlo estimates, so a regular diagram still needs the usual MC tolerances.
+
+This matters for validation: for regular diagrams pyAgrum gives the exact reference, but for true LIMIDs there is no external exact solver to compare against — pyAgrum refuses them, so the scan is the only ground truth.
+
 ## The papers
 
 - **Bellman, R. (1957). Dynamic Programming. Princeton University Press.** — the origin of the backward-induction principle; decision trees have been solved this way since long before influence diagrams existed.
@@ -52,11 +65,14 @@ Adding memory arcs (from an earlier decision or its observations to a later one)
 ## How each tier is validated
 
 - **Batched scan:** must reproduce the scan bit-for-bit (same PRNG key schedule) — a pure-performance change with no behavior change.
-- **Backward induction (regular diagrams):** compare against pyAgrum's exact LIMID solver (Shafer-Shenoy) at Monte-Carlo tolerances — the Oil Wildcatter is a natural fixture.
-- **SPU (true LIMIDs):** compare against the scan at Monte-Carlo tolerances — the scan is the only global reference here (pyAgrum's SPU is local too).
+- **Backward induction (regular diagrams):** compare against pyAgrum's exact LIMID solver (Shafer-Shenoy message passing) at Monte-Carlo tolerances — the Oil Wildcatter is a natural fixture, and `isSolvable()` must be true for it.
+- **SPU (true LIMIDs):** compare against the scan at Monte-Carlo tolerances — pyAgrum refuses non-regular LIMIDs outright (it has no SPU), so the scan is the only global reference for that case.
 
 ## Status
 
 - Tier 1: implemented (`decisionpy.inference.numpyro.solvers.intervention_scan`).
 - Tier 2: implemented (`decisionpy.inference.numpyro.solvers.batched_scan`).
-- Tier 3: planned — REMAINING_WORK item 5 (regular case first, SPU after).
+- Tier 3: implemented for regular diagrams
+  (`decisionpy.inference.numpyro.solvers.backward_induction`), gated by
+  `...solvers.regularity` and validated against pyAgrum and the scan;
+  SPU for non-regular LIMIDs planned — REMAINING_WORK item 5.
