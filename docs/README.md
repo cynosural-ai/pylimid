@@ -67,7 +67,11 @@ Read in this order:
    `diagram.md`. Consumed by the intervention-scan solver's expected-utility
    estimation.
 
-5. **[`backend_numpyro.md`](./backend_numpyro.md)** — the NumPyro engine:
+5. **[`multiple_utility_nodes.md`](./graph/multiple_utility_nodes.md)** — what
+   several utility nodes mean: the additive convention, its equivalence to
+   pyAgrum, and why true multi-objective (Pareto) optimization is out of scope.
+
+6. **[`backend_numpyro.md`](./backend_numpyro.md)** — the NumPyro engine:
    turns a validated `Snapshot` into a NumPyro model. Chance nodes always;
    bound decisions become degenerate observed sites and utilities are skipped.
    `samples()` covers both forward sampling and posterior inference
@@ -75,26 +79,26 @@ Read in this order:
    influence diagrams. NumPyro is a declared dependency, though the graph
    layer itself never imports it.
 
-6. **[`inference_strategy.md`](./inference_strategy.md)** — analysis of
+7. **[`inference_strategy.md`](./inference_strategy.md)** — analysis of
    inference backends for the full influence diagram roadmap. Decision:
    NumPyro as the only engine (see
    [`25_08_2026_numpyro_only_engine.md`](./ADR/25_08_2026_numpyro_only_engine.md)),
    with pyAgrum's exact solvers as the external validation reference.
 
-7. **[`bucket_elim.md`](./inference/bucket_elim.md)** — **historical
+8. **[`bucket_elim.md`](./inference/bucket_elim.md)** — **historical
    reference.** The exact influence-diagram solver that served as the v0
    solve() path: algorithm (additive utilities, reverse-topological
    elimination, decision max-out), the policy representation, and the
    supported scope. Retired with the exact engines; its history is in git.
 
-8. **[`solver_algorithms.md`](./inference/solver_algorithms.md)** — the
+9. **[`solver_algorithms.md`](./inference/solver_algorithms.md)** — the
    solver family and the papers behind it: the intervention scan
    (implemented), the batched scan (implemented), and backward induction /
    single policy updating (planned), with the LIMID theory
    (Lauritzen–Nilsson), the regularity/memory-arcs discussion, and the
    Monte-Carlo decision-analysis references.
 
-9. **[`backward_induction.md`](./inference/backward_induction.md)** — the
+10. **[`backward_induction.md`](./inference/backward_induction.md)** — the
    Level 2 estimator design (planned): the per-decision `Q(a, k)`
    conditional expectation, stratified grouping over information-set
    assignments, the regularity gate, variance expectations, and the
@@ -110,6 +114,7 @@ Read in this order:
 | Chance-node distribution form | Settled | `chance_node.md`             |
 | Decision-node representation | Settled — graph layer | `decision_node.md` |
 | Utility-node representation | Settled — graph layer | `utility_node.md` |
+| Multiple utility nodes | Settled — additive scalarization, same convention as pyAgrum; true multi-objective (Pareto) out of scope | `multiple_utility_nodes.md` |
 | Decision-node solving strategy | Settled — NumPyro intervention scan, batched scan, and backward induction (regular diagrams) implemented; SPU for non-regular LIMIDs deferred; bucket elimination retired (historical); Strategy A deferred | `decision_node.md`, `solver_algorithms.md`, `ADR/25_08_2026_numpyro_only_engine.md` |
 | NumPyro translator   | Chance nodes; bound decisions as observed sites, utilities skipped — `samples()` forward + posterior (enumeration / NUTS), `solvers.intervention_scan.solve` intervention scan | `backend_numpyro.md` |
 | Inference strategy   | Settled — NumPyro-only | `ADR/25_08_2026_numpyro_only_engine.md` |

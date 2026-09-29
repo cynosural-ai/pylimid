@@ -11,7 +11,10 @@ its consistency model works, and why utility nodes are *sinks*.
 > lives on the shared `Node` base (see [`node.py`](../decisionpy/graph/node.py)).
 > The *solving strategy* that consumes utilities is in
 > [`decision_node.md`](./decision_node.md); this note covers only the node's
-> representation. Expected-utility solving is implemented by the NumPyro
+> representation. Several utility nodes aggregate additively — the convention
+> and the contrast with true multi-objective (Pareto) optimization are in
+> [`multiple_utility_nodes.md`](./multiple_utility_nodes.md).
+> Expected-utility solving is implemented by the NumPyro
 > intervention scan (`decisionpy.inference.numpyro.solvers`); bucket elimination
 > ([`bucket_elim.md`](../inference/bucket_elim.md)) served as the v0 exact
 > solver and is retired.
