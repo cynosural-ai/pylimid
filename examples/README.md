@@ -9,6 +9,7 @@ Interactive notebooks showcasing the library's capabilities. Read in numeric ord
 | `02_bayesian_networks/categorical_bn.ipynb` | A fully-categorical network: multi-query, evidence, explaining away, estimates vs pyAgrum's exact posterior |
 | `02_bayesian_networks/linear_gaussian_bn.py` | Linear-Gaussian BNs: an all-continuous chain, posterior draws via NUTS |
 | `02_bayesian_networks/conditional_linear_gaussian_bn.py` | Conditional linear-Gaussian BNs — placeholder |
+| `02_bayesian_networks/sangiovese/sangiovese.ipynb` | A realistic mixed CLG network (Magrini et al. 2017, from the bnlearn repository, CC BY-SA 3.0): treatment-to-quality queries, including the inverse query (which treatment explains an observed quality profile) |
 | `03_influence_diagrams/medical_treatment.ipynb` | `solve()`: optimal policy and expected utility for a treatment decision |
 | `03_influence_diagrams/counterfactuals_with_policy.ipynb` | `infer(..., policy=)`: interventional queries, unbound-decision errors, solve + evaluate loop |
 | `03_influence_diagrams/solver_comparison.py` | The batched NumPyro intervention scan: optimal policy, Monte-Carlo noise across seeds, mixed/continuous outcomes, pyAgrum's exact solution as the reference, and the Oil Wildcatter ID compared against pyAgrum's exact LIMID solver |
