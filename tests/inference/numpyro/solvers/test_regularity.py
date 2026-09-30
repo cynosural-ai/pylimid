@@ -1,11 +1,16 @@
 """
-``is_solvable`` must agree with pyAgrum's ``isSolvable()``.
+``is_solvable`` implements the exact-solution-ordering criterion.
 
 Two layers: the shared LIMID fixtures (full models) and a battery of
 structural cases covering the subtleties of the criterion — decisions that
 do not interact despite sharing info (separate utilities), influences
 d-separated by an observed variable, forgotten irrelevant observations, and
 genuinely unordered decisions.
+
+The battery agrees with pyAgrum's ``isSolvable()`` on every case except the
+documented divergence: pyAgrum only compares decisions within a level of its
+partial order, so it can admit a higher-level decision influencing a
+lower-level decision's utilities unobserved. The divergence is pinned below.
 """
 
 from __future__ import annotations
@@ -223,6 +228,42 @@ def test_matches_pyagrum_on_structural_battery(case):
     snapshot = _decisionpy(edges, states, kinds).snapshot()
     assert is_solvable(snapshot) is expected
     assert _pyagrum_is_solvable(_pyagrum(edges, states, kinds)) is expected
+
+
+#: pyAgrum's ``isSolvable`` only tests decisions within a level of its partial
+#: order. ``D1`` sits at a higher level but influences ``D2``'s utilities
+#: directly and is not observed by ``D2``, so aGrUM admits the diagram and
+#: returns a suboptimal policy — the exact-solution-ordering criterion
+#: (Lauritzen and Nilsson, 2001) rejects it. Pinned here so an upstream fix
+#: is noticed.
+PYAGRUM_DIVERGENCE = {
+    "higher_level_decision_influences_unobserved": _case(
+        [("D1", "X"), ("X", "D2"), ("D1", "U"), ("D2", "U")],
+        {
+            "D1": ("a", "b"),
+            "X": ("a", "b"),
+            "D2": ("a", "b"),
+            "U": ("p",),
+        },
+        {
+            "D1": "decision",
+            "X": "chance",
+            "D2": "decision",
+            "U": "utility",
+        },
+        False,
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    "case", PYAGRUM_DIVERGENCE.values(), ids=list(PYAGRUM_DIVERGENCE)
+)
+def test_pyagrum_admits_what_the_paper_rejects(case):
+    edges, states, kinds, expected = case
+    snapshot = _decisionpy(edges, states, kinds).snapshot()
+    assert is_solvable(snapshot) is expected
+    assert _pyagrum_is_solvable(_pyagrum(edges, states, kinds)) is True
 
 
 def test_nested_order_solves_the_last_decision_first():

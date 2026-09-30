@@ -39,20 +39,19 @@ Batching follows the batched scan: the per-action passes are vmapped forward wal
 
 ## Regularity: `is_solvable`
 
-Implemented in `solvers/regularity.py`, mirroring pyAgrum's `ShaferShenoyLIMIDInference.isSolvable()`. The criterion has two stages:
+Implemented in `solvers/regularity.py` as the exact-solution-ordering criterion of Lauritzen and Nilsson (2001), Definition 11 read directly over the whole remaining decision set: a decision can be ordered next when the utilities it can influence are d-separated from the families of every other unresolved decision given its own family. The order built this way is the solving order (first entry solved first), which is what the solver processes.
 
-1. Nodes are levelled by distance from the utilities — `level(utility) = 0`, `level(x) = max over children c of level(c) + (1 if c is a decision)` — so decisions close to the utilities (the last ones) sit at low levels.
-2. Levels are emptied from the utilities upward; within a level, a decision can be ordered next when its downstream utilities are d-separated from the remaining same-level decisions (and their information sets) given its own information set. A level that cannot be emptied means the diagram is not solvable.
+This is weaker than the "contains all earlier information sets" closure: decisions with separate utilities, or whose influence is blocked by an observed node, need not observe each other — all solvable.
 
-This is weaker than the "contains all earlier information sets" closure: decisions with separate utilities, or whose influence is blocked by an observed node, need not observe each other — all solvable. The order built this way is the solving order (first entry solved first), which is what the solver processes.
+It is deliberately stricter than pyAgrum's `ShaferShenoyLIMIDInference.isSolvable()`, which compares candidates only within a level of its internal partial order. That shortcut admits diagrams on which one-pass backward induction is not optimal — the regression in `test_regularity.py` and `test_backward_induction.py` shows pyAgrum returning 4.0 where the scan finds 5.0. Where the two criteria disagree, `is_solvable` is the paper's; see `solver_algorithms.md` for the full comparison.
 
 Adding memory arcs turns a non-solvable diagram into a regular one, but that is a modeling change the user makes (pyAgrum's `addNoForgettingAssumption`), not something the solver does.
 
 ## Validation plan
 
-- `is_solvable` equals pyAgrum's `isSolvable()` on every fixture and on a structural battery (separate-utility decisions sharing info, d-separated influence chains, forgotten irrelevant observations, unordered decisions) — the zero-tolerance test.
-- Regular diagrams: policy and expected utility against pyAgrum's exact solver at Monte-Carlo tolerances (LIMID fixtures + Oil Wildcatter).
-- Non-regular: the error path; when SPU lands, against the scan at MC tolerance — the scan is the only global reference there, since pyAgrum refuses non-regular LIMIDs.
+- `is_solvable` equals pyAgrum's `isSolvable()` on every fixture and on a structural battery (separate-utility decisions sharing info, d-separated influence chains, forgotten irrelevant observations, unordered decisions) — the zero-tolerance test, except the pinned divergence where pyAgrum's level shortcut is unsound and the paper's criterion rejects the diagram.
+- Soluble diagrams: policy and expected utility against pyAgrum's exact solver at Monte-Carlo tolerances (LIMID fixtures + Oil Wildcatter).
+- Non-soluble: the error path; when SPU lands, against the scan at MC tolerance — the scan is the only global reference there, since pyAgrum refuses non-soluble LIMIDs.
 - Determinism: a fixed `rng_key` reproduces the same policy.
 
 ## Deferred

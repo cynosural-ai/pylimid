@@ -1,24 +1,23 @@
 """
 Solvability of an influence diagram — the backward-induction gate.
 
-A LIMID is solvable when its decisions can be ordered so that backward
-induction is valid: every decision that could influence another's subproblem
-is either observed or d-separated by the information set. The check mirrors
-the criterion aGrUM's Shafer-Shenoy LIMID inference implements (pyAgrum's
-``ShaferShenoyLIMIDInference.isSolvable()``), in two stages:
+A LIMID is soluble when it admits an exact solution ordering (Lauritzen
+and Nilsson, 2001): an ordering of the decisions such that each decision,
+with the decisions after it already resolved, has the utilities it can
+influence d-separated from every other unresolved decision and its family
+by its own information set. The check here is the paper's extremality
+criterion read directly over the whole remaining decision set — a
+decision can be placed next when its downstream utilities are d-separated
+from the families of all other remaining decisions given its own family.
 
-1. Level the nodes by distance from the utilities: ``level(utility) = 0``
-   and ``level(x) = max over children c of level(c) + (1 if c is a
-   decision)``, leaves included. Decisions land in levels, with the
-   decisions closest to the utilities at level 0.
-2. Process the levels from 0 upward. Within a level, repeatedly pick a
-   decision whose downstream utilities are d-separated from the remaining
-   same-level decisions (and their information sets) given its own
-   information set. A level that cannot be emptied means the diagram is not
-   solvable.
+This deliberately diverges from pyAgrum's
+ShaferShenoyLIMIDInference.isSolvable, which only compares decisions that
+share a level of its partial order and can therefore admit diagrams whose
+one-pass backward induction is not optimal. The regression tests pin the
+divergence.
 
-The resulting order is the solving order: its first decision is the one
-solved first (the one closest to the utilities).
+The resulting order is the solving order: its first decision is solved
+first, and every later entry is tested against the ones already placed.
 """
 
 from __future__ import annotations
@@ -30,22 +29,43 @@ __all__ = ["is_solvable", "solvability_order"]
 
 
 def is_solvable(snapshot: Snapshot) -> bool:
-    """Whether *snapshot* admits a valid backward-induction order."""
+    """Whether *snapshot* admits an exact solution ordering."""
     return solvability_order(snapshot) is not None
 
 
 def solvability_order(snapshot: Snapshot) -> list[str] | None:
     """
-    The decisions in solving order, or None if the diagram is not solvable.
+    The decisions in solving order, or None if the diagram is not soluble.
 
-    The first decision in the list is solved first — it is the decision
-    closest to the utilities. Only the boolean matters for the gate;
-    the order is what a backward-induction solver processes.
+    Repeatedly picks a decision whose downstream utilities are
+    d-separated from the families of the remaining decisions given its own
+    family, until no decision passes — then the diagram is not soluble.
+    The first decision in the list is solved first; later entries are
+    tested against the earlier ones as resolved.
     """
     names, kinds, parents, children = _graph(snapshot)
     utilities = {name for name in names if kinds[name] is NodeKind.UTILITY}
-    levels = _decision_levels(names, kinds, utilities, children)
-    return _order_levels(levels, utilities, parents, children)
+    pending = [name for name in names if kinds[name] is NodeKind.DECISION]
+
+    order: list[str] = []
+    while pending:
+        chosen = None
+        for candidate in pending:
+            downstream = _descendants(candidate, children) & utilities
+            others: set[str] = set()
+            for other in pending:
+                if other != candidate:
+                    others.add(other)
+                    others.update(parents[other])
+            info = {candidate, *parents[candidate]}
+            if _d_separated(others, downstream, info, parents):
+                chosen = candidate
+                break
+        if chosen is None:
+            return None
+        order.append(chosen)
+        pending.remove(chosen)
+    return order
 
 
 # ---------------------------------------------------------------------------
@@ -78,72 +98,8 @@ def _descendants(name: str, children: dict[str, list[str]]) -> set[str]:
 
 
 # ---------------------------------------------------------------------------
-# Stage 1 — level the nodes by distance from the utilities
+# The d-separation test
 # ---------------------------------------------------------------------------
-
-
-def _decision_levels(
-    names: list[str],
-    kinds: dict[str, NodeKind],
-    utilities: set[str],
-    children: dict[str, list[str]],
-) -> dict[int, list[str]]:
-    """
-    Decisions grouped by level; level 0 is closest to the utilities.
-
-    Nodes are visited in reverse topological order (children before
-    parents — the snapshot is topologically ordered), so every node's
-    children carry a level by the time it is visited.
-    """
-    level = dict.fromkeys(utilities, 0)
-    levels: dict[int, list[str]] = {}
-    for name in reversed(names):
-        if name in utilities:
-            continue
-        level[name] = max(
-            (
-                level[child] + (1 if kinds[child] is NodeKind.DECISION else 0)
-                for child in children[name]
-            ),
-            default=0,
-        )
-        if kinds[name] is NodeKind.DECISION:
-            levels.setdefault(level[name], []).append(name)
-    return levels
-
-
-# ---------------------------------------------------------------------------
-# Stage 2 — order each level with the d-separation test
-# ---------------------------------------------------------------------------
-
-
-def _order_levels(
-    levels: dict[int, list[str]],
-    utilities: set[str],
-    parents: dict[str, tuple[str, ...]],
-    children: dict[str, list[str]],
-) -> list[str] | None:
-    order: list[str] = []
-    for level in sorted(levels):
-        remaining = list(levels[level])
-        while remaining:
-            chosen = None
-            for candidate in remaining:
-                downstream = _descendants(candidate, children) & utilities
-                others: set[str] = set()
-                for other in remaining:
-                    if other != candidate:
-                        others.add(other)
-                        others.update(parents[other])
-                info = {candidate, *parents[candidate]}
-                if _d_separated(others, downstream, info, parents):
-                    chosen = candidate
-                    break
-            if chosen is None:
-                return None
-            order.append(chosen)
-            remaining.remove(chosen)
-    return order
 
 
 def _d_separated(

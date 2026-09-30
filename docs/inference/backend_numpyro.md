@@ -132,8 +132,10 @@ Two more solvers live beside it in `numpyro/solvers/`:
   the utilities, estimating each action's continuation value per
   information-set assignment by stratified forward sampling (trajectories
   grouped by the realized assignment). Additive in the decisions instead
-  of exponential in the policy space. It requires a solvable diagram —
-  the regularity gate is `numpyro/solvers/regularity.py`, mirroring
-  pyAgrum's `isSolvable()`; a non-solvable diagram raises. Validated
-  against both pyAgrum's exact solver and the scan
+  of exponential in the policy space. It requires a soluble diagram —
+  the regularity gate is `numpyro/solvers/regularity.py`, implementing the
+  exact-solution-ordering criterion of Lauritzen and Nilsson (stricter
+  than pyAgrum's level-based `isSolvable()`; see
+  [`solver_algorithms.md`](./solver_algorithms.md)); a non-soluble diagram
+  raises. Validated against both pyAgrum's exact solver and the scan
   (`tests/inference/numpyro/solvers/test_backward_induction.py`).
