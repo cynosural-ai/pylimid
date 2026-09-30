@@ -73,6 +73,26 @@ def test_non_solvable_raises():
         backward_induction_solve(_shared_utility_diagram().snapshot())
 
 
+def test_higher_level_unobserved_influence_raises():
+    """
+    Raise on a higher-level unobserved influence on a decision's utilities.
+
+    The diagram is unsolvable even though pyAgrum's level-based gate admits
+    it and returns a suboptimal policy.
+    """
+    with pytest.raises(ValueError, match="not solvable"):
+        backward_induction_solve(_higher_level_shared_utility_diagram().snapshot())
+
+
+def test_higher_level_unobserved_influence_scan_finds_the_optimum():
+    """The scan coordinates both decisions: both play a, EU 5."""
+    solution = scan_solve(
+        _higher_level_shared_utility_diagram().snapshot(), num_samples=500
+    )
+    assert solution.expected_utility == pytest.approx(5.0)
+    assert solution.policy == {"D1": {(): 0}, "D2": {(0,): 0, (1,): 0}}
+
+
 def test_continuous_information_set_raises():
     with pytest.raises(ValueError, match="continuous"):
         backward_induction_solve(_continuous_info_diagram().snapshot())
@@ -109,4 +129,36 @@ def _continuous_info_diagram() -> InfluenceDiagram:
     diag.add_node(ChanceNode(name="x", dist=lambda: dist.Normal(loc=0.0, scale=1.0)))
     diag.add_node(DecisionNode(name="d", parents=("x",), states=("no", "yes")))
     diag.add_node(UtilityNode(name="u", parents=("x", "d"), values=lambda x, d: x * d))
+    return diag
+
+
+def _higher_level_shared_utility_diagram() -> InfluenceDiagram:
+    """
+    A higher-level unobserved influence on a shared utility.
+
+    ``D1 -> X -> D2`` with both decisions feeding one utility, and ``X``
+    uninformative about ``D1``: the levels admit the diagram (pyAgrum
+    returns 4.0), but one-pass backward induction is unsound — the
+    coordinated policy both play ``a`` scores 5.0.
+    """
+    diag = InfluenceDiagram()
+    diag.add_node(DecisionNode(name="D1", states=("a", "b")))
+    diag.add_node(
+        ChanceNode(
+            name="X",
+            parents=("D1",),
+            states=("a", "b"),
+            dist=lambda D1: dist.Categorical(
+                probs=jnp.array([[0.5, 0.5], [0.5, 0.5]])[D1]
+            ),
+        )
+    )
+    diag.add_node(DecisionNode(name="D2", parents=("X",), states=("a", "b")))
+    diag.add_node(
+        UtilityNode(
+            name="U",
+            parents=("D1", "D2"),
+            values=lambda D1, D2: jnp.array([[5.0, 4.0], [0.0, 3.0]])[D1, D2],
+        )
+    )
     return diag

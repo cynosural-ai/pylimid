@@ -12,7 +12,7 @@ Each module implements one approach to solving an influence diagram:
 - backward_induction: resolves the decisions in reverse order from the
   utilities, estimating the per-assignment continuation values by
   stratified forward sampling. Additive in the decisions; requires a
-  solvable (regular) diagram.
+  soluble diagram (see regularity).
 """
 
 from decisionpy.inference.numpyro.solvers.backward_induction import (
