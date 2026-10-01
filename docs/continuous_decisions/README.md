@@ -136,6 +136,16 @@ The branch's question is which rung to aim for.
 
 A sensible first milestone is **Reach 1 with loud rejection** of everything it cannot handle (discrete descendants on the differentiated path, discrete decisions with continuous information), so the supported class is explicit rather than silently wrong. Reach 2 is a natural follow-on because exact enumeration is a bounded, well-understood addition for the small discrete nodes typical of these models.
 
+## When to revisit
+
+This note is parked, not abandoned. It is a map for the eventual "how far do we reach?" decision, not a plan being executed. The trigger to pick the extension back up is that the discrete-decision work is finished:
+
+- the discrete solvers are complete — SPU iteration landed and the `is_solvable` gate stopped being load-bearing;
+- the example set covers the discrete decision classes the library is meant to demonstrate;
+- the documentation and the code layout are settled, so a continuous extension lands on a stable surface instead of moving under it.
+
+Until then, implementation-level detail is deliberately left to that point: constraint handling, convergence criteria and how the result reports its Monte-Carlo uncertainty, discrete-selection relaxations, and the policy/result API.
+
 ## Open design questions
 
 - **How is a continuous decision declared?** Keep `states = None` and add a `support`/`bounds` field that makes the node CONSISTENT, or an explicit continuous marker. The action domain is needed for bounds/squashing and to distinguish "continuous" from "not yet configured".
