@@ -104,6 +104,19 @@ Read in this order:
    assignments, the regularity gate, variance expectations, and the
    validation plan against pyAgrum.
 
+11. **[`continuous_decisions/`](./continuous_decisions/README.md)** —
+   **exploration, not a commitment.** The continuous-decision extension
+   (Strategy A): the code boundary today, the shift from policy tables to
+   parameterized functions, the four difficulty axes, model classes and
+   utility regularity, the exact-vs-approximate guarantee trade, validation
+   when no external oracle exists, and a scope ladder. Companions:
+   [`solver_methods.md`](./continuous_decisions/solver_methods.md) (methods,
+   gradient estimators, worked thermostat example),
+   [`utility_contract.md`](./continuous_decisions/utility_contract.md)
+   (writing utilities for the gradient solver), and
+   [`literature.md`](./continuous_decisions/literature.md) (annotated
+   reading map).
+
 ## Status of each decision
 
 | Topic                | Status      | Where                              |
@@ -116,6 +129,7 @@ Read in this order:
 | Utility-node representation | Settled — graph layer | `utility_node.md` |
 | Multiple utility nodes | Settled — additive scalarization, same convention as pyAgrum; true multi-objective (Pareto) out of scope | `multiple_utility_nodes.md` |
 | Decision-node solving strategy | Settled — NumPyro intervention scan, batched scan, and backward induction (regular diagrams) implemented; SPU for non-regular LIMIDs deferred; bucket elimination retired (historical); Strategy A deferred | `decision_node.md`, `solver_algorithms.md`, `ADR/25_08_2026_numpyro_only_engine.md` |
+| Continuous decisions (Strategy A) | Explored — feasibility survey and literature map; not committed | `continuous_decisions/` |
 | NumPyro translator   | Chance nodes; bound decisions as observed sites, utilities skipped — `samples()` forward + posterior (enumeration / NUTS), `solvers.intervention_scan.solve` intervention scan | `backend_numpyro.md` |
 | Inference strategy   | Settled — NumPyro-only | `ADR/25_08_2026_numpyro_only_engine.md` |
 | Unified inference API | Settled — `infer()` / `solve()`, NumPyro-only | `ADR/23_07_2026_unified_inference_architecture.md`, `ADR/25_08_2026_numpyro_only_engine.md` |
