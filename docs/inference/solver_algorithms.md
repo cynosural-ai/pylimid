@@ -81,9 +81,4 @@ One-pass backward induction is sound exactly on *soluble* LIMIDs, so the gate is
 
 - Tier 1: implemented (`decisionpy.inference.numpyro.solvers.intervention_scan`).
 - Tier 2: implemented (`decisionpy.inference.numpyro.solvers.batched_scan`).
-- Tier 3: implemented for soluble diagrams
-  (`decisionpy.inference.numpyro.solvers.backward_induction`), gated by
-  `...solvers.regularity` with the paper's exact-solution-ordering criterion
-  (stricter than pyAgrum's level-based `isSolvable`, see above) and validated
-  against pyAgrum and the scan; SPU for non-soluble LIMIDs planned —
-  REMAINING_WORK item 5.
+- Tier 3: implemented for soluble diagrams (`decisionpy.inference.numpyro.solvers.backward_induction`), gated by `...solvers.regularity` with the paper's exact-solution-ordering criterion (stricter than pyAgrum's level-based `isSolvable`, see above) and validated against pyAgrum and the scan; SPU for non-soluble LIMIDs planned — REMAINING_WORK item 5.

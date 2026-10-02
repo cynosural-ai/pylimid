@@ -1,18 +1,10 @@
 # Unified inference layer: two verbs, auto-dispatch
 
 **Date:** 2026-07-23
-**Status:** Superseded in part by
-[`25_08_2026_numpyro_only_engine.md`](./25_08_2026_numpyro_only_engine.md) —
-the unified package and the two verbs (`infer`, `solve`) remain; the
-auto-dispatch and the multi-engine table below do not describe the current
-library (NumPyro is the only engine).
-**Supersedes:** the single-backend `backend/numpyro.py` as the sole inference
-surface.
+**Status:** Superseded in part by [`25_08_2026_numpyro_only_engine.md`](./25_08_2026_numpyro_only_engine.md) — the unified package and the two verbs (`infer`, `solve`) remain; the auto-dispatch and the multi-engine table below do not describe the current library (NumPyro is the only engine).
+**Supersedes:** the single-backend `backend/numpyro.py` as the sole inference surface.
 
-> **Where this fits.** This is a *decision record* — it records the call and
-> what will change in the tree. The *reasoning* lives in
-> [`inference_strategy.md`](../inference_strategy.md); this note documents the
-> architectural choices.
+> **Where this fits.** This is a *decision record* — it records the call and what will change in the tree. The *reasoning* lives in [`inference_strategy.md`](../inference_strategy.md); this note documents the architectural choices.
 
 ---
 
@@ -27,15 +19,9 @@ result = infer(diagram, query=["rain"], observed={"wet_grass": 1})
 policy = solve(diagram)
 ```
 
-`infer` computes posterior distributions over named variables. `solve` computes
-optimal decision policies and expected utilities. `infer` defaults to the
-NumPyro engine and dispatches to the exact engines (`ve`, `lg`) only on an
-explicit `engine=` request; `solve` still picks its engine automatically.
+`infer` computes posterior distributions over named variables. `solve` computes optimal decision policies and expected utilities. `infer` defaults to the NumPyro engine and dispatches to the exact engines (`ve`, `lg`) only on an explicit `engine=` request; `solve` still picks its engine automatically.
 
-The `backend/` package is collapsed into `inference/`. All algorithms — PPL
-bridges and graph-native methods alike — live under one roof. The directory
-distinction between "backend" (PPL) and "inference" (graph-native) was an
-artifact of having only one algorithm; it no longer holds.
+The `backend/` package is collapsed into `inference/`. All algorithms — PPL bridges and graph-native methods alike — live under one roof. The directory distinction between "backend" (PPL) and "inference" (graph-native) was an artifact of having only one algorithm; it no longer holds.
 
 ### Engines and their constraints
 
@@ -70,12 +56,7 @@ The existing `src/decisionpy/backend/` directory is removed.
 result = infer(diagram, query=["disease"], observed={"symptom": 1}, policy={"treat": 0})
 ```
 
-Binding a decision clamps it to a fixed value — the node behaves like observed
-evidence. Once **all** decisions are bound (either via `policy=` or from a
-previous `solve()` call), utilities are ignored and the diagram collapses to a
-de facto Bayesian network. At that point the dispatch logic routes to standard
-inference engines (VE, Gibbs, NumPyro) regardless of whether the diagram
-originally had decisions.
+Binding a decision clamps it to a fixed value — the node behaves like observed evidence. Once **all** decisions are bound (either via `policy=` or from a previous `solve()` call), utilities are ignored and the diagram collapses to a de facto Bayesian network. At that point the dispatch logic routes to standard inference engines (VE, Gibbs, NumPyro) regardless of whether the diagram originally had decisions.
 
 This enables interventional / counterfactual queries without calling `solve()`:
 
@@ -93,12 +74,9 @@ Specify policy={"test": ...} or call solve() first.
 Currently bound: treat=0.
 ```
 
-The check is `set(decisions) - set(policy.keys())`. All-or-nothing — partially
-bound is still ambiguous. `solve()` is the only path that fills in missing
-policy entries automatically (by optimizing expected utility).
+The check is `set(decisions) - set(policy.keys())`. All-or-nothing — partially bound is still ambiguous. `solve()` is the only path that fills in missing policy entries automatically (by optimizing expected utility).
 
-For NumPyro's `to_model`, bound decisions are injected as observed sites
-alongside regular observations — no special-case code path needed.
+For NumPyro's `to_model`, bound decisions are injected as observed sites alongside regular observations — no special-case code path needed.
 
 ### Engine selection rules
 
@@ -122,10 +100,7 @@ solve(diagram, engine="bucket_elim"):        # the default
     InferenceError until it lands.
 ```
 
-The exact engines are explicit opt-ins: each validates its own
-preconditions and rejects diagrams that do not satisfy them. There is no
-inference-time dispatch between them — the general engine is the default,
-exactness is a deliberate choice.
+The exact engines are explicit opt-ins: each validates its own preconditions and rejects diagrams that do not satisfy them. There is no inference-time dispatch between them — the general engine is the default, exactness is a deliberate choice.
 
 ### Explicit engine errors
 
@@ -137,22 +112,15 @@ InferenceError: variable_elimination requires a Bayesian network
 Use engine="bucket_elim", "gibbs", or "numpyro".
 ```
 
-No silent fallback — the user made a deliberate choice and gets a deliberate
-explanation of why it doesn't work and what alternatives are available.
+No silent fallback — the user made a deliberate choice and gets a deliberate explanation of why it doesn't work and what alternatives are available.
 
 ### Why not a registry / plugin system
 
-The engines are few, their constraints are structural (node types, graph size,
-discrete vs mixed), and the dispatch logic is simple. A registry would be
-over-engineering for what is really one `if/elif` block. If the engine list
-grows beyond ~5 or third-party engines become a thing, a registry can be added
-as a follow-up ADR.
+The engines are few, their constraints are structural (node types, graph size, discrete vs mixed), and the dispatch logic is simple. A registry would be over-engineering for what is really one `if/elif` block. If the engine list grows beyond ~5 or third-party engines become a thing, a registry can be added as a follow-up ADR.
 
 ### Relationship to `graph/`
 
-`graph/` imports nothing from `inference/`. The dependency arrow remains
-one-way: graph → nothing. This is the same guarantee the old `backend/`
-package provided, now enforced by the `inference/` directory boundary.
+`graph/` imports nothing from `inference/`. The dependency arrow remains one-way: graph → nothing. This is the same guarantee the old `backend/` package provided, now enforced by the `inference/` directory boundary.
 
 ---
 
@@ -189,20 +157,12 @@ package provided, now enforced by the `inference/` directory boundary.
 
 ### Keep `backend/` + separate `inference/`
 
-Adds a distinction ("backend" vs "inference") that only made sense when there
-was one algorithm. Users wouldn't know which directory to import from, and
-internal re-exports would create circular confusion.
+Adds a distinction ("backend" vs "inference") that only made sense when there was one algorithm. Users wouldn't know which directory to import from, and internal re-exports would create circular confusion.
 
 ### PPL-first: NumPyro as the only engine
 
-Locks the library into a heavy dependency for work that doesn't need it (exact
-BN inference, discrete-only diagrams). Forces every user to install JAX even
-for a 4-node Bayesian network. Contradicts the zero-dep goal of the graph layer.
+Locks the library into a heavy dependency for work that doesn't need it (exact BN inference, discrete-only diagrams). Forces every user to install JAX even for a 4-node Bayesian network. Contradicts the zero-dep goal of the graph layer.
 
 ### Graph-native only: no PPL at all
 
-Abandons gradient-based decision optimization for large/continuous decision
-spaces, GPU acceleration, and the entire Pyro/NumPyro ecosystem. The
-`inference_strategy.md` analysis settled on NumPyro as the primary engine for
-mixed-type diagrams at scale; the graph-native methods serve exact discrete
-inference and as a lightweight alternative.
+Abandons gradient-based decision optimization for large/continuous decision spaces, GPU acceleration, and the entire Pyro/NumPyro ecosystem. The `inference_strategy.md` analysis settled on NumPyro as the primary engine for mixed-type diagrams at scale; the graph-native methods serve exact discrete inference and as a lightweight alternative.
