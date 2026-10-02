@@ -62,7 +62,7 @@ Carried into step 1:
 7. **References**: bibliography via `sphinxcontrib-bibtex`.
 8. **Changelog**.
 
-The ADRs and living notes in `docs/` stay out of the published site: they are written for contributors and full of history. A "Design notes" section can be added later if people ask.
+The ADRs and living notes live in `design/`, outside the Sphinx tree, so they stay out of the published site: they are written for contributors and full of history. `docs/` holds only the Sphinx sources. A "Design notes" section can be added later if people ask.
 
 Blog series to link from Background:
 

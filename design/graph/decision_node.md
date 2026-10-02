@@ -56,7 +56,7 @@ Decisions are discrete action choices. The solver enumerates the policy space �
 | Main difficulty     | gradient of `E[U]` w.r.t. policy — SVI's ELBO framing does not directly fit EU maximization, so a custom loss around `jax.grad` + trace is required | exponential blow-up in (#decisions × action-space) |
 | Verifiability       | hard to tell convergence from correctness | trivially correct — EU measured per action |
 
-The exact graph-native alternative to both — **bucket elimination** ([`bucket_elim.md`](../inference/bucket_elim.md), historical) — was the v0 solver: the factor machinery of variable elimination applied to the decision objective, exact optimal policies for all-categorical diagrams, numpy-only. It was retired together with the other exact engines (see `docs/ADR/25_08_2026_numpyro_only_engine.md`); its history lives in git.
+The exact graph-native alternative to both — **bucket elimination** ([`bucket_elim.md`](../inference/bucket_elim.md), historical) — was the v0 solver: the factor machinery of variable elimination applied to the decision objective, exact optimal policies for all-categorical diagrams, numpy-only. It was retired together with the other exact engines (see [`25_08_2026_numpyro_only_engine.md`](../ADR/25_08_2026_numpyro_only_engine.md)); its history lives in git.
 
 ---
 

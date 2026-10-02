@@ -1,8 +1,8 @@
-# DecisionPy docs
+# DecisionPy design notes
 
-Design notes for the library. They capture decisions and their reasoning; module docstrings are the API reference.
+Development notes for the library, aimed at contributors. They capture decisions and their reasoning. The published, user-facing documentation lives in `docs/` (Sphinx); these notes are not part of it.
 
-The docs split into two kinds:
+The notes split into two kinds:
 
 - **Decision records (`ADR/`)** — immutable, dated. Each records *that* a decision was made, the alternatives considered, and what changed in the tree as a result. They do not move with the code.
 - **Living design notes** — the current reference for *how* a part of the library behaves and why. They are updated as the code changes.

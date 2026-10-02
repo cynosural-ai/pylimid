@@ -18,8 +18,6 @@
 # script, a UI, an LLM), and inference is gated behind an explicit validation
 # checkpoint. This notebook builds a small diagram piece by piece, shows the
 # consistency gate in action, and renders the result live with Mermaid.
-#
-# See `docs/diagram.md` for the design behind the workspace.
 
 # %%
 import jax.numpy as jnp
