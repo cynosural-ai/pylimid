@@ -10,7 +10,8 @@ uv run pytest tests/       # run tests
 
 ## Code style
 - Google-style docstrings for all public functions, methods, and classes.
-- Cross-references in docstrings are plain text: no Sphinx roles and no backticks. Write the name bare (Snapshot, validate()).
+- Cross-references to public names use single backticks: `Snapshot`, `InfluenceDiagram.validate`. The documentation site resolves them into links (Sphinx `default_role`). No explicit Sphinx roles (`:class:`, `:func:`).
+- Literal code and values use double backticks: ``None``, ``num_samples=500``, ``jnp``.
 
 Example:
 ```python
@@ -18,7 +19,7 @@ def add_edge(self, parent: str, child: str) -> None:
     """
     Wire an edge parent -> child.
 
-    Both endpoints must already be in the diagram.
+    Both endpoints must already be in the diagram; see `InfluenceDiagram.add_node`.
 
     Args:
         parent: Name of the parent node.
