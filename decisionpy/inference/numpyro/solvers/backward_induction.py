@@ -115,7 +115,9 @@ def solve(
 
     key, subkey = jax.random.split(key)
     expected_utility = _estimate_policy_eu(snapshot, rules, num_samples, subkey)
-    return Solution(policy=policy, expected_utility=expected_utility)
+    return Solution(
+        policy=policy, expected_utility=expected_utility, method="backward_induction"
+    )
 
 
 # ---------------------------------------------------------------------------

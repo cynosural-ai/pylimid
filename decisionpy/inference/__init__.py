@@ -25,6 +25,7 @@ from decisionpy.inference.engine import (
     Posterior,
     Solution,
     SolveMethod,
+    SolverName,
     infer,
     solve,
 )
@@ -36,6 +37,7 @@ __all__ = [
     "Posterior",
     "Solution",
     "SolveMethod",
+    "SolverName",
     "infer",
     "solve",
 ]

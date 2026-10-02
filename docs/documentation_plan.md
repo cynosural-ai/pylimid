@@ -6,7 +6,7 @@ Working document for the first published documentation site. Updated as the work
 
 | Step | Status |
 | --- | --- |
-| 0. Settle the public API | Done on branch `refactor/public-api` (not committed); one open question (`Solution.method`) |
+| 0. Settle the public API | Done on branch `refactor/public-api` (`Solution.method` not committed yet) |
 | 1. Sphinx skeleton: home, quickstart, API reference, Read the Docs build | Not started |
 | 2. Port the example notebooks + write the mixed influence-diagram example | Not started |
 | 3. User guide pages | Not started |
@@ -23,7 +23,7 @@ What was done:
 
 - **One front door for solving.** `decisionpy.solve(diagram, method="auto" | "backward_induction" | "scan", num_samples=2000, rng_key=None)`. `"auto"` runs backward induction when the diagram is solvable and the batched scan otherwise; `"scan"` is the batched scan. It takes the diagram (not a snapshot), raises `InferenceError` on solver failures and `ValueError` on an unknown method. Utilities must be JAX-traceable under every method.
 - **Solvers package.** `decisionpy.inference.numpyro.solvers` exports `backward_induction_solve`, `batched_solve`, `scan_solve` (the unbatched reference implementation), `is_solvable` and `solvability_order`. The ambiguous `decisionpy.inference.numpyro.solve` and `solvers.solve` were removed.
-- **Top-level exports.** `decisionpy` re-exports the node types, `InfluenceDiagram`, `infer`, `solve`, `Solution`, `Posterior`, `Policy`, `InferenceResult`, `InferenceError` and `SolveMethod`.
+- **Top-level exports.** `decisionpy` re-exports the node types, `InfluenceDiagram`, `infer`, `solve`, `Solution`, `Posterior`, `Policy`, `InferenceResult`, `InferenceError`, `SolveMethod` and `SolverName`.
 - **Clean docstrings.** Removed internal wording ("Strategy B", "Level 2", "the unified-inference ADR", "the v0 solver", roadmap mentions, the stale `exact=False` and bucket-elimination remarks). Fixed the Bielza et al. citation to 1999, 45(7), 995–1007.
 - **Docstring convention.** `AGENTS.md` now says: single backticks for cross-references to public names (`Snapshot`, `InfluenceDiagram.validate`), double backticks for literal code, no explicit Sphinx roles. All docstrings in `decisionpy/` were converted.
 
@@ -31,10 +31,7 @@ Decisions:
 
 - **Public surface stays minimal.** The library targets notebooks for now. `Snapshot`, `Node`, `NodeKind`, `Consistency`, `DiagramProblem` and `ProblemKind` were designed with a future UI in mind (GeNIe-style problem highlighting); they stay in `decisionpy.graph` and are not promoted to the top level. `is_solvable` stays in `decisionpy.inference.numpyro.solvers`.
 - **`REMAINING_WORK.md` stays deleted** (superseded by `TODO.md`).
-
-Open:
-
-- **`Solution.method`.** Whether `Solution` should record which solver ran, since `"auto"` hides it and the two solvers carry different guarantees.
+- **`Solution.method` records which solver ran** (`"backward_induction"` or `"scan"`, typed as `SolverName`; never `"auto"`), since `"auto"` would otherwise hide it and the two solvers carry different guarantees. Each solver sets it, including the unbatched reference scan (`"scan"`).
 
 Carried into step 1:
 
@@ -149,6 +146,5 @@ Grouped by where they are cited. Verify details before publishing.
 
 ## Open decisions
 
-- Whether `Solution` records which solver ran (`Solution.method`).
 - myst-nb vs. nbsphinx; execute on build vs. committed outputs.
 - Theme.

@@ -139,7 +139,14 @@ def test_solve_mixed_diagram_solves(method):
 
 def test_auto_uses_backward_induction_on_a_solvable_diagram():
     diag = _mixed_diagram()
-    assert solve(diag) == backward_induction_solve(diag.snapshot())
+    solution = solve(diag)
+    assert solution == backward_induction_solve(diag.snapshot())
+    assert solution.method == "backward_induction"
+
+
+@pytest.mark.parametrize("method", ["backward_induction", "scan"])
+def test_explicit_method_is_recorded(method):
+    assert solve(_umbrella_diagram(), method=method).method == method
 
 
 def test_scan_method_is_the_batched_scan():
@@ -151,6 +158,7 @@ def test_auto_falls_back_to_the_scan_on_a_non_solvable_diagram():
     diag = _non_solvable_diagram()
     solution = solve(diag, num_samples=500)
     assert solution == batched_solve(diag.snapshot(), num_samples=500)
+    assert solution.method == "scan"
     assert solution.policy == {"D1": {(): 0}, "D2": {(0,): 0, (1,): 0}}
     assert solution.expected_utility == pytest.approx(5.0)
 
@@ -181,7 +189,9 @@ def test_solve_is_a_monte_carlo_estimate():
 def test_unbatched_scan_agrees_with_solve():
     """The unbatched scan stays importable as the reference implementation."""
     diag = _umbrella_diagram()
-    assert scan_solve(diag.snapshot()).policy == solve(diag, method="scan").policy
+    reference = scan_solve(diag.snapshot())
+    assert reference.policy == solve(diag, method="scan").policy
+    assert reference.method == "scan"
 
 
 def test_unknown_method_raises():

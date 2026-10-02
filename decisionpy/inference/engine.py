@@ -9,7 +9,8 @@ Unified inference entry-point.
     # → {"rain": Posterior(values=[...], states=("no", "yes"))}
 
     solution = solve(diagram)
-    # → Solution(policy={"treat": {(0,): 0, (1,): 1}}, expected_utility=78.3)
+    # → Solution(policy={"treat": {(0,): 0, (1,): 1}}, expected_utility=78.3,
+    #            method="backward_induction")
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ from decisionpy.inference.result import (
     Policy,
     Posterior,
     Solution,
+    SolverName,
 )
 
 __all__ = [
@@ -40,6 +42,7 @@ __all__ = [
     "Posterior",
     "Solution",
     "SolveMethod",
+    "SolverName",
     "infer",
     "solve",
 ]
@@ -166,8 +169,9 @@ def solve(
 
     Returns:
         A `Solution` with the optimal per-decision policy (decision name to
-        information-set assignment to chosen action) and the expected total
-        utility, a Monte-Carlo estimate.
+        information-set assignment to chosen action), the expected total
+        utility (a Monte-Carlo estimate), and the solver that ran
+        (`Solution.method`, never ``"auto"``).
 
     Raises:
         InferenceError: If the diagram has no decision nodes, if a

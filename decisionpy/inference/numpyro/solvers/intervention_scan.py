@@ -111,7 +111,7 @@ def solve(
             best = (expected_utility, policy)
 
     assert best is not None
-    return Solution(policy=best[1], expected_utility=best[0])
+    return Solution(policy=best[1], expected_utility=best[0], method="scan")
 
 
 # ---------------------------------------------------------------------------

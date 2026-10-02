@@ -11,9 +11,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import ceil
 from statistics import pstdev
-from typing import TypeAlias
+from typing import Literal, TypeAlias
 
-__all__ = ["InferenceResult", "Policy", "Posterior", "Solution"]
+__all__ = ["InferenceResult", "Policy", "Posterior", "Solution", "SolverName"]
 
 
 @dataclass(frozen=True)
@@ -148,6 +148,9 @@ InferenceResult: TypeAlias = dict[str, Posterior]
 #: Optimal policy: decision name -> {information-set assignment: chosen action}.
 Policy: TypeAlias = dict[str, dict[tuple[int, ...], int]]
 
+#: The solver that produced a `Solution`.
+SolverName: TypeAlias = Literal["backward_induction", "scan"]
+
 
 @dataclass(frozen=True)
 class Solution:
@@ -159,7 +162,13 @@ class Solution:
             decision's information set.
         expected_utility: Monte-Carlo estimate of the expected total
             utility under *policy*.
+        method: The solver that produced the solution. ``"scan"`` evaluated
+            every policy, so *policy* is the best of the Monte-Carlo
+            estimates; ``"backward_induction"`` resolved one decision at a
+            time on a solvable diagram, optimal up to sampling noise. With
+            ``solve(method="auto")`` this records which one was chosen.
     """
 
     policy: Policy
     expected_utility: float
+    method: SolverName

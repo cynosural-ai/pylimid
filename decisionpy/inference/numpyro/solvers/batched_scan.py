@@ -111,7 +111,9 @@ def solve(
     }
     eu = _estimate_eu(snapshot, policy_arrays, num_samples, rng_key, node_map)
     best = int(jnp.argmax(eu))
-    return Solution(policy=policies[best], expected_utility=float(eu[best]))
+    return Solution(
+        policy=policies[best], expected_utility=float(eu[best]), method="scan"
+    )
 
 
 # ---------------------------------------------------------------------------
