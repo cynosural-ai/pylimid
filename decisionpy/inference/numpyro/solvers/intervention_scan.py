@@ -1,5 +1,5 @@
 """
-NumPyro influence-diagram solver — Strategy B, the intervention scan.
+NumPyro influence-diagram solver — the intervention scan.
 
 The unbatched reference implementation: solves a mixed-type influence
 diagram by Monte-Carlo, enumerating the discrete policy space (one action
@@ -17,12 +17,9 @@ nodes are evaluated on the sampled values after the walk; their average
 over the samples is the expected-utility estimate.
 
 Scope: decisions and their information sets must be discrete (a
-continuous information set cannot be tabulated — that is the
-policy-as-parameters path, not implemented yet). Chance nodes may be
+continuous information set cannot be tabulated). Chance nodes may be
 discrete or continuous. The policy space is exponential in the number of
-decision rules, so this engine suits diagrams with small decision spaces;
-it is the Monte-Carlo counterpart to bucket elimination, which stays the
-exact solver for all-categorical diagrams.
+decision rules, so this engine suits diagrams with small decision spaces.
 
 References:
     Lauritzen, S. L. and Nilsson, D. (2001). Representing and solving
@@ -67,7 +64,7 @@ def solve(
     rng_key: jax.Array | None = None,
 ) -> Solution:
     """
-    Solve *snapshot* by intervention scan (Strategy B).
+    Solve *snapshot* by the intervention scan.
 
     Enumerates the discrete policy space, estimates expected utility per
     policy by forward sampling with each decision resolved from its

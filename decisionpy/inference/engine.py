@@ -3,7 +3,7 @@ Unified inference entry-point.
 
 ::
 
-    from decisionpy.inference import infer, solve
+    from decisionpy import infer, solve
 
     result = infer(diagram, query=["rain"], observed={"wet_grass": 1})
     # → {"rain": Posterior(values=[...], states=("no", "yes"))}
@@ -14,11 +14,17 @@ Unified inference entry-point.
 
 from __future__ import annotations
 
+from typing import Literal
+
+import jax
+
 from decisionpy.graph.diagram import InfluenceDiagram
 from decisionpy.graph.node import NodeKind
 from decisionpy.inference.numpyro import samples as numpyro_samples
-from decisionpy.inference.numpyro.solvers.intervention_scan import (
-    solve as numpyro_solve,
+from decisionpy.inference.numpyro.solvers import (
+    backward_induction_solve,
+    batched_solve,
+    is_solvable,
 )
 from decisionpy.inference.result import (
     InferenceResult,
@@ -33,9 +39,13 @@ __all__ = [
     "Policy",
     "Posterior",
     "Solution",
+    "SolveMethod",
     "infer",
     "solve",
 ]
+
+#: Solver selection for solve().
+SolveMethod = Literal["auto", "backward_induction", "scan"]
 
 
 class InferenceError(Exception):
@@ -115,28 +125,63 @@ def infer(
     return _infer_numpyro(snapshot, query, {**observed, **policy})
 
 
-def solve(diagram: InfluenceDiagram) -> Solution:
+def solve(
+    diagram: InfluenceDiagram,
+    *,
+    method: SolveMethod = "auto",
+    num_samples: int = 2000,
+    rng_key: jax.Array | None = None,
+) -> Solution:
     """
     Solve an influence diagram: the optimal policy and its expected utility.
 
-    Runs the NumPyro intervention scan (Strategy B): enumerates the
-    discrete policy space and estimates expected utility per policy by
-    forward sampling with each decision resolved from its observed
-    information set. The algorithm and its references are in
-    decisionpy.inference.numpyro.solvers.
+    Two Monte-Carlo solvers are available, both for discrete decisions with
+    discrete information sets; chance nodes may be discrete, continuous or
+    mixed.
+
+    - ``"backward_induction"`` resolves one decision at a time, from the
+      last to the first, estimating each action's expected utility per
+      information-set assignment by forward sampling. Its cost is additive
+      in the decisions. It requires a solvable diagram (see
+      `decisionpy.inference.numpyro.solvers.is_solvable`), on which it
+      finds the optimal policy up to sampling noise.
+    - ``"scan"`` enumerates every policy and estimates each one's expected
+      utility by forward sampling, keeping the best. It handles any
+      diagram, but its cost grows exponentially with the policy space.
+    - ``"auto"`` uses backward induction when the diagram is solvable and
+      the scan otherwise.
+
+    Utility ``values`` callables must be JAX-traceable (pure ``jnp``
+    expressions, no ``float()`` / ``int()`` coercion): both solvers
+    evaluate them inside a vectorized forward pass.
 
     Args:
         diagram: A validated influence diagram with at least one decision.
+        method: Which solver to run.
+        num_samples: Forward samples per evaluation: per candidate policy
+            for the scan, per action per decision for backward induction.
+        rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``, so
+            repeated calls return the same estimate.
 
     Returns:
-        A Solution with the optimal per-decision policy (decision
-        name to information-set assignment to chosen action) and the
-        expected total utility, a Monte-Carlo estimate.
+        A `Solution` with the optimal per-decision policy (decision name to
+        information-set assignment to chosen action) and the expected total
+        utility, a Monte-Carlo estimate.
 
     Raises:
-        InferenceError: If the diagram has no decision nodes, or if a
-            decision's information set is not discrete.
+        InferenceError: If the diagram has no decision nodes, if a
+            decision's information set is not discrete, if
+            ``method="backward_induction"`` is asked for on a diagram that is
+            not solvable, or if an information-set assignment is never
+            sampled (increase *num_samples*).
+        ValueError: If *method* is not one of the supported names.
     """
+    if method not in ("auto", "backward_induction", "scan"):
+        raise ValueError(
+            f"Unknown method {method!r}; expected 'auto', "
+            "'backward_induction' or 'scan'."
+        )
+
     snapshot = diagram.snapshot()
 
     if not any(node.kind is NodeKind.DECISION for _, node in snapshot.nodes):
@@ -145,12 +190,16 @@ def solve(diagram: InfluenceDiagram) -> Solution:
             "node; this diagram has none. Use infer() for Bayesian networks."
         )
 
+    if method == "auto":
+        method = "backward_induction" if is_solvable(snapshot) else "scan"
+    solver = (
+        backward_induction_solve if method == "backward_induction" else batched_solve
+    )
+
     try:
-        return numpyro_solve(snapshot)
+        return solver(snapshot, num_samples=num_samples, rng_key=rng_key)
     except ValueError as e:
-        raise InferenceError(
-            f"The intervention-scan solver cannot handle this diagram. {e}"
-        ) from e
+        raise InferenceError(f"solve(method={method!r}) failed. {e}") from e
 
 
 def _validate_query(snapshot, query: list[str]) -> None:

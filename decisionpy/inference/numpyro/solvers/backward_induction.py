@@ -1,5 +1,5 @@
 """
-NumPyro influence-diagram solver — backward induction (Level 2).
+NumPyro influence-diagram solver — backward induction.
 
 Solves a solvable (regular) influence diagram one decision at a time, in the
 reverse order: the decisions closest to the utilities are resolved first, and
@@ -12,7 +12,7 @@ product.
 
 The gate is ``solvability_order`` (see regularity): a diagram without a
 valid order raises instead of guessing. The non-solvable fallback is the
-scan (or the planned SPU iteration).
+scan.
 
 The RNG stream is a fixed seed per solve: the same ``rng_key`` and
 ``num_samples`` reproduce the same policy. Utilities ``values`` callables

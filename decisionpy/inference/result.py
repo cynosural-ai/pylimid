@@ -158,7 +158,7 @@ class Solution:
         policy: Per-decision optimal action for every instantiation of the
             decision's information set.
         expected_utility: Monte-Carlo estimate of the expected total
-            utility under *policy* (numpyro intervention scan).
+            utility under *policy*.
     """
 
     policy: Policy
