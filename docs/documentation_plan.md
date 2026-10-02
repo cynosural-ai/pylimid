@@ -6,7 +6,7 @@ Working document for the first published documentation site. Updated as the work
 
 | Step | Status |
 | --- | --- |
-| 0. Settle the public API | Done on branch `refactor/public-api` (`Solution.method` not committed yet) |
+| 0. Settle the public API | Done on branch `refactor/public-api`|
 | 1. Sphinx skeleton: home, quickstart, API reference, Read the Docs build | Not started |
 | 2. Port the example notebooks + write the mixed influence-diagram example | Not started |
 | 3. User guide pages | Not started |
