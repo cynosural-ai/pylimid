@@ -1,16 +1,16 @@
 """
 NumPyro model factory — translate a validated snapshot into a NumPyro model.
 
-Internal module.  Public convenience functions that wrap this are in
-decisionpy.inference.numpyro.
+Internal module. Public convenience functions that wrap this are in
+`decisionpy.inference.numpyro`.
 
 This is the bridge between the backend-agnostic graph layer and a concrete
-probabilistic programming system. It consumes a Snapshot and returns a plain
+probabilistic programming system. It consumes a `Snapshot` and returns a plain
 NumPyro model function the caller feeds to ``numpyro.infer``
 (e.g. ``Predictive``, ``MCMC``, ``SVI``).
 
 NumPyro is a declared runtime dependency of decisionpy (nothing in
-decisionpy.graph imports it — the graph layer works on plain callables,
+`decisionpy.graph` imports it — the graph layer works on plain callables,
 but the translator itself needs it).
 
 Unobserved discrete nodes are detected automatically via ``node.is_discrete``

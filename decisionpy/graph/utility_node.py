@@ -11,8 +11,9 @@ a chance node's ``dist``).
 Utility nodes are terminal
 --------------------------
 In an influence diagram a payoff is always a **sink**: it has parents but no
-children. The diagram enforces this on add_edge() (rejecting an edge that
-would give a utility node a child) and again in validate() (the defensive
+children. The diagram enforces this on `InfluenceDiagram.add_edge` (rejecting
+an edge that would give a utility node a child) and again in
+`InfluenceDiagram.validate` (the defensive
 backstop against a node mutated directly through its own ``add_parent``).
 This mirrors the eager-plus-defensive treatment of acyclicity — a
 utility-with-child is never a useful intermediate state.
@@ -60,7 +61,7 @@ class UtilityNode(Node):
 
     @property
     def kind(self) -> NodeKind:
-        """``NodeKind.UTILITY``."""
+        """`NodeKind.UTILITY`."""
         return NodeKind.UTILITY
 
     @property

@@ -7,14 +7,14 @@ distribution objects whose concrete type is the backend's concern.
 
 Node types
 ----------
-Three node kinds share a common base (Node):
+Three node kinds share a common base (`Node`):
 
-- ChanceNode — a random variable, ``P(name | parents)``.
-- DecisionNode — a variable the agent controls; ``parents`` are its
+- `ChanceNode` — a random variable, ``P(name | parents)``.
+- `DecisionNode` — a variable the agent controls; ``parents`` are its
   *information set* (observed when deciding), ``states`` its actions.
-- UtilityNode — a deterministic payoff ``U(parents)``; always a sink.
+- `UtilityNode` — a deterministic payoff ``U(parents)``; always a sink.
 
-A Bayesian network is a diagram containing only chance nodes.
+A Bayesian network is an `InfluenceDiagram` containing only chance nodes.
 """
 
 from decisionpy.graph.chance_node import ChanceNode

@@ -1,7 +1,7 @@
 """
 Typed results shared by the inference engines.
 
-Engine modules produce these; the engine entry-points (infer, solve)
+Engine modules produce these; the entry points (`infer`, `solve`)
 normalize to them. With a single NumPyro engine, every result is a
 Monte-Carlo estimate — the contract carries no exactness flag.
 """
@@ -11,9 +11,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import ceil
 from statistics import pstdev
-from typing import TypeAlias
+from typing import Literal, TypeAlias
 
-__all__ = ["InferenceResult", "Policy", "Posterior", "Solution"]
+__all__ = ["InferenceResult", "Policy", "Posterior", "Solution", "SolverName"]
 
 
 @dataclass(frozen=True)
@@ -26,15 +26,15 @@ class Posterior:
     representation — a discrete variable's draws are state indices, a
     continuous variable's are real values. Summary methods derive from the
     draws, and every method is valid for exactly one variable kind: a
-    discrete posterior's marginal() bincounts the states into a
-    probability vector, and a continuous posterior's mean()/std()/hdi()
-    summarize the draws. Each method raises on the other kind rather than
+    discrete posterior's `marginal` bincounts the states into a
+    probability vector, and a continuous posterior's `mean` / `std` /
+    `hdi` summarize the draws. Each method raises on the other kind rather than
     silently computing something encoding-dependent.
 
     Attributes:
         values: One posterior draw per entry.
-        states: State labels for a discrete variable; None for a continuous
-            one.
+        states: State labels for a discrete variable; ``None`` for a
+            continuous one.
     """
 
     values: list[float]
@@ -53,7 +53,7 @@ class Posterior:
             ``[P(0), P(1), ...]`` — sums to 1.
 
         Raises:
-            ValueError: If the variable is continuous (``states`` is None):
+            ValueError: If the variable is continuous (``states`` is ``None``):
                 a continuous posterior has no per-state probability mass.
         """
         states = self._require_discrete()
@@ -70,7 +70,7 @@ class Posterior:
         Raises:
             ValueError: If the variable is discrete (``states`` set): the
                 mean of state indices depends on their encoding; use
-                marginal() for the probability vector instead.
+                `marginal` for the probability vector instead.
         """
         self._require_continuous()
         return sum(self.values) / len(self.values)
@@ -148,6 +148,9 @@ InferenceResult: TypeAlias = dict[str, Posterior]
 #: Optimal policy: decision name -> {information-set assignment: chosen action}.
 Policy: TypeAlias = dict[str, dict[tuple[int, ...], int]]
 
+#: The solver that produced a `Solution`.
+SolverName: TypeAlias = Literal["backward_induction", "scan"]
+
 
 @dataclass(frozen=True)
 class Solution:
@@ -158,8 +161,14 @@ class Solution:
         policy: Per-decision optimal action for every instantiation of the
             decision's information set.
         expected_utility: Monte-Carlo estimate of the expected total
-            utility under *policy* (numpyro intervention scan).
+            utility under *policy*.
+        method: The solver that produced the solution. ``"scan"`` evaluated
+            every policy, so *policy* is the best of the Monte-Carlo
+            estimates; ``"backward_induction"`` resolved one decision at a
+            time on a solvable diagram, optimal up to sampling noise. With
+            ``solve(method="auto")`` this records which one was chosen.
     """
 
     policy: Policy
     expected_utility: float
+    method: SolverName

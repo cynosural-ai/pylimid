@@ -1,28 +1,25 @@
 """
-NumPyro influence-diagram solver — Strategy B, the intervention scan.
+NumPyro influence-diagram solver — the intervention scan.
 
 The unbatched reference implementation: solves a mixed-type influence
 diagram by Monte-Carlo, enumerating the discrete policy space (one action
 per information-set assignment per decision) and evaluating each policy by
 forward-simulating the diagram with every decision resolved from its
 observed information set, keeping the policy with the highest estimated
-expected utility. The batched scan (batched_scan.py) is the same algorithm
+expected utility. The batched scan (`batched_scan`) is the same algorithm
 with all policies evaluated in one vmapped call.
 
-The forward pass mirrors to_model's topological walk (parents before
-children — guaranteed by the Snapshot), except that a decision node is
+The forward pass mirrors the topological walk of `to_model` (parents before
+children — guaranteed by the `Snapshot`), except that a decision node is
 not a sample site: its action is looked up from the candidate policy as a
 deterministic function of the realized information-set values. Utility
 nodes are evaluated on the sampled values after the walk; their average
 over the samples is the expected-utility estimate.
 
 Scope: decisions and their information sets must be discrete (a
-continuous information set cannot be tabulated — that is the
-policy-as-parameters path, not implemented yet). Chance nodes may be
+continuous information set cannot be tabulated). Chance nodes may be
 discrete or continuous. The policy space is exponential in the number of
-decision rules, so this engine suits diagrams with small decision spaces;
-it is the Monte-Carlo counterpart to bucket elimination, which stays the
-exact solver for all-categorical diagrams.
+decision rules, so this engine suits diagrams with small decision spaces.
 
 References:
     Lauritzen, S. L. and Nilsson, D. (2001). Representing and solving
@@ -35,9 +32,9 @@ References:
     Research 34(6), 871-882. Backward induction for influence diagrams,
     the exact counterpart to this scan's full enumeration.
 
-    Bielza, C., Muller, P. and Rios Insua, D. (2007). Decision analysis
-    by augmented probability simulation. Management Science 53(7).
-    Monte-Carlo methods for decision analysis, the tradition this
+    Bielza, C., Muller, P. and Rios Insua, D. (1999). Decision analysis
+    by augmented probability simulation. Management Science 45(7),
+    995-1007. Monte-Carlo methods for decision analysis, the tradition this
     sampling-based scan belongs to.
 """
 
@@ -67,7 +64,7 @@ def solve(
     rng_key: jax.Array | None = None,
 ) -> Solution:
     """
-    Solve *snapshot* by intervention scan (Strategy B).
+    Solve *snapshot* by the intervention scan.
 
     Enumerates the discrete policy space, estimates expected utility per
     policy by forward sampling with each decision resolved from its
@@ -80,9 +77,9 @@ def solve(
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``.
 
     Returns:
-        A Solution whose policy maps every decision to an action per
-        information-set assignment, with ``exact=False`` — the
-        expected utility is a Monte-Carlo estimate.
+        A `Solution` whose policy maps every decision to an action per
+        information-set assignment; the expected utility is a Monte-Carlo
+        estimate.
 
     Raises:
         ValueError: If a decision's information set contains a continuous
@@ -114,7 +111,7 @@ def solve(
             best = (expected_utility, policy)
 
     assert best is not None
-    return Solution(policy=best[1], expected_utility=best[0])
+    return Solution(policy=best[1], expected_utility=best[0], method="scan")
 
 
 # ---------------------------------------------------------------------------

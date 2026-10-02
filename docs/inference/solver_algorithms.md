@@ -68,7 +68,7 @@ One-pass backward induction is sound exactly on *soluble* LIMIDs, so the gate is
 - **Howard, R. A. and Matheson, J. E. (1984). Influence diagrams. In Readings on the Principles and Applications of Decision Analysis, Vol. II, 719–762.** — introduced influence diagrams, with full memory (no-forgetting) assumed.
 - **Shachter, R. D. (1986). Evaluating influence diagrams. Operations Research 34(6), 871–882.** — the classical algorithm: backward induction / arc reversals on regular IDs.
 - **Lauritzen, S. L. and Nilsson, D. (2001). Representing and solving decision problems with limited information. Management Science 47(9), 1235–1251.** — the original LIMID paper: drops the no-forgetting assumption, defines soluble (regular) vs. non-soluble LIMIDs, and proposes single policy updating (SPU) for the general case; backward induction is the special case that finishes in one pass. This is the closest reference for the whole solver family, and the source of the extremality criterion the gate implements.
-- **Bielza, C., Müller, P. and Ríos Insua, D. (2007). Decision analysis by augmented probability simulation. Management Science 53(7).** — Monte-Carlo methods for solving decision problems; the tradition the scan and the sampling-based backward induction belong to (the papers above are exact/potential-based).
+- **Bielza, C., Müller, P. and Ríos Insua, D. (1999). Decision analysis by augmented probability simulation. Management Science 45(7), 995–1007.** — Monte-Carlo methods for solving decision problems; the tradition the scan and the sampling-based backward induction belong to (the papers above are exact/potential-based).
 - **Kearns, M., Mansour, Y. and Ng, A. (1999). A sparse sampling algorithm for near-optimal planning in large Markov decision processes. IJCAI'99.** — sampling-based dynamic programming in the MDP world; the same "estimate continuation values by simulation, then argmax" idea that Level 2 applies to influence diagrams.
 
 ## How each tier is validated
@@ -81,9 +81,4 @@ One-pass backward induction is sound exactly on *soluble* LIMIDs, so the gate is
 
 - Tier 1: implemented (`decisionpy.inference.numpyro.solvers.intervention_scan`).
 - Tier 2: implemented (`decisionpy.inference.numpyro.solvers.batched_scan`).
-- Tier 3: implemented for soluble diagrams
-  (`decisionpy.inference.numpyro.solvers.backward_induction`), gated by
-  `...solvers.regularity` with the paper's exact-solution-ordering criterion
-  (stricter than pyAgrum's level-based `isSolvable`, see above) and validated
-  against pyAgrum and the scan; SPU for non-soluble LIMIDs planned —
-  REMAINING_WORK item 5.
+- Tier 3: implemented for soluble diagrams (`decisionpy.inference.numpyro.solvers.backward_induction`), gated by `...solvers.regularity` with the paper's exact-solution-ordering criterion (stricter than pyAgrum's level-based `isSolvable`, see above) and validated against pyAgrum and the scan; SPU for non-soluble LIMIDs planned — REMAINING_WORK item 5.

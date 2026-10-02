@@ -12,22 +12,24 @@ the API:
   parents that are not yet in the diagram (a dangling reference); a node may
   have no ``dist`` yet. These are legitimate intermediate states.
 - **Inference consumes a validated snapshot, never the live workspace.**
-  InfluenceDiagram.validate() is the explicit gate: it collects every
+  `InfluenceDiagram.validate` is the explicit gate: it collects every
   problem that would block inference (dangling refs, cycles, unconfigured or
   stale distributions) and returns them as structured
-  DiagramProblem instances. InfluenceDiagram.snapshot() produces
+  `DiagramProblem` instances. `InfluenceDiagram.snapshot` produces
   a point-in-time view only when validation passes.
 
-Acyclicity is enforced *eagerly* on add_edge() (a cycle is never a useful
-intermediate state) and *defensively* in validate() (a node can be
+Acyclicity is enforced *eagerly* on `InfluenceDiagram.add_edge` (a cycle is
+never a useful intermediate state) and *defensively* in
+`InfluenceDiagram.validate` (a node can be
 mutated directly through its own ``add_parent``, bypassing the diagram, so
-validate() is the robust backstop).
+validation is the robust backstop).
 
 Three node kinds live in one container: chance, decision, and utility (see
-NodeKind). They share the ``parents`` field, so
+`NodeKind`). They share the ``parents`` field, so
 topological ordering and cycle prevention work uniformly across them. Utility
-nodes are *sinks* — add_edge() rejects an edge giving one a child (eager,
-alongside the cycle check), and validate() reports any utility node that
+nodes are *sinks* — `InfluenceDiagram.add_edge` rejects an edge giving one a
+child (eager, alongside the cycle check), and `InfluenceDiagram.validate`
+reports any utility node that
 nonetheless has children (defensive backstop, the same two-layer treatment).
 """
 
@@ -54,7 +56,7 @@ def _distribution_fingerprint(output) -> tuple[object, ...]:
     Anything else fails loudly — the library's contract is that ``dist``
     returns a distribution object and ``values`` returns a number. Equal
     fingerprints are treated as "the same output" by
-    probe_discrete_parents().
+    `InfluenceDiagram.probe_discrete_parents`.
     """
     get_args = getattr(output, "get_args", None)
     if get_args is not None:
@@ -89,11 +91,9 @@ class Snapshot:
     """
     A point-in-time, validated view of a diagram — what inference consumes.
 
-    Produced by InfluenceDiagram.snapshot() only after validation passes.
+    Produced by `InfluenceDiagram.snapshot` only after validation passes.
     It holds references to the (still mutable) nodes, so it is a *logical*
-    snapshot: editing the diagram after taking a snapshot invalidates it. A
-    truly deep-frozen copy is deferred until the translator exists and pins
-    down the shape it needs.
+    snapshot: editing the diagram after taking a snapshot invalidates it.
     """
 
     nodes: tuple[tuple[str, Node], ...]
@@ -109,12 +109,12 @@ class InfluenceDiagram:
     A mutable directed acyclic graph of nodes representing an influence diagram.
 
     Currently supports chance, decision, and utility nodes. A Bayesian network
-    is simply an InfluenceDiagram containing only chance nodes; the
+    is simply an `InfluenceDiagram` containing only chance nodes; the
     moment a decision or utility node is added it becomes an influence diagram.
 
     Nodes are registered by name. Unlike a build-once container, a node may be
     added before its parents exist, edges may be wired and unwired freely, and
-    distributions may be set at any time. validate() is the checkpoint
+    distributions may be set at any time. `validate` is the checkpoint
     that decides whether the current state is sound enough to infer on.
     """
 
@@ -130,7 +130,7 @@ class InfluenceDiagram:
 
         The node's name must be unique. Its parents need *not* be present yet
         — dangling references are tolerated during construction and caught by
-        validate().
+        `validate`.
 
         Args:
             node: The node to add.
@@ -165,7 +165,7 @@ class InfluenceDiagram:
         """
         Wire an edge ``parent -> child``.
 
-        Both endpoints must already be in the diagram (use add_node()
+        Both endpoints must already be in the diagram (use `add_node`
         first). The child's parent set is updated through its own
         ``add_parent``, so the child's field validation runs — and its
         ``dist`` / ``values`` may become stale as a result, which is expected.
@@ -241,7 +241,7 @@ class InfluenceDiagram:
         Uses Kahn's algorithm over edges between *existing* nodes; dangling
         parent references are ignored for ordering. Raises if a cycle is
         present (possible only if a node was mutated directly, bypassing
-        add_edge()'s cycle check).
+        the cycle check in `add_edge`).
         """
         nodes = self._nodes
         indegree: dict[str, int] = dict.fromkeys(nodes, 0)
@@ -287,7 +287,7 @@ class InfluenceDiagram:
 
         Returns an empty list for a diagram that is sound to infer on:
         no dangling parent references, no cycles, and every node
-        CONSISTENT. The list is preferred over raising
+        `Consistency.CONSISTENT`. The list is preferred over raising
         on the first problem so a UI or LLM can surface all issues at once.
         """
         problems: list[DiagramProblem] = []
@@ -375,9 +375,9 @@ class InfluenceDiagram:
         fewer rows than the parent has states, where JAX indexing silently
         clamps out-of-range values back to the last row.
 
-        Unlike validate(), this executes the node callables (arbitrary
+        Unlike `validate`, this executes the node callables (arbitrary
         user code), so it is an explicit, opt-in check — never run
-        automatically by snapshot(). Continuous parents (no declared
+        automatically by `snapshot`. Continuous parents (no declared
         ``states``) are skipped: there is nothing to enumerate.
 
         A finding is a warning, not an error: a deliberately independent
@@ -386,7 +386,7 @@ class InfluenceDiagram:
         the parent but map it to wrong values.
 
         Returns:
-            One DiagramProblem per (node, discrete parent) pair
+            One `DiagramProblem` per (node, discrete parent) pair
             whose callable output is insensitive to the parent.
         """
         problems: list[DiagramProblem] = []
@@ -429,10 +429,10 @@ class InfluenceDiagram:
 
     def snapshot(self) -> Snapshot:
         """
-        Return a validated, point-in-time view of the diagram.
+        Return a validated, point-in-time `Snapshot` of the diagram.
 
         Raises:
-            ValueError: If validate() reports any problem, with the
+            ValueError: If `validate` reports any problem, with the
                 problems listed in the message.
         """
         problems = self.validate()
@@ -476,7 +476,7 @@ class InfluenceDiagram:
         edges) and usable on the live workspace: no validation required, so
         an incomplete diagram renders with dangling parents as dashed ghost
         nodes and non-consistent nodes tinted via ``classDef``. See
-        decisionpy.graph.mermaid.
+        `decisionpy.graph.mermaid`.
 
         Returns:
             Mermaid flowchart source; paste into a Mermaid renderer to view.
@@ -494,8 +494,9 @@ def _reaches(children_of, start: str, target: str) -> bool:
     """
     Whether ``target`` is reachable from ``start`` following child edges.
 
-    DFS over the (derived) child adjacency. Used by add_edge() to detect
-    whether a prospective edge would close a cycle.
+    DFS over the (derived) child adjacency. Used by
+    `InfluenceDiagram.add_edge` to detect whether a prospective edge would
+    close a cycle.
     """
     stack = [start]
     seen: set[str] = set()

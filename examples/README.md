@@ -21,17 +21,9 @@ uv sync                          # installs jupyterlab + pyagrum as dev dependen
 uv run jupyter lab examples/
 ```
 
-Three examples (`solver_comparison.py`, `categorical_bn.py`, and the
-`solver_comparison.py` Oil Wildcatter section) build the same models in
-pyAgrum to show the exact answer next to the Monte-Carlo estimate; pyagrum
-is in the `dev` dependency group, so `uv sync` installs it. The Oil
-Wildcatter shares one spec between both libraries
-(`03_influence_diagrams/_oil_wildcatter.py`), so the comparison is exact
-engine vs Monte-Carlo scan on identical tables.
+Three examples (`solver_comparison.py`, `categorical_bn.py`, and the `solver_comparison.py` Oil Wildcatter section) build the same models in pyAgrum to show the exact answer next to the Monte-Carlo estimate; pyagrum is in the `dev` dependency group, so `uv sync` installs it. The Oil Wildcatter shares one spec between both libraries (`03_influence_diagrams/_oil_wildcatter.py`), so the comparison is exact engine vs Monte-Carlo scan on identical tables.
 
-Each notebook is paired with a `.py` twin (Jupyter percent format, kept in sync
-with jupytext) so the examples are greppable and reviewable. Regenerate a
-twin after editing either side with:
+Each notebook is paired with a `.py` twin (Jupyter percent format, kept in sync with jupytext) so the examples are greppable and reviewable. Regenerate a twin after editing either side with:
 
 ```bash
 uv run jupytext --sync examples/01_model_creation/workspace_and_validation.ipynb
