@@ -1,7 +1,7 @@
 """
 NumPyro inference backend — posterior and forward sampling.
 
-Thin wrappers around to_model().
+Thin wrappers around `to_model`.
 Import this module to use NumPyro-based inference; requires ``numpyro``, a
 declared dependency of decisionpy.
 
@@ -13,9 +13,9 @@ Usage::
 
 API design note
 ---------------
-This module exposes engine-specific functions.  The unified ``infer()``
-entry-point in decisionpy.inference dispatches here automatically,
-so most users should call ``infer()`` rather than import this directly.
+This module exposes engine-specific functions. The unified `decisionpy.infer`
+entry point dispatches here automatically, so most users should call it
+rather than import this directly.
 """
 
 from __future__ import annotations

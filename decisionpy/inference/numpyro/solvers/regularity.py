@@ -11,7 +11,7 @@ decision can be placed next when its downstream utilities are d-separated
 from the families of all other remaining decisions given its own family.
 
 This deliberately diverges from pyAgrum's
-ShaferShenoyLIMIDInference.isSolvable, which only compares decisions that
+``ShaferShenoyLIMIDInference.isSolvable``, which only compares decisions that
 share a level of its partial order and can therefore admit diagrams whose
 one-pass backward induction is not optimal. The regression tests pin the
 divergence.

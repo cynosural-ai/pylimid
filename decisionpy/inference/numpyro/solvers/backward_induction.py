@@ -10,13 +10,13 @@ realized assignment and the utility is averaged within each group — so the
 cost is additive in the decisions instead of the scan's exponential policy
 product.
 
-The gate is ``solvability_order`` (see regularity): a diagram without a
+The gate is `solvability_order` (see `regularity`): a diagram without a
 valid order raises instead of guessing. The non-solvable fallback is the
 scan.
 
 The RNG stream is a fixed seed per solve: the same ``rng_key`` and
 ``num_samples`` reproduce the same policy. Utilities ``values`` callables
-must be JAX-traceable (no float()/int() coercion) — they are evaluated
+must be JAX-traceable (no ``float()`` / ``int()`` coercion) — they are evaluated
 inside the vmapped walk, as in the batched scan.
 
 References:
@@ -27,9 +27,9 @@ References:
     Shachter, R. D. (1986). Evaluating influence diagrams. Operations
     Research 34(6), 871-882. The classical backward-induction algorithm.
 
-    Bielza, C., Muller, P. and Rios Insua, D. (2007). Decision analysis
-    by augmented probability simulation. Management Science 53(7).
-    Monte-Carlo estimation of the continuation values.
+    Bielza, C., Muller, P. and Rios Insua, D. (1999). Decision analysis
+    by augmented probability simulation. Management Science 45(7),
+    995-1007. Monte-Carlo estimation of the continuation values.
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ def solve(
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``.
 
     Returns:
-        A Solution whose policy maps every decision to an action per
+        A `Solution` whose policy maps every decision to an action per
         information-set assignment; the expected utility is a Monte-Carlo
         estimate.
 
@@ -80,7 +80,7 @@ def solve(
         ValueError: If the diagram is not solvable (no backward-induction
             order — use the scan), or if a decision's information set is
             continuous, or if a decision's assignment never appeared in
-            the samples (increase num_samples).
+            the samples (increase *num_samples*).
     """
     if rng_key is None:
         rng_key = jax.random.PRNGKey(0)

@@ -2,7 +2,7 @@
 NumPyro influence-diagram solver — the batched intervention scan.
 
 Same algorithm and same semantics as
-decisionpy.inference.numpyro.solvers.intervention_scan, evaluated in one
+`decisionpy.inference.numpyro.solvers.intervention_scan`, evaluated in one
 vmapped, jitted pass: every policy array carries a leading batch
 dimension, and the forward walk is nested-vmapped over (policy, sample).
 One trace, one dispatch for the whole solve — the per-policy re-trace
@@ -14,8 +14,8 @@ samples and select the same optimal policy; the expected utilities agree
 to float rounding (the unbatched scan accumulates in float64 in Python,
 this one in the JAX dtype).
 
-Constraint: utility ``values`` callables must be JAX-traceable (pure jnp
-expressions — no float()/int() coercion), because they are evaluated
+Constraint: utility ``values`` callables must be JAX-traceable (pure ``jnp``
+expressions — no ``float()`` / ``int()`` coercion), because they are evaluated
 inside the vmapped walk.
 
 References:
@@ -29,9 +29,9 @@ References:
     Research 34(6), 871-882. Backward induction for influence diagrams,
     the exact counterpart to this scan's full enumeration.
 
-    Bielza, C., Muller, P. and Rios Insua, D. (2007). Decision analysis
-    by augmented probability simulation. Management Science 53(7).
-    Monte-Carlo methods for decision analysis, the tradition this
+    Bielza, C., Muller, P. and Rios Insua, D. (1999). Decision analysis
+    by augmented probability simulation. Management Science 45(7),
+    995-1007. Monte-Carlo methods for decision analysis, the tradition this
     sampling-based scan belongs to.
 """
 
@@ -67,7 +67,7 @@ def solve(
     Enumerates the discrete policy space, estimates expected utility for
     every policy in one vmapped forward pass, and keeps the best policy.
     With the same *rng_key* and *num_samples*, returns the same policy as
-    intervention_scan.solve; the expected utility matches to float
+    `intervention_scan.solve`; the expected utility matches to float
     rounding.
 
     Args:
@@ -77,7 +77,7 @@ def solve(
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``.
 
     Returns:
-        A Solution whose policy maps every decision to an action per
+        A `Solution` whose policy maps every decision to an action per
         information-set assignment; the expected utility is a Monte-Carlo
         estimate.
 

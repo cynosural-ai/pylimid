@@ -2,7 +2,7 @@
 Node base — the shared contract for every node in an influence diagram.
 
 The mutable-node contract is captured once here, on the base, so that
-ChanceNode, DecisionNode, and UtilityNode inherit it uniformly rather than
+`ChanceNode`, `DecisionNode`, and `UtilityNode` inherit it uniformly rather than
 re-implementing it per type.
 
 Mutable by design
@@ -21,7 +21,7 @@ Two layers of checking reflect this:
   — is rejected the moment it is set.
 - **Cross-field consistency** (the configurable field's signature vs
   ``parents``) is *not* enforced on assignment. It is queryable via
-  Node.consistency and gated explicitly via Node.validate(),
+  `Node.consistency` and gated explicitly via `Node.validate`,
   which is the checkpoint inference runs against. Editing pauses wherever it
   likes; inference requires a ``CONSISTENT`` node.
 
@@ -53,10 +53,10 @@ class NodeKind(Enum):
     """
     Category of a node — the structural tag inference / solve dispatch reads.
 
-    Forward-looking: the unified-inference ADR routes a diagram to ``infer()``
-    or ``solve()`` based on the kinds of nodes it contains. A pure chance-node
-    diagram is a Bayesian network; the moment a decision or utility node
-    appears, it becomes an influence diagram that needs a solver.
+    A diagram's node kinds decide what can be asked of it. A pure
+    chance-node diagram is a Bayesian network, queried with `infer`; the
+    moment a decision or utility node appears, it becomes an influence
+    diagram, solved with `solve`.
 
     Attributes:
         CHANCE: A random variable — ``P(name | parents)``.
@@ -100,8 +100,8 @@ class Node:
     CONSISTENT consistency gate that inference consumes.
 
     This class is **internal**: users construct one of its subclasses
-    (ChanceNode, DecisionNode, UtilityNode) rather than a bare
-    ``Node``. It is exported only so it can be referenced in type hints and
+    (`ChanceNode`, `DecisionNode`, `UtilityNode`) rather than a bare
+    `Node`. It is exported only so it can be referenced in type hints and
     ``isinstance`` checks.
 
     Attributes:
@@ -157,8 +157,8 @@ class Node:
         """
         The structural category of this node.
 
-        Subclasses override to return their NodeKind. The base
-        definition is abstract: a bare ``Node`` has no meaningful kind.
+        Subclasses override to return their `NodeKind`. The base
+        definition is abstract: a bare `Node` has no meaningful kind.
         """
         raise NotImplementedError(
             f"{type(self).__name__} must declare its NodeKind by overriding `kind`."
@@ -170,9 +170,9 @@ class Node:
         Whether this node may not have children.
 
         ``False`` for chance and decision nodes. Utility nodes override to
-        ``True`` — a payoff is terminal in an influence diagram. The diagram's
-        ``add_edge`` reads this to reject an edge that would give a sink a
-        child, rather than branching on node type.
+        ``True`` — a payoff is terminal in an influence diagram.
+        `InfluenceDiagram.add_edge` reads this to reject an edge that would
+        give a sink a child, rather than branching on node type.
         """
         return False
 
@@ -196,7 +196,7 @@ class Node:
 
         Computed on demand from the live field values, never stored, so it
         always reflects the latest edits. Delegates to
-        _compute_consistency(), which each subclass implements against
+        ``_compute_consistency``, which each subclass implements against
         its own configurable field.
         """
         return self._compute_consistency()
@@ -211,7 +211,7 @@ class Node:
         """
         Human-facing explanation of a non-CONSISTENT ``state``.
 
-        Returned for DiagramProblem messages and validate() errors. Keeping
+        Returned for `DiagramProblem` messages and `validate` errors. Keeping
         the wording on the node (rather than the diagram) means each node type
         owns the description of its own configurable field.
         """

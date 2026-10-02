@@ -2,13 +2,13 @@
 decisionpy — limited-memory influence diagrams with mixed-type variables.
 
 Build a diagram from chance, decision and utility nodes, then query it with
-infer() or find the optimal policy with solve()::
+`infer` or find the optimal policy with `solve`::
 
     from decisionpy import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
     from decisionpy import infer, solve
 
-The graph layer (decisionpy.graph) holds the node types and the diagram;
-the inference layer (decisionpy.inference) holds infer(), solve() and
+The graph layer (`decisionpy.graph`) holds the node types and the diagram;
+the inference layer (`decisionpy.inference`) holds `infer`, `solve` and
 their result types.
 """
 

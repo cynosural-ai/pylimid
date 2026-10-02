@@ -82,11 +82,12 @@ def infer(
             decision in *diagram* must appear.
 
     Returns:
-        ``{var_name: result}`` — one Posterior per query variable: raw
-        posterior draws plus the variable's states (None for continuous).
-        Each summary method is valid for exactly one kind: marginal()
-        bincounts a discrete posterior into its probability vector, and
-        mean()/std()/hdi() summarize the draws of a continuous one —
+        ``{var_name: result}`` — one `Posterior` per query variable: raw
+        posterior draws plus the variable's states (``None`` for
+        continuous). Each summary method is valid for exactly one kind:
+        `Posterior.marginal` bincounts a discrete posterior into its
+        probability vector, and `Posterior.mean` / `Posterior.std` /
+        `Posterior.hdi` summarize the draws of a continuous one —
         calling the wrong kind raises. Everything is a Monte-Carlo
         estimate.
 

@@ -1,13 +1,13 @@
 """
 Validation — the problem model shared by the diagram's checks.
 
-The graph layer's checking surface is a list of DiagramProblem instances:
-validate() collects structural issues (dangling parents, cycles,
-unconfigured or stale nodes, utility sinks), and probe_discrete_parents()
-adds the runtime parent-sensitivity warning. The model lives here, separate
-from the container, because it is the API a UI or LLM renders and acts on —
-and because the checking surface is the part of the layer most likely to
-grow.
+The graph layer's checking surface is a list of `DiagramProblem` instances:
+`InfluenceDiagram.validate` collects structural issues (dangling parents,
+cycles, unconfigured or stale nodes, utility sinks), and
+`InfluenceDiagram.probe_discrete_parents` adds the runtime
+parent-sensitivity warning. The model lives here, separate from the
+container, because it is the API a UI or LLM renders and acts on — and
+because the checking surface is the part of the layer most likely to grow.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ __all__ = ["DiagramProblem", "ProblemKind"]
 
 class ProblemKind(Enum):
     """
-    Category of a DiagramProblem.
+    Category of a `DiagramProblem`.
 
     Attributes:
         DANGLING_PARENT: A node lists a parent that is not in the diagram.
@@ -33,7 +33,8 @@ class ProblemKind(Enum):
             be terminal.
         DIST_IGNORES_PARENT: A node's callable returns the same output for
             every value of a discrete parent — found by
-            probe_discrete_parents(), a warning rather than an error.
+            `InfluenceDiagram.probe_discrete_parents`, a warning rather than
+            an error.
     """
 
     DANGLING_PARENT = "dangling_parent"

@@ -4,7 +4,7 @@ Chance node — a random variable conditioned on its parents.
 A chance node is ``P(name | parents)`` — a random variable whose distribution
 depends on its parents (a causal / statistical dependency, as distinct from a
 decision node's information set). It inherits the shared mutable-node contract
-from Node — field-level validation on every assignment, and the Consistency
+from `Node` — field-level validation on every assignment, and the `Consistency`
 gate (optional ``dist``, derived consistency) for cross-field checking.
 
 The ``dist`` callable receives resolved parent values as **keyword arguments**
@@ -34,7 +34,7 @@ class ChanceNode(Node):
     (including during construction), so a bad value is rejected at the moment
     it is set rather than later. Cross-field consistency (``dist`` signature
     vs ``parents``) is *not* enforced on assignment — it is queryable via
-    consistency and gated via validate().
+    `consistency` and gated via `validate`.
 
     Attributes:
         name: Identifier for the node.
@@ -63,7 +63,7 @@ class ChanceNode(Node):
 
     @property
     def kind(self) -> NodeKind:
-        """``NodeKind.CHANCE``."""
+        """`NodeKind.CHANCE`."""
         return NodeKind.CHANCE
 
     @property

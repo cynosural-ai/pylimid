@@ -16,18 +16,18 @@ convention: the same ``parents`` tuple that drives topological ordering and
 cycle prevention for chance nodes is reused here, but its meaning is
 "information available at decision time." Keeping one field name means the
 container's shared bookkeeping (validation, ordering) is reused unchanged —
-see decisionpy.graph.node.
+see `decisionpy.graph.node`.
 
 Consistency
 -----------
-A decision is CONSISTENT once its action ``states`` are declared; before that
-it is UNCONFIGURED. There is no STALE state for a decision: the action space
-does not depend on the information set's size, so adding or removing an
-information parent never invalidates it.
+A decision is `Consistency.CONSISTENT` once its action ``states`` are
+declared; before that it is `Consistency.UNCONFIGURED`. There is no
+`Consistency.STALE` state for a decision: the action space does not depend
+on the information set's size, so adding or removing an information parent
+never invalidates it.
 
-Continuous decisions (a future roadmap item) are represented by
-``states=None``; the node is then UNCONFIGURED in the graph layer (the solver,
-not the graph, owns the continuous policy).
+Continuous decisions are not supported: ``states=None`` leaves the node
+unconfigured.
 """
 
 from dataclasses import dataclass, field
@@ -51,10 +51,8 @@ class DecisionNode(Node):
             when this decision is made. Not a causal dependency. May be edited
             after construction.
         states: Labels for the available actions. ``None`` (the default) marks
-            the decision as not-yet-configured (or, forward-looking, as
-            continuous — to be owned by the solver). For a discrete decision,
-            values flowing through the graph are integer indices into this
-            tuple.
+            the decision as not-yet-configured. Values flowing through the
+            graph are integer indices into this tuple.
     """
 
     states: tuple[str, ...] | None = field(default=None, kw_only=True)
@@ -69,7 +67,7 @@ class DecisionNode(Node):
 
     @property
     def kind(self) -> NodeKind:
-        """``NodeKind.DECISION``."""
+        """`NodeKind.DECISION`."""
         return NodeKind.DECISION
 
     @property
@@ -77,9 +75,9 @@ class DecisionNode(Node):
         """
         Whether the decision has a declared, enumerable action space.
 
-        ``True`` when ``states`` is set (a discrete decision — what the v0
-        solver handles). ``False`` when ``states`` is ``None``, which marks
-        the decision as not-yet-configured or, in the future, continuous.
+        ``True`` when ``states`` is set (a discrete decision, the kind the
+        solvers handle). ``False`` when ``states`` is ``None``, which marks
+        the decision as not-yet-configured.
         """
         return self.states is not None
 

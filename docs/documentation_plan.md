@@ -6,7 +6,7 @@ Working document for the first published documentation site. Updated as the work
 
 | Step | Status |
 | --- | --- |
-| 0. Settle the public API | Not started |
+| 0. Settle the public API | Done on branch `refactor/public-api` (not committed); one open question (`Solution.method`) |
 | 1. Sphinx skeleton: home, quickstart, API reference, Read the Docs build | Not started |
 | 2. Port the example notebooks + write the mixed influence-diagram example | Not started |
 | 3. User guide pages | Not started |
@@ -17,14 +17,29 @@ Steps 0–2 are enough for a credible beta site; 3–5 can follow in later itera
 
 ## 0. Settle the public API first
 
-A published API reference turns import paths into commitments. Before generating any API pages:
+A published API reference turns import paths into commitments, so the public surface was settled before generating any API pages.
 
-- **One front door for solving.** Today `decisionpy.inference.solve(diagram)` runs the slow unbatched scan and takes a diagram, while every example uses `batched_solve(diag.snapshot())`, which takes a snapshot. Proposal: `decisionpy.solve(diagram, method="auto" | "scan" | "backward_induction", num_samples=..., rng_key=...)`.
-- **Top-level exports.** `decisionpy/__init__.py` exports only `__version__`. Re-export the main names (node types, `InfluenceDiagram`, `infer`, `solve`, the result types) so the quickstart imports from `decisionpy`.
-- **Clean docstrings.** Remove internal wording that autodoc would publish verbatim (e.g. "Strategy B" in the `solve` docstrings).
-- **Docstring convention vs. links.** `AGENTS.md` bans Sphinx roles and backticks in docstrings, so API pages would not cross-link (e.g. `Solution` to its class page). Decide whether to allow roles (or a `default_role`) in public docstrings. Napoleon handles the Google style either way.
+What was done:
 
-This overlaps with "Reorganize the code" in `TODO.md`.
+- **One front door for solving.** `decisionpy.solve(diagram, method="auto" | "backward_induction" | "scan", num_samples=2000, rng_key=None)`. `"auto"` runs backward induction when the diagram is solvable and the batched scan otherwise; `"scan"` is the batched scan. It takes the diagram (not a snapshot), raises `InferenceError` on solver failures and `ValueError` on an unknown method. Utilities must be JAX-traceable under every method.
+- **Solvers package.** `decisionpy.inference.numpyro.solvers` exports `backward_induction_solve`, `batched_solve`, `scan_solve` (the unbatched reference implementation), `is_solvable` and `solvability_order`. The ambiguous `decisionpy.inference.numpyro.solve` and `solvers.solve` were removed.
+- **Top-level exports.** `decisionpy` re-exports the node types, `InfluenceDiagram`, `infer`, `solve`, `Solution`, `Posterior`, `Policy`, `InferenceResult`, `InferenceError` and `SolveMethod`.
+- **Clean docstrings.** Removed internal wording ("Strategy B", "Level 2", "the unified-inference ADR", "the v0 solver", roadmap mentions, the stale `exact=False` and bucket-elimination remarks). Fixed the Bielza et al. citation to 1999, 45(7), 995–1007.
+- **Docstring convention.** `AGENTS.md` now says: single backticks for cross-references to public names (`Snapshot`, `InfluenceDiagram.validate`), double backticks for literal code, no explicit Sphinx roles. All docstrings in `decisionpy/` were converted.
+
+Decisions:
+
+- **Public surface stays minimal.** The library targets notebooks for now. `Snapshot`, `Node`, `NodeKind`, `Consistency`, `DiagramProblem` and `ProblemKind` were designed with a future UI in mind (GeNIe-style problem highlighting); they stay in `decisionpy.graph` and are not promoted to the top level. `is_solvable` stays in `decisionpy.inference.numpyro.solvers`.
+- **`REMAINING_WORK.md` stays deleted** (superseded by `TODO.md`).
+
+Open:
+
+- **`Solution.method`.** Whether `Solution` should record which solver ran, since `"auto"` hides it and the two solvers carry different guarantees.
+
+Carried into step 1:
+
+- Sphinx's `default_role = "py:obj"` only resolves a bare name like `Snapshot` when it is defined in the current module or class. Names used across modules (most of ours) need either a short `missing-reference` hook in `conf.py` that resolves a bare name when it is unique, or fully qualified references. The hook keeps the docstrings readable.
+- The examples still call `batched_solve(diag.snapshot())`; they move to `decisionpy.solve` when ported in step 2.
 
 ## 1. Site structure
 
@@ -119,7 +134,7 @@ Grouped by where they are cited. Verify details before publishing.
   - Cobb, B. R. and Shenoy, P. P. (2008). Decision making with hybrid influence diagrams using mixtures of truncated exponentials. EJOR.
   - Li, Y. and Shenoy, P. P. (2010). Solving hybrid influence diagrams with deterministic variables. UAI.
 - **Monte-Carlo decision analysis**
-  - Bielza, C., Müller, P. and Ríos Insua, D. Decision analysis by augmented probability simulation. Management Science. (Likely 1999, 45(7); `inference/solver_algorithms.md` says 2007, 53(7) — verify.)
+  - Bielza, C., Müller, P. and Ríos Insua, D. (1999). Decision analysis by augmented probability simulation. Management Science 45(7), 995–1007.
   - Charnes, J. M. and Shenoy, P. P. (2004). Multistage Monte Carlo method for solving influence diagrams using local computation. Management Science.
   - Kearns, M., Mansour, Y. and Ng, A. (1999). A sparse sampling algorithm for near-optimal planning in large Markov decision processes. IJCAI.
   - Bellman, R. (1957). Dynamic Programming.
@@ -134,7 +149,6 @@ Grouped by where they are cited. Verify details before publishing.
 
 ## Open decisions
 
-- Shape of the public `solve()` (signature, `method=` names, what `"auto"` picks).
-- Allow Sphinx roles in public docstrings or keep plain text.
+- Whether `Solution` records which solver ran (`Solution.method`).
 - myst-nb vs. nbsphinx; execute on build vs. committed outputs.
 - Theme.
