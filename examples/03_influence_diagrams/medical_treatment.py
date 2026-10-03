@@ -28,10 +28,9 @@
 # %%
 import jax.numpy as jnp
 import numpyro.distributions as dist
-from IPython.display import Markdown
 
+from pylimid import solve
 from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from pylimid.inference.numpyro.solvers import batched_solve
 
 # %% [markdown]
 # ## The model
@@ -77,11 +76,13 @@ print(diag.validate())
 # %% [markdown]
 # ## Render it
 #
-# JupyterLab renders Mermaid natively — the decision is a rectangle, the
-# utility a diamond.
+# `diag` draws itself: chance nodes are circles, decisions rectangles,
+# utilities diamonds. JupyterLab renders the SVG through `_repr_svg_`, which
+# shells out to the Graphviz `dot` binary; `diag.to_mermaid()` stays
+# available as text for LLMs and GitHub.
 
 # %%
-Markdown(f"```mermaid\n{diag.to_mermaid()}\n```")
+diag
 
 # %% [markdown]
 # ## Solve it
@@ -90,7 +91,7 @@ Markdown(f"```mermaid\n{diag.to_mermaid()}\n```")
 # assignment, and the expected utility under that policy.
 
 # %%
-solution = batched_solve(diag.snapshot())
+solution = solve(diag)
 print("expected utility:", round(solution.expected_utility, 3))
 print("policy:")
 for decision, info in solution.policy.items():

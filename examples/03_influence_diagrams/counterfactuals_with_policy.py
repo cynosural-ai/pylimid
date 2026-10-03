@@ -28,6 +28,7 @@
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
+from pylimid import solve
 from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
 from pylimid.inference import InferenceError, infer
 
@@ -123,8 +124,6 @@ for disease_label, disease_state in [("healthy", 0), ("sick", 1)]:
 #    including the optimal one.
 
 # %%
-from pylimid.inference.numpyro.solvers import batched_solve
-
-solution = batched_solve(diag.snapshot())
+solution = solve(diag)
 print("optimal policy:", solution.policy)
 print("expected utility:", round(solution.expected_utility, 3))
