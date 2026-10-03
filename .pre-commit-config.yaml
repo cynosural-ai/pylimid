@@ -1,3 +1,5 @@
+default_install_hook_types: [pre-commit, pre-push]
+
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.0
@@ -22,3 +24,16 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+
+      # Keep the jupytext-paired examples in sync and refresh their outputs.
+      # Runs on push (not every commit) because execution imports JAX.
+      - id: jupytext-examples
+        name: jupytext sync + execute (examples)
+        entry: env JAX_PLATFORMS=cpu uv run --frozen jupytext --sync --execute --pre-commit-mode --set-kernel python3
+        language: system
+        # ``.py`` is the source of truth; syncing both representations in one
+        # run makes jupytext process the pair twice.
+        files: ^examples/.*\.py$
+        # Shared helper modules (``_oil_wildcatter.py``) are not notebooks.
+        exclude: ^examples/.*/_.*\.py$
+        stages: [pre-push]
