@@ -12,6 +12,8 @@ uv run sphinx-build -W docs docs/_build/html
 
 Open `docs/_build/html/index.html`. The `-W` flag turns warnings into errors, so the build fails on broken references, malformed pages, or a code cell that raises.
 
+Rendering the model figures (the examples' `_repr_svg_` cells) needs the Graphviz `dot` binary on `PATH` (`brew install graphviz`, `apt install graphviz`). Without it the build still succeeds, but the diagrams show their plain repr instead of a figure.
+
 ## Preview locally
 
 Serve the built site over HTTP:

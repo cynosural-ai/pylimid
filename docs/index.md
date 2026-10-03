@@ -88,6 +88,14 @@ getting_started/quickstart
 
 ```{toctree}
 :hidden:
+:caption: Examples
+:maxdepth: 1
+
+examples/influence_diagrams/medical_treatment
+```
+
+```{toctree}
+:hidden:
 :caption: API reference
 :maxdepth: 1
 

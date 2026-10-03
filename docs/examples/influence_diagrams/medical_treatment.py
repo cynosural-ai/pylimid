@@ -1,0 +1,1 @@
+../../../examples/03_influence_diagrams/medical_treatment.py
