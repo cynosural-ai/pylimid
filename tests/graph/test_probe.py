@@ -5,8 +5,8 @@ from __future__ import annotations
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
-from decisionpy.graph import ChanceNode, InfluenceDiagram, UtilityNode
-from decisionpy.graph.validation import ProblemKind
+from pylimid.graph import ChanceNode, InfluenceDiagram, UtilityNode
+from pylimid.graph.validation import ProblemKind
 
 # --- helpers -----------------------------------------------------------------
 

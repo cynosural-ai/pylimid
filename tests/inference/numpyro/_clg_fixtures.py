@@ -1,8 +1,8 @@
 """
-Shared linear-Gaussian fixtures: a decisionpy diagram and a pyAgrum CLG net.
+Shared linear-Gaussian fixtures: a pylimid diagram and a pyAgrum CLG net.
 
 Each fixture is defined once by its CPD parameters (intercept, per-parent
-slopes, scale) and builds a decisionpy InfluenceDiagram whose dist
+slopes, scale) and builds a pylimid InfluenceDiagram whose dist
 callables reproduce those parameters, and a pyAgrum pyagrum.clg network
 with the same mu/sigma/coef. The pyAgrum network's exact posteriors are
 the reference answer the numpyro MCMC comparison tests against.
@@ -15,8 +15,8 @@ import inspect
 import numpyro.distributions as dist
 import pyagrum.clg as gclg
 
-from decisionpy.graph import ChanceNode
-from decisionpy.graph.diagram import InfluenceDiagram
+from pylimid.graph import ChanceNode
+from pylimid.graph.diagram import InfluenceDiagram
 
 __all__ = ["SingleRoot", "Chain", "VStructure", "LongChain"]
 
@@ -32,8 +32,8 @@ class LGFixture:
 
     cpds: dict[str, tuple[float, dict[str, float], float]]
 
-    def decisionpy(self) -> InfluenceDiagram:
-        """Build a decisionpy InfluenceDiagram with the same CPDs."""
+    def pylimid(self) -> InfluenceDiagram:
+        """Build a pylimid InfluenceDiagram with the same CPDs."""
         diag = InfluenceDiagram()
         for name, (intercept, slopes, scale) in self.cpds.items():
             parents = tuple(slopes)

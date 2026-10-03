@@ -26,8 +26,8 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 from IPython.display import Markdown
 
-from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from decisionpy.inference.numpyro.solvers import batched_solve
+from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
+from pylimid.inference.numpyro.solvers import batched_solve
 
 # %% [markdown]
 # ## The model

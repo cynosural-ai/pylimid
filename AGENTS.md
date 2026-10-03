@@ -1,4 +1,4 @@
-# decisionpy
+# pylimid
 
 ## Build, lint, test
 ```bash
@@ -32,7 +32,7 @@ def add_edge(self, parent: str, child: str) -> None:
 ```
 
 ## Comments and docs in code
-- Do not reference intermediate design notes, ADRs-in-progress, option letters (A/B/C), ticket numbers, or `docs/*.md` files from code comments or docstrings. Those files are temporary and will confuse readers later.
+- Do not reference intermediate design notes, ADRs-in-progress, option letters (A/B/C), ticket numbers, or `design/*.md` files from code comments or docstrings. Those files are temporary and will confuse readers later.
 - Docstrings describe what the code does and its inputs/outputs — not the history of the decision.
 
 ## Production API over testability
@@ -58,6 +58,8 @@ old_tuple = tuple(old_lookup[v] for v in self.variables)
 ```
 
 ## Writing Markdown files
+`docs/` holds only the published Sphinx documentation, written for users. Development notes for contributors (decision records, design notes, plans) go in `design/`.
+
 Dont break lines at 80 characters, let lines flow and the viewer will adjust 
 
 

@@ -13,9 +13,9 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 import pytest
 
-from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from decisionpy.inference.numpyro.solvers import backward_induction_solve
-from decisionpy.inference.numpyro.solvers.intervention_scan import solve as scan_solve
+from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
+from pylimid.inference.numpyro.solvers import backward_induction_solve
+from pylimid.inference.numpyro.solvers.intervention_scan import solve as scan_solve
 
 from .._limid_fixtures import (
     EmptyInfoDecision,
@@ -42,7 +42,7 @@ _MEU_TOL = 3.0
 
 @pytest.mark.parametrize("fixture", FIXTURES.values(), ids=list(FIXTURES))
 def test_matches_pyagrum(fixture):
-    solution = backward_induction_solve(fixture.decisionpy().snapshot())
+    solution = backward_induction_solve(fixture.pylimid().snapshot())
     meu, policy = fixture.pyagrum_solution()
     assert solution.expected_utility == pytest.approx(meu, abs=_MEU_TOL)
     assert solution.policy == policy
@@ -51,14 +51,14 @@ def test_matches_pyagrum(fixture):
 @pytest.mark.parametrize("fixture", FIXTURES.values(), ids=list(FIXTURES))
 def test_matches_the_scan(fixture):
     """The scan is the global reference; both are Monte-Carlo estimates."""
-    snapshot = fixture.decisionpy().snapshot()
+    snapshot = fixture.pylimid().snapshot()
     ours = backward_induction_solve(snapshot, num_samples=500)
     scan = scan_solve(snapshot, num_samples=500)
     assert ours.expected_utility == pytest.approx(scan.expected_utility, abs=9.0)
 
 
 def test_same_seed_reproduces_the_solution():
-    snapshot = NestedTwoDecisions.decisionpy().snapshot()
+    snapshot = NestedTwoDecisions.pylimid().snapshot()
     first = backward_induction_solve(
         snapshot, num_samples=500, rng_key=jax.random.PRNGKey(3)
     )

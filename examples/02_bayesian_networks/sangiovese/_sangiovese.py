@@ -14,7 +14,7 @@ BunchN/SPAD06/Brix, a per-treatment regression coefficient on their Gaussian par
 all other continuous nodes are plain linear Gaussian. The leaves (GrapeW, Brix, pH,
 Anthoc, Polyph, ...) are the grape-quality measurements.
 
-One source of truth: the data below builds the decisionpy diagram; the example
+One source of truth: the data below builds the pylimid diagram; the example
 notebook runs it through the NumPyro engine (NUTS with the discrete Treatment
 enumerated out).
 """
@@ -26,9 +26,9 @@ import inspect
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
-from decisionpy.graph import ChanceNode, InfluenceDiagram
+from pylimid.graph import ChanceNode, InfluenceDiagram
 
-__all__ = ["decisionpy_diagram"]
+__all__ = ["pylimid_diagram"]
 
 
 #: Treatment levels, in repository order.
@@ -199,8 +199,8 @@ Polyph = {
 NODES = ['Treatment', 'SproutN', 'BunchN', 'GrapeW', 'WoodW', 'SPAD06', 'NDVI06', 'SPAD08', 'NDVI08', 'Acid', 'Potass', 'Brix', 'pH', 'Anthoc', 'Polyph']
 
 
-def decisionpy_diagram() -> InfluenceDiagram:
-    """Build the decisionpy diagram from the shared parameters."""
+def pylimid_diagram() -> InfluenceDiagram:
+    """Build the pylimid diagram from the shared parameters."""
     diag = InfluenceDiagram()
     for name in NODES:
         params = globals()[name]

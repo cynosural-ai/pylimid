@@ -1,4 +1,4 @@
-# decisionpy
+# pylimid
 
 A Python library for modeling and solving **mixed-type limited-memory influence diagrams (LIMIDs)**, built on top of **NumPyro**.
 
