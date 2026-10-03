@@ -1,0 +1,35 @@
+# Documentation
+
+The published site is built from this directory with [Sphinx](https://www.sphinx-doc.org/) and [myst-nb](https://myst-nb.readthedocs.io/). Prose pages are Markdown. Pages with executable snippets carry `file_format: mystnb` frontmatter and use `{code-cell}` fences; myst-nb executes those cells through a Jupyter kernel and injects their outputs into the page.
+
+## Build
+
+The docs dependencies are in the `docs` dependency group, which `uv` installs by default. Build with:
+
+```bash
+uv run sphinx-build -W docs docs/_build/html
+```
+
+Open `docs/_build/html/index.html`. The `-W` flag turns warnings into errors, so the build fails on broken references, malformed pages, or a code cell that raises.
+
+## Preview locally
+
+Serve the built site over HTTP:
+
+```bash
+uv run python -m http.server -d docs/_build/html 7777
+```
+
+Then open <http://localhost:7777>.
+
+## Force a full rebuild
+
+`nb_execution_mode` is `"cache"` (see `conf.py`), so a code cell is executed only when its source changed since the last build; the results live in `docs/_build/.jupyter_cache`. An incremental build is fast but can leave a cell unexecuted when the library changes underneath it.
+
+To ignore the Sphinx environment and the execution cache and re-run every code cell:
+
+```bash
+uv run sphinx-build -W -E -a -D nb_execution_mode=force docs docs/_build/html
+```
+
+Delete `docs/_build` as well if you want the generated HTML rebuilt entirely from scratch.

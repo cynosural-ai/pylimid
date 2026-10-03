@@ -1,3 +1,9 @@
+---
+file_format: mystnb
+kernelspec:
+  name: python3
+---
+
 # pylimid
 
 **pylimid** models and solves *limited-memory influence diagrams* (LIMIDs) whose chance variables can be discrete, continuous, or mixed. Chance distributions, decisions and utilities are ordinary Python callables backed by [NumPyro](https://num.pyro.ai), and the optimal decisions are found by Monte-Carlo solvers.
@@ -21,7 +27,7 @@ See [](getting_started/installation.md) for the development setup and the JAX CP
 
 An influence diagram is a graph of chance, decision and utility nodes. Here a patient may be sick; the doctor decides whether to treat; the patient may recover. Recovering is worth 100, treating costs 20.
 
-```python
+```{code-cell} ipython3
 import jax.numpy as jnp
 import numpyro.distributions as dist
 from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, solve
@@ -58,7 +64,7 @@ print(solution.policy, round(solution.expected_utility, 2))
 Build a diagram, validate it, and solve it in five minutes.
 
 +++
-[](getting_started/index.md)
+[](getting_started/quickstart.md)
 :::
 
 :::{grid-item-card} API reference
@@ -66,13 +72,27 @@ Build a diagram, validate it, and solve it in five minutes.
 Signatures and docstrings for every public name.
 
 +++
-Coming soon.
+[](api/index)
 :::
 
 ::::
 
 ```{toctree}
 :hidden:
-:maxdepth: 2
-getting_started/index
+:caption: Getting started
+:maxdepth: 1
+
+getting_started/installation
+getting_started/quickstart
+```
+
+```{toctree}
+:hidden:
+:caption: API reference
+:maxdepth: 1
+
+api/index
+api/pylimid
+api/graph
+api/solvers
 ```
