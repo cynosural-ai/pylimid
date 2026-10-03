@@ -1,6 +1,6 @@
 # Backward induction (Level 2): the estimator design
 
-Short design note for the per-decision solver — Tier 3 in [`solver_algorithms.md`](./solver_algorithms.md), REMAINING_WORK item 5. It pins down the Monte-Carlo estimator: what is sampled, what is grouped, how the decisions interact, and where the variance lives. Implemented for regular diagrams in `decisionpy.inference.numpyro.solvers.backward_induction`; SPU for non-regular LIMIDs is deferred.
+Short design note for the per-decision solver — Tier 3 in [`solver_algorithms.md`](./solver_algorithms.md), REMAINING_WORK item 5. It pins down the Monte-Carlo estimator: what is sampled, what is grouped, how the decisions interact, and where the variance lives. Implemented for regular diagrams in `pylimid.inference.numpyro.solvers.backward_induction`; SPU for non-regular LIMIDs is deferred.
 
 ## Scope
 

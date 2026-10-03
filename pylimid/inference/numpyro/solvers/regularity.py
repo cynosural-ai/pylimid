@@ -22,8 +22,8 @@ first, and every later entry is tested against the ones already placed.
 
 from __future__ import annotations
 
-from decisionpy.graph.diagram import Snapshot
-from decisionpy.graph.node import NodeKind
+from pylimid.graph.diagram import Snapshot
+from pylimid.graph.node import NodeKind
 
 __all__ = ["is_solvable", "solvability_order"]
 

@@ -8,7 +8,7 @@ Design note covering how a `DecisionNode` should be represented under the hood i
 
 ## Representation in the graph layer
 
-`DecisionNode` lives in [`graph/decision_node.py`](../decisionpy/graph/decision_node.py), subclasses the shared [`Node`](../decisionpy/graph/node.py), and participates in the diagram like any other node. What it carries:
+`DecisionNode` lives in [`graph/decision_node.py`](../pylimid/graph/decision_node.py), subclasses the shared [`Node`](../pylimid/graph/node.py), and participates in the diagram like any other node. What it carries:
 
 - **`parents`** — the **information set**: the variables observed when the decision is made. *Not* a causal dependency. This is the standard influence-diagram convention; the field name is reused from chance/utility nodes so the container's shared bookkeeping (validation, topological ordering, cycle prevention) applies unchanged.
 - **`states`** — the available actions (labels). `None` marks the decision as not-yet-configured (or, forward-looking, continuous — to be owned by the solver).
@@ -16,7 +16,7 @@ Design note covering how a `DecisionNode` should be represented under the hood i
 
 A decision is `CONSISTENT` once its action `states` are declared, and `UNCONFIGURED` before. There is **no STALE state** for a decision: the action space does not depend on the information set's size, so adding or removing an information parent never invalidates it.
 
-The *solving* of decisions is implemented: the **NumPyro intervention scan** (Strategy B, `decisionpy.inference.numpyro.solvers`) — `solve()` enumerates the discrete policy space (one action per information-set assignment per decision) and estimates each policy's expected utility by forward sampling with every decision resolved from its observed information set, keeping the best. It handles mixed and continuous diagrams, and requires discrete information sets. Strategy A (policy-as-parameters) remains the deferred path for continuous decisions and continuous information sets. Bucket elimination ([`bucket_elim.md`](../inference/bucket_elim.md)) served as the v0 exact solver and is retired; its full history is in git. The node's representation is settled here; the solver options are what the sections below are about.
+The *solving* of decisions is implemented: the **NumPyro intervention scan** (Strategy B, `pylimid.inference.numpyro.solvers`) — `solve()` enumerates the discrete policy space (one action per information-set assignment per decision) and estimates each policy's expected utility by forward sampling with every decision resolved from its observed information set, keeping the best. It handles mixed and continuous diagrams, and requires discrete information sets. Strategy A (policy-as-parameters) remains the deferred path for continuous decisions and continuous information sets. Bucket elimination ([`bucket_elim.md`](../inference/bucket_elim.md)) served as the v0 exact solver and is retired; its full history is in git. The node's representation is settled here; the solver options are what the sections below are about.
 
 ---
 
@@ -45,7 +45,7 @@ A decision node is backed by `numpyro.param()` forming a parameterized policy (e
 
 ### Strategy B — intervention scan
 
-Decisions are discrete action choices. The solver enumerates the policy space — one action per information-set assignment per decision — and estimates each policy's expected utility by forward-sampling the diagram with every decision resolved deterministically from its observed information set (a Monte-Carlo estimate per policy). The policy with the highest estimated EU wins. Implemented as `decisionpy.inference.numpyro.solvers.intervention_scan.solve`. The full solver family — the scan, the batched scan, and the backward-induction / SPU path — and the papers behind them are in [`solver_algorithms.md`](../inference/solver_algorithms.md).
+Decisions are discrete action choices. The solver enumerates the policy space — one action per information-set assignment per decision — and estimates each policy's expected utility by forward-sampling the diagram with every decision resolved deterministically from its observed information set (a Monte-Carlo estimate per policy). The policy with the highest estimated EU wins. Implemented as `pylimid.inference.numpyro.solvers.intervention_scan.solve`. The full solver family — the scan, the batched scan, and the backward-induction / SPU path — and the papers behind them are in [`solver_algorithms.md`](../inference/solver_algorithms.md).
 
 ### Trade-offs
 

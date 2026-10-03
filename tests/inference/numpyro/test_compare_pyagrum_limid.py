@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from decisionpy.inference.numpyro.solvers.intervention_scan import (
+from pylimid.inference.numpyro.solvers.intervention_scan import (
     solve as numpyro_solve,
 )
 
@@ -33,7 +33,7 @@ _MEU_TOL = 3.0
 
 
 def _check(fixture, *, num_samples: int = 2000, meu_tol: float = _MEU_TOL):
-    solution = numpyro_solve(fixture.decisionpy().snapshot(), num_samples=num_samples)
+    solution = numpyro_solve(fixture.pylimid().snapshot(), num_samples=num_samples)
     meu, policy = fixture.pyagrum_solution()
     assert solution.expected_utility == pytest.approx(meu, abs=meu_tol), (
         f"MEU mismatch for {fixture.__class__.__name__}: "
@@ -68,9 +68,7 @@ def test_three_state_climate():
 
 def test_nested_two_decisions():
     """Unreachable D2 cells tie differently; the reachable cells must agree."""
-    solution = numpyro_solve(
-        NestedTwoDecisions.decisionpy().snapshot(), num_samples=500
-    )
+    solution = numpyro_solve(NestedTwoDecisions.pylimid().snapshot(), num_samples=500)
     meu, policy = NestedTwoDecisions.pyagrum_solution()
     assert solution.expected_utility == pytest.approx(meu, abs=5.0)
     assert solution.policy["D1"] == policy["D1"]

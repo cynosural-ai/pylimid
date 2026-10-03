@@ -1,7 +1,7 @@
 """
 Influence-diagram solvers — the Monte-Carlo solver family.
 
-decisionpy.solve is the front door; it picks between these solvers. Each
+pylimid.solve is the front door; it picks between these solvers. Each
 module implements one approach:
 
 - intervention_scan: enumerates the policy space, one forward-sampled
@@ -17,14 +17,14 @@ module implements one approach:
 - regularity: the solvability check that gates backward induction.
 """
 
-from decisionpy.inference.numpyro.solvers.backward_induction import (
+from pylimid.inference.numpyro.solvers.backward_induction import (
     solve as backward_induction_solve,
 )
-from decisionpy.inference.numpyro.solvers.batched_scan import solve as batched_solve
-from decisionpy.inference.numpyro.solvers.intervention_scan import (
+from pylimid.inference.numpyro.solvers.batched_scan import solve as batched_solve
+from pylimid.inference.numpyro.solvers.intervention_scan import (
     solve as scan_solve,
 )
-from decisionpy.inference.numpyro.solvers.regularity import (
+from pylimid.inference.numpyro.solvers.regularity import (
     is_solvable,
     solvability_order,
 )

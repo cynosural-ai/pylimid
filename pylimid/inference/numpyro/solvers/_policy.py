@@ -15,9 +15,9 @@ from typing import TypeAlias
 import jax
 import jax.numpy as jnp
 
-from decisionpy.graph.chance_node import ChanceNode
-from decisionpy.graph.decision_node import DecisionNode
-from decisionpy.inference.result import Policy
+from pylimid.graph.chance_node import ChanceNode
+from pylimid.graph.decision_node import DecisionNode
+from pylimid.inference.result import Policy
 
 __all__ = [
     "Rule",

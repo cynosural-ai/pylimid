@@ -1,9 +1,9 @@
 """
-Shared categorical-BN fixtures: a decisionpy diagram and a pyAgrum model.
+Shared categorical-BN fixtures: a pylimid diagram and a pyAgrum model.
 
 Each fixture is defined once and builds the same CPTs in both libraries,
 so the numpyro comparison test (test_compare_pyagrum.py) has a single
-source of truth: the decisionpy diagram feeds infer(), and the pyAgrum
+source of truth: the pylimid diagram feeds infer(), and the pyAgrum
 model's exact LazyPropagation inference is the reference answer.
 """
 
@@ -16,8 +16,8 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 import pyagrum as gum
 
-from decisionpy.graph.chance_node import ChanceNode
-from decisionpy.graph.diagram import InfluenceDiagram
+from pylimid.graph.chance_node import ChanceNode
+from pylimid.graph.diagram import InfluenceDiagram
 
 __all__ = [
     "TwoNodeRainWet",
@@ -28,7 +28,7 @@ __all__ = [
 
 
 class BNFixture:
-    """A Bayesian network definition usable by decisionpy and pyAgrum."""
+    """A Bayesian network definition usable by pylimid and pyAgrum."""
 
     #: Edge list [(parent, child), ...]
     edges: list[tuple[str, str]]
@@ -39,8 +39,8 @@ class BNFixture:
     #: evidence_list gives the order of parent dimensions.
     cpds: dict[str, tuple[list[float], list[str]]]
 
-    def decisionpy(self) -> InfluenceDiagram:
-        """Build a decisionpy InfluenceDiagram."""
+    def pylimid(self) -> InfluenceDiagram:
+        """Build a pylimid InfluenceDiagram."""
         diag = InfluenceDiagram()
         # Build parent lookup from edges.
         children: dict[str, list[str]] = {}

@@ -17,12 +17,12 @@ Three node kinds share a common base (`Node`):
 A Bayesian network is an `InfluenceDiagram` containing only chance nodes.
 """
 
-from decisionpy.graph.chance_node import ChanceNode
-from decisionpy.graph.decision_node import DecisionNode
-from decisionpy.graph.diagram import InfluenceDiagram
-from decisionpy.graph.node import Consistency, Node, NodeKind
-from decisionpy.graph.utility_node import UtilityNode
-from decisionpy.graph.validation import DiagramProblem, ProblemKind
+from pylimid.graph.chance_node import ChanceNode
+from pylimid.graph.decision_node import DecisionNode
+from pylimid.graph.diagram import InfluenceDiagram
+from pylimid.graph.node import Consistency, Node, NodeKind
+from pylimid.graph.utility_node import UtilityNode
+from pylimid.graph.validation import DiagramProblem, ProblemKind
 
 __all__ = [
     "ChanceNode",

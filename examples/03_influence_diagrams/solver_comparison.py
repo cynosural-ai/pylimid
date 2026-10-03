@@ -28,8 +28,8 @@ import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
-from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from decisionpy.inference.numpyro.solvers import batched_solve
+from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
+from pylimid.inference.numpyro.solvers import batched_solve
 
 # %% [markdown]
 # ## The model (all categorical)
@@ -235,9 +235,9 @@ print("0.6 * 90 + 0.4 * 60 =", 0.6 * 90 + 0.4 * 60)
 # "diffuse". MEU = 22.5.
 
 # %%
-from _oil_wildcatter import decisionpy_diagram, pyagrum_solution
+from _oil_wildcatter import pyagrum_solution, pylimid_diagram
 
-oil = decisionpy_diagram()
+oil = pylimid_diagram()
 print(oil.validate())
 
 meu, exact_policy = pyagrum_solution()

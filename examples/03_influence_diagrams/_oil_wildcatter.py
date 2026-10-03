@@ -2,9 +2,9 @@
 The Oil Wildcatter problem (Howard, classic decision analysis textbook example).
 
 A shared model definition: one spec (edges, states, kinds, CPTs, utilities)
-builds both the decisionpy influence diagram and the pyAgrum one, so the
+builds both the pylimid influence diagram and the pyAgrum one, so the
 exact LIMID solution (pyAgrum) and the NumPyro intervention scan
-(decisionpy) can be compared head to head. The numbers come from pyAgrum's
+(pylimid) can be compared head to head. The numbers come from pyAgrum's
 own example file ``res/OilWildcatter.bgum`` (aGrUM repository).
 
 The plot: an oil deposit may be Dry, Wet, or Soaking. Before deciding to
@@ -34,9 +34,9 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 import pyagrum as gum
 
-from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
+from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
 
-__all__ = ["decisionpy_diagram", "pyagrum_diagram", "pyagrum_solution", "spec"]
+__all__ = ["pylimid_diagram", "pyagrum_diagram", "pyagrum_solution", "spec"]
 
 #: Shared spec: ``(edges, states, kinds, cpds, utilities)``. ``cpds`` maps a
 #: chance node to ``(flat_cpt, parent_order)`` — row-major over the parents
@@ -108,8 +108,8 @@ spec: tuple = (
 )
 
 
-def decisionpy_diagram() -> InfluenceDiagram:
-    """Build the decisionpy influence diagram from the shared spec."""
+def pylimid_diagram() -> InfluenceDiagram:
+    """Build the pylimid influence diagram from the shared spec."""
     edges, states, kinds, cpds, utilities = spec
     diag = InfluenceDiagram()
     for name, sts in states.items():
@@ -183,7 +183,7 @@ def pyagrum_solution() -> tuple[float, dict[str, dict[tuple[int, ...], int]]]:
 
     Returns:
         ``(meu, policy)`` — the mean expected utility and the per-decision
-        optimal policy in decisionpy's format (decision name to
+        optimal policy in pylimid's format (decision name to
         ``{info_set_assignment: action}``).
     """
     ie = gum.ShaferShenoyLIMIDInference(pyagrum_diagram())  # ty: ignore[possibly-missing-attribute]
@@ -209,7 +209,7 @@ def pyagrum_solution() -> tuple[float, dict[str, dict[tuple[int, ...], int]]]:
     return meu, policy
 
 
-# --- builders for the decisionpy side ----------------------------------------
+# --- builders for the pylimid side ----------------------------------------
 
 
 def _dist_factory(arr, evidence: list[str]):

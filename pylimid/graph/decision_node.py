@@ -16,7 +16,7 @@ convention: the same ``parents`` tuple that drives topological ordering and
 cycle prevention for chance nodes is reused here, but its meaning is
 "information available at decision time." Keeping one field name means the
 container's shared bookkeeping (validation, ordering) is reused unchanged —
-see `decisionpy.graph.node`.
+see `pylimid.graph.node`.
 
 Consistency
 -----------
@@ -33,7 +33,7 @@ unconfigured.
 from dataclasses import dataclass, field
 from typing import Any
 
-from decisionpy.graph.node import (
+from pylimid.graph.node import (
     Consistency,
     Node,
     NodeKind,

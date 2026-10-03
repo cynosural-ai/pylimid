@@ -24,8 +24,8 @@
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
-from decisionpy.graph import ChanceNode, InfluenceDiagram
-from decisionpy.inference import infer
+from pylimid.graph import ChanceNode, InfluenceDiagram
+from pylimid.inference import infer
 
 # %% [markdown]
 # ## The model

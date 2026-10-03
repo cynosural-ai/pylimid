@@ -3,7 +3,7 @@ Unified inference entry-point.
 
 ::
 
-    from decisionpy import infer, solve
+    from pylimid import infer, solve
 
     result = infer(diagram, query=["rain"], observed={"wet_grass": 1})
     # → {"rain": Posterior(values=[...], states=("no", "yes"))}
@@ -19,15 +19,15 @@ from typing import Literal
 
 import jax
 
-from decisionpy.graph.diagram import InfluenceDiagram
-from decisionpy.graph.node import NodeKind
-from decisionpy.inference.numpyro import samples as numpyro_samples
-from decisionpy.inference.numpyro.solvers import (
+from pylimid.graph.diagram import InfluenceDiagram
+from pylimid.graph.node import NodeKind
+from pylimid.inference.numpyro import samples as numpyro_samples
+from pylimid.inference.numpyro.solvers import (
     backward_induction_solve,
     batched_solve,
     is_solvable,
 )
-from decisionpy.inference.result import (
+from pylimid.inference.result import (
     InferenceResult,
     Policy,
     Posterior,
@@ -147,7 +147,7 @@ def solve(
       last to the first, estimating each action's expected utility per
       information-set assignment by forward sampling. Its cost is additive
       in the decisions. It requires a solvable diagram (see
-      `decisionpy.inference.numpyro.solvers.is_solvable`), on which it
+      `pylimid.inference.numpyro.solvers.is_solvable`), on which it
       finds the optimal policy up to sampling noise.
     - ``"scan"`` enumerates every policy and estimates each one's expected
       utility by forward sampling, keeping the best. It handles any

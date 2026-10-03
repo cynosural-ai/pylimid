@@ -34,7 +34,7 @@ Concretely: `add_node`, `add_edge`, `set_dist` never reject an edit for being in
 
 A malformed value (empty name) is never a useful intermediate state, so it is rejected the instant it is set. An incomplete state (dist not yet configured) *is* a useful intermediate, so it is permitted during editing and gated only at inference time. Conflating the two — rejecting incompleteness at set-time — breaks incremental construction and is the mistake the build-once design made.
 
-`validate()` is structural: it inspects signatures and graph shape but never executes a `dist`. `probe_discrete_parents()` is the runtime counterpart — it executes each callable (explicitly, on demand, never automatically) and flags a discrete parent whose value never changes the output, the classic silent mistake of a probability table with too few rows under JAX's clamping semantics. The two share the `DiagramProblem` reporting model in `decisionpy.graph.validation`. A probe finding is a warning, not an error: a deliberately independent node looks identical.
+`validate()` is structural: it inspects signatures and graph shape but never executes a `dist`. `probe_discrete_parents()` is the runtime counterpart — it executes each callable (explicitly, on demand, never automatically) and flags a discrete parent whose value never changes the output, the classic silent mistake of a probability table with too few rows under JAX's clamping semantics. The two share the `DiagramProblem` reporting model in `pylimid.graph.validation`. A probe finding is a warning, not an error: a deliberately independent node looks identical.
 
 ---
 

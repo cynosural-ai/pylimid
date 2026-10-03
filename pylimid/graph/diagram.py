@@ -37,12 +37,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from decisionpy.graph.chance_node import ChanceNode, DistFactory
-from decisionpy.graph.decision_node import DecisionNode
-from decisionpy.graph.mermaid import to_mermaid
-from decisionpy.graph.node import Consistency, Node
-from decisionpy.graph.utility_node import UtilityNode
-from decisionpy.graph.validation import DiagramProblem, ProblemKind
+from pylimid.graph.chance_node import ChanceNode, DistFactory
+from pylimid.graph.decision_node import DecisionNode
+from pylimid.graph.mermaid import to_mermaid
+from pylimid.graph.node import Consistency, Node
+from pylimid.graph.utility_node import UtilityNode
+from pylimid.graph.validation import DiagramProblem, ProblemKind
 
 
 def _distribution_fingerprint(output) -> tuple[object, ...]:
@@ -476,7 +476,7 @@ class InfluenceDiagram:
         edges) and usable on the live workspace: no validation required, so
         an incomplete diagram renders with dangling parents as dashed ghost
         nodes and non-consistent nodes tinted via ``classDef``. See
-        `decisionpy.graph.mermaid`.
+        `pylimid.graph.mermaid`.
 
         Returns:
             Mermaid flowchart source; paste into a Mermaid renderer to view.

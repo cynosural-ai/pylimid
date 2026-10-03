@@ -10,10 +10,10 @@ import numpyro
 import numpyro.distributions as dist
 import pytest
 
-from decisionpy.graph.chance_node import ChanceNode
-from decisionpy.graph.diagram import InfluenceDiagram
-from decisionpy.inference.numpyro import samples
-from decisionpy.inference.numpyro.model import to_model
+from pylimid.graph.chance_node import ChanceNode
+from pylimid.graph.diagram import InfluenceDiagram
+from pylimid.inference.numpyro import samples
+from pylimid.inference.numpyro.model import to_model
 
 # --- helpers ----------------------------------------------------------------
 

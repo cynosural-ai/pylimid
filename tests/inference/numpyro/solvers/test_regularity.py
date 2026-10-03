@@ -22,8 +22,8 @@ import numpyro.distributions as dist
 import pyagrum as gum
 import pytest
 
-from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from decisionpy.inference.numpyro.solvers.regularity import (
+from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
+from pylimid.inference.numpyro.solvers.regularity import (
     is_solvable,
     solvability_order,
 )
@@ -53,7 +53,7 @@ def _pyagrum_is_solvable(diagram) -> bool:
 
 @pytest.mark.parametrize("fixture", FIXTURES.values(), ids=list(FIXTURES))
 def test_matches_pyagrum_on_fixtures(fixture):
-    snapshot = fixture.decisionpy().snapshot()
+    snapshot = fixture.pylimid().snapshot()
     assert is_solvable(snapshot) is _pyagrum_is_solvable(fixture.pyagrum())
     assert (solvability_order(snapshot) is not None) is is_solvable(snapshot)
 
@@ -63,7 +63,7 @@ def test_matches_pyagrum_on_fixtures(fixture):
 # ---------------------------------------------------------------------------
 
 
-def _decisionpy(edges, states, kinds) -> InfluenceDiagram:
+def _pylimid(edges, states, kinds) -> InfluenceDiagram:
     diag = InfluenceDiagram()
     for name, node_states in states.items():
         parents = tuple(parent for parent, child in edges if child == name)
@@ -225,7 +225,7 @@ BATTERY = {
 @pytest.mark.parametrize("case", BATTERY.values(), ids=list(BATTERY))
 def test_matches_pyagrum_on_structural_battery(case):
     edges, states, kinds, expected = case
-    snapshot = _decisionpy(edges, states, kinds).snapshot()
+    snapshot = _pylimid(edges, states, kinds).snapshot()
     assert is_solvable(snapshot) is expected
     assert _pyagrum_is_solvable(_pyagrum(edges, states, kinds)) is expected
 
@@ -261,19 +261,19 @@ PYAGRUM_DIVERGENCE = {
 )
 def test_pyagrum_admits_what_the_paper_rejects(case):
     edges, states, kinds, expected = case
-    snapshot = _decisionpy(edges, states, kinds).snapshot()
+    snapshot = _pylimid(edges, states, kinds).snapshot()
     assert is_solvable(snapshot) is expected
     assert _pyagrum_is_solvable(_pyagrum(edges, states, kinds)) is True
 
 
 def test_nested_order_solves_the_last_decision_first():
-    snapshot = NestedTwoDecisions.decisionpy().snapshot()
+    snapshot = NestedTwoDecisions.pylimid().snapshot()
     assert solvability_order(snapshot) == ["D2", "D1"]
 
 
 def test_three_decision_chain_order():
     edges, states, kinds, _ = BATTERY["three_decision_chain"]
-    assert solvability_order(_decisionpy(edges, states, kinds).snapshot()) == [
+    assert solvability_order(_pylimid(edges, states, kinds).snapshot()) == [
         "D3",
         "D2",
         "D1",
@@ -282,4 +282,4 @@ def test_three_decision_chain_order():
 
 def test_non_solvable_has_no_order():
     edges, states, kinds, _ = BATTERY["shared_utility_no_ordering"]
-    assert solvability_order(_decisionpy(edges, states, kinds).snapshot()) is None
+    assert solvability_order(_pylimid(edges, states, kinds).snapshot()) is None

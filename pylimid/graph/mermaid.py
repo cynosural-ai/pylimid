@@ -22,10 +22,10 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from decisionpy.graph.node import Consistency, NodeKind
+from pylimid.graph.node import Consistency, NodeKind
 
 if TYPE_CHECKING:
-    from decisionpy.graph.diagram import InfluenceDiagram
+    from pylimid.graph.diagram import InfluenceDiagram
 
 _SHAPES: dict[NodeKind, tuple[str, str]] = {
     NodeKind.CHANCE: ("((", "))"),

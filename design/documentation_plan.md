@@ -21,22 +21,23 @@ A published API reference turns import paths into commitments, so the public sur
 
 What was done:
 
-- **One front door for solving.** `decisionpy.solve(diagram, method="auto" | "backward_induction" | "scan", num_samples=2000, rng_key=None)`. `"auto"` runs backward induction when the diagram is solvable and the batched scan otherwise; `"scan"` is the batched scan. It takes the diagram (not a snapshot), raises `InferenceError` on solver failures and `ValueError` on an unknown method. Utilities must be JAX-traceable under every method.
-- **Solvers package.** `decisionpy.inference.numpyro.solvers` exports `backward_induction_solve`, `batched_solve`, `scan_solve` (the unbatched reference implementation), `is_solvable` and `solvability_order`. The ambiguous `decisionpy.inference.numpyro.solve` and `solvers.solve` were removed.
-- **Top-level exports.** `decisionpy` re-exports the node types, `InfluenceDiagram`, `infer`, `solve`, `Solution`, `Posterior`, `Policy`, `InferenceResult`, `InferenceError`, `SolveMethod` and `SolverName`.
+- **One front door for solving.** `pylimid.solve(diagram, method="auto" | "backward_induction" | "scan", num_samples=2000, rng_key=None)`. `"auto"` runs backward induction when the diagram is solvable and the batched scan otherwise; `"scan"` is the batched scan. It takes the diagram (not a snapshot), raises `InferenceError` on solver failures and `ValueError` on an unknown method. Utilities must be JAX-traceable under every method.
+- **Solvers package.** `pylimid.inference.numpyro.solvers` exports `backward_induction_solve`, `batched_solve`, `scan_solve` (the unbatched reference implementation), `is_solvable` and `solvability_order`. The ambiguous `pylimid.inference.numpyro.solve` and `solvers.solve` were removed.
+- **Top-level exports.** `pylimid` re-exports the node types, `InfluenceDiagram`, `infer`, `solve`, `Solution`, `Posterior`, `Policy`, `InferenceResult`, `InferenceError`, `SolveMethod` and `SolverName`.
 - **Clean docstrings.** Removed internal wording ("Strategy B", "Level 2", "the unified-inference ADR", "the v0 solver", roadmap mentions, the stale `exact=False` and bucket-elimination remarks). Fixed the Bielza et al. citation to 1999, 45(7), 995–1007.
-- **Docstring convention.** `AGENTS.md` now says: single backticks for cross-references to public names (`Snapshot`, `InfluenceDiagram.validate`), double backticks for literal code, no explicit Sphinx roles. All docstrings in `decisionpy/` were converted.
+- **Docstring convention.** `AGENTS.md` now says: single backticks for cross-references to public names (`Snapshot`, `InfluenceDiagram.validate`), double backticks for literal code, no explicit Sphinx roles. All docstrings in `pylimid/` were converted.
 
 Decisions:
 
-- **Public surface stays minimal.** The library targets notebooks for now. `Snapshot`, `Node`, `NodeKind`, `Consistency`, `DiagramProblem` and `ProblemKind` were designed with a future UI in mind (GeNIe-style problem highlighting); they stay in `decisionpy.graph` and are not promoted to the top level. `is_solvable` stays in `decisionpy.inference.numpyro.solvers`.
+- **Public surface stays minimal.** The library targets notebooks for now. `Snapshot`, `Node`, `NodeKind`, `Consistency`, `DiagramProblem` and `ProblemKind` were designed with a future UI in mind (GeNIe-style problem highlighting); they stay in `pylimid.graph` and are not promoted to the top level. `is_solvable` stays in `pylimid.inference.numpyro.solvers`.
 - **`REMAINING_WORK.md` stays deleted** (superseded by `TODO.md`).
 - **`Solution.method` records which solver ran** (`"backward_induction"` or `"scan"`, typed as `SolverName`; never `"auto"`), since `"auto"` would otherwise hide it and the two solvers carry different guarantees. Each solver sets it, including the unbatched reference scan (`"scan"`).
+- **Renamed to `pylimid`.** `decisionpy` is taken on PyPI (an unrelated multi-criteria package, one 0.0.1 release from 2022) and on Read the Docs (an empty project from 2019). `pylimid` is free on PyPI, Read the Docs and GitHub, and names what the library models: limited-memory influence diagrams. Every influence diagram is a LIMID (a classical one is a LIMID with the memory arcs drawn), so the name also covers continuous decisions.
 
 Carried into step 1:
 
 - Sphinx's `default_role = "py:obj"` only resolves a bare name like `Snapshot` when it is defined in the current module or class. Names used across modules (most of ours) need either a short `missing-reference` hook in `conf.py` that resolves a bare name when it is unique, or fully qualified references. The hook keeps the docstrings readable.
-- The examples still call `batched_solve(diag.snapshot())`; they move to `decisionpy.solve` when ported in step 2.
+- The examples still call `batched_solve(diag.snapshot())`; they move to `pylimid.solve` when ported in step 2.
 
 ## 1. Site structure
 
@@ -82,9 +83,9 @@ What is actually different:
 - **Monte-Carlo solving** with a stated guarantee per solver, validated against pyAgrum's exact results.
 - **A solvability gate that follows Lauritzen & Nilsson (2001) exactly**, stricter than pyAgrum's `isSolvable()`. The `D1 → X → D2` case in `inference/solver_algorithms.md` (pyAgrum returns expected utility 4.0, the optimum is 5.0) becomes a short technical note.
 
-Be honest about when to use something else: for fully discrete diagrams that need exact answers, pyAgrum is the right tool. decisionpy is for continuous or mixed uncertainty with arbitrary distributions.
+Be honest about when to use something else: for fully discrete diagrams that need exact answers, pyAgrum is the right tool. pylimid is for continuous or mixed uncertainty with arbitrary distributions.
 
-Draft opening line: *"decisionpy models and solves limited-memory influence diagrams whose chance variables can be discrete, continuous, or mixed, using NumPyro for probabilistic inference and Monte-Carlo solvers for the decisions."*
+Draft opening line: *"pylimid models and solves limited-memory influence diagrams whose chance variables can be discrete, continuous, or mixed, using NumPyro for probabilistic inference and Monte-Carlo solvers for the decisions."*
 
 ## 3. Examples (first iteration)
 
@@ -99,7 +100,7 @@ Draft opening line: *"decisionpy models and solves limited-memory influence diag
 Three different needs:
 
 1. **Concept figures** (decision trees, ID vs. LIMID, arc-reversal steps): hand-made, reuse the blog assets. Keep the source files in `docs/_static/figures/`.
-2. **Model pictures in examples**: add `to_dot()` + `_repr_svg_` with Graphviz, mirroring `graph/mermaid.py` (shapes per node kind, topological order, styling for dangling / stale nodes). Roughly a day of work; gives pyAgrum-style static SVGs that render in Jupyter, GitHub and Sphinx without JavaScript. Graphviz as an optional extra (`decisionpy[viz]`). Mermaid stays for text / LLM use.
+2. **Model pictures in examples**: add `to_dot()` + `_repr_svg_` with Graphviz, mirroring `graph/mermaid.py` (shapes per node kind, topological order, styling for dangling / stale nodes). Roughly a day of work; gives pyAgrum-style static SVGs that render in Jupyter, GitHub and Sphinx without JavaScript. Graphviz as an optional extra (`pylimid[viz]`). Mermaid stays for text / LLM use.
    - Mermaid in Sphinx needs `sphinxcontrib-mermaid` and renders client-side; unclear whether Mermaid inside notebook Markdown outputs renders through myst-nb / nbsphinx without extra configuration.
 3. **Results drawn inside nodes** (pyAgrum's posterior bars and policy tables in the graph): deferred. A matplotlib bar chart or a policy table in the notebook covers most of the value.
 
@@ -111,7 +112,7 @@ Three different needs:
 - **Extras**: `sphinxcontrib-bibtex`, `sphinx-copybutton`, `sphinx-design` (landing-page cards).
 - **Theme**: Read the Docs theme (as in `TODO.md`, matches NumPyro); `pydata-sphinx-theme` or `furo` are a one-line switch later.
 - **Hosting**: Read the Docs.
-- **Release**: publish a pre-release (`0.1.0b1`) on PyPI so `pip install decisionpy` in the docs is real.
+- **Release**: publish a pre-release (`0.1.0b1`) on PyPI so `pip install pylimid` in the docs is real.
 
 ## 6. References
 

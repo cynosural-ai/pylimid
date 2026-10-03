@@ -16,7 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from decisionpy.graph.node import Consistency, Node, NodeKind, _signature_matches
+from pylimid.graph.node import Consistency, Node, NodeKind, _signature_matches
 
 #: Factory returning a distribution object given resolved parent values.
 #:

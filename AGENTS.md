@@ -1,4 +1,4 @@
-# decisionpy
+# pylimid
 
 ## Build, lint, test
 ```bash

@@ -2,7 +2,7 @@
 
 The bridge between the backend-agnostic graph layer and a concrete probabilistic programming system. This is the most bug-prone layer (per [`diagram.md`](./diagram.md)), so it is kept deliberately thin.
 
-> **Where this fits.** The graph layer ([`diagram.md`](./diagram.md)) settles the container and the `dist` calling convention; the translator consumes a validated `Snapshot` and turns it into a runnable model. A chance-node-only diagram *is* a Bayesian network; an influence diagram is translated once every decision is bound by a policy (the `policy=` binding on `infer()`, see `decisionpy.inference.engine`).
+> **Where this fits.** The graph layer ([`diagram.md`](./diagram.md)) settles the container and the `dist` calling convention; the translator consumes a validated `Snapshot` and turns it into a runnable model. A chance-node-only diagram *is* a Bayesian network; an influence diagram is translated once every decision is bound by a policy (the `policy=` binding on `infer()`, see `pylimid.inference.engine`).
 
 ---
 
@@ -37,7 +37,7 @@ prior = Predictive(model, num_samples=10_000)(jax.random.PRNGKey(0))
 
 ## Dependency
 
-NumPyro (and its JAX base) is a declared runtime dependency of decisionpy, not a separate extra. The graph layer still never imports it — `decisionpy.graph` works on plain `dist` callables, and `import decisionpy` does not load NumPyro; only importing `decisionpy.inference` does.
+NumPyro (and its JAX base) is a declared runtime dependency of pylimid, not a separate extra. The graph layer still never imports it — `pylimid.graph` works on plain `dist` callables, and `import pylimid` does not load NumPyro; only importing `pylimid.inference` does.
 
 ---
 

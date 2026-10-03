@@ -1,10 +1,10 @@
 # Solver algorithms: the scan, the batched scan, and backward induction
 
-This note collects the influence-diagram solving approaches — implemented and planned — and the papers behind them. It is the theory companion to `decisionpy.inference.numpyro.solvers` and to the roadmap in REMAINING_WORK.md (items 4 and 5).
+This note collects the influence-diagram solving approaches — implemented and planned — and the papers behind them. It is the theory companion to `pylimid.inference.numpyro.solvers` and to the roadmap in REMAINING_WORK.md (items 4 and 5).
 
 ## The problem
 
-Solving an influence diagram means finding the decision rules — one action per information-set assignment per decision — that maximize the expected total utility, and reporting that optimum. decisionpy diagrams are LIMIDs by construction: a decision's information set is exactly its drawn parents, with no implicit memory (see decision_node.md). The scan and the backward-induction path below are both Monte-Carlo solvers: they never build closed-form posteriors, which is what lets them handle mixed and continuous diagrams.
+Solving an influence diagram means finding the decision rules — one action per information-set assignment per decision — that maximize the expected total utility, and reporting that optimum. pylimid diagrams are LIMIDs by construction: a decision's information set is exactly its drawn parents, with no implicit memory (see decision_node.md). The scan and the backward-induction path below are both Monte-Carlo solvers: they never build closed-form posteriors, which is what lets them handle mixed and continuous diagrams.
 
 ## Tier 1 — intervention scan (implemented)
 
@@ -17,13 +17,13 @@ The current solver enumerates the joint policy space and forward-samples every p
 
 Cost: `num_samples × ∏_d K_d^|A_d|`, with `|A_d| = ∏ over the info parents of their state counts`. This is doubly exponential in the number of info parents (the rule exponent is itself a product). It suits small decision spaces; continuous info parents are rejected because |A_d| would be infinite.
 
-Guarantee: the global optimum of the Monte-Carlo estimate — every policy is evaluated, so the scan is the reference answer for the other solvers. Implementation: `decisionpy.inference.numpyro.solvers.intervention_scan.solve`.
+Guarantee: the global optimum of the Monte-Carlo estimate — every policy is evaluated, so the scan is the reference answer for the other solvers. Implementation: `pylimid.inference.numpyro.solvers.intervention_scan.solve`.
 
 ## Tier 2 — batched scan (implemented)
 
 The same algorithm with the same semantics and the same guarantees, engineered to be fast: all policies evaluated in one vmapped call with the policy arrays as a leading batch dimension, and the forward step jitted once — one trace, one dispatch for the whole solve. Because it uses the same PRNG key schedule per policy, it returns the same policy and the same EU as Tier 1, which makes the validation trivial: the two must agree (to float rounding, since the unbatched scan accumulates in float64 in Python).
 
-The cost stays exponential (the enumeration is the same); what goes away is the per-policy JAX re-trace overhead, which dominated the runtime (measured ~260ms per 500-sample evaluation, ~60% of it trace machinery from user `dist` callables). Measured ~220× on the Oil Wildcatter fixture: 112s → 0.5s at 2000 samples per policy. One constraint: utility `values` callables must be JAX-traceable (no `float()`/`int()` coercion), because they are evaluated inside the vmapped walk. Implementation: `decisionpy.inference.numpyro.solvers.batched_scan`.
+The cost stays exponential (the enumeration is the same); what goes away is the per-policy JAX re-trace overhead, which dominated the runtime (measured ~260ms per 500-sample evaluation, ~60% of it trace machinery from user `dist` callables). Measured ~220× on the Oil Wildcatter fixture: 112s → 0.5s at 2000 samples per policy. One constraint: utility `values` callables must be JAX-traceable (no `float()`/`int()` coercion), because they are evaluated inside the vmapped walk. Implementation: `pylimid.inference.numpyro.solvers.batched_scan`.
 
 ## Tier 3 — backward induction / single policy updating (regular diagrams implemented)
 
@@ -52,7 +52,7 @@ Learned by testing pyAgrum against the fixtures: `ShaferShenoyLIMIDInference` im
 
 This matters for validation: for solvable diagrams pyAgrum gives the exact reference, but for true LIMIDs there is no external exact solver to compare against — pyAgrum refuses them, so the scan is the only ground truth.
 
-### The solvability gate: the paper vs aGrUM vs decisionpy
+### The solvability gate: the paper vs aGrUM vs pylimid
 
 One-pass backward induction is sound exactly on *soluble* LIMIDs, so the gate is part of the algorithm, not an optimization.
 
@@ -79,6 +79,6 @@ One-pass backward induction is sound exactly on *soluble* LIMIDs, so the gate is
 
 ## Status
 
-- Tier 1: implemented (`decisionpy.inference.numpyro.solvers.intervention_scan`).
-- Tier 2: implemented (`decisionpy.inference.numpyro.solvers.batched_scan`).
-- Tier 3: implemented for soluble diagrams (`decisionpy.inference.numpyro.solvers.backward_induction`), gated by `...solvers.regularity` with the paper's exact-solution-ordering criterion (stricter than pyAgrum's level-based `isSolvable`, see above) and validated against pyAgrum and the scan; SPU for non-soluble LIMIDs planned — REMAINING_WORK item 5.
+- Tier 1: implemented (`pylimid.inference.numpyro.solvers.intervention_scan`).
+- Tier 2: implemented (`pylimid.inference.numpyro.solvers.batched_scan`).
+- Tier 3: implemented for soluble diagrams (`pylimid.inference.numpyro.solvers.backward_induction`), gated by `...solvers.regularity` with the paper's exact-solution-ordering criterion (stricter than pyAgrum's level-based `isSolvable`, see above) and validated against pyAgrum and the scan; SPU for non-soluble LIMIDs planned — REMAINING_WORK item 5.

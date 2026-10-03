@@ -23,7 +23,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from decisionpy.graph.node import (
+from pylimid.graph.node import (
     Consistency,
     Node,
     NodeKind,

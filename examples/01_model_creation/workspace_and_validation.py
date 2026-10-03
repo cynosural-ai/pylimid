@@ -13,7 +13,7 @@
 # %% [markdown]
 # # Model creation — the mutable workspace
 #
-# decisionpy models an influence diagram as a **mutable workspace**: nodes and
+# pylimid models an influence diagram as a **mutable workspace**: nodes and
 # edges are added, edited, and removed freely by whatever drives the model (a
 # script, a UI, an LLM), and inference is gated behind an explicit validation
 # checkpoint. This notebook builds a small diagram piece by piece, shows the
@@ -24,7 +24,7 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 from IPython.display import Markdown
 
-from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
+from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
 
 # %% [markdown]
 # ## The three node types

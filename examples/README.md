@@ -1,4 +1,4 @@
-# decisionpy examples
+# pylimid examples
 
 Interactive notebooks showcasing the library's capabilities. Read in numeric order.
 

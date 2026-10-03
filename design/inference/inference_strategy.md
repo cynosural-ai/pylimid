@@ -11,7 +11,7 @@ One engine — NumPyro — behind both public verbs:
 - `infer()` — posterior inference. All-discrete diagrams use exact discrete enumeration (parallel enumeration of the discrete sites, bincounted into the probability vector); anything with a continuous latent uses NUTS with the discrete sites enumerated out. Results are `Posterior` objects (raw draws plus the variable's `states`), a Monte-Carlo estimate by contract.
 - `solve()` — the intervention scan (Strategy B from `decision_node.md`): enumerate the discrete policy space, estimate each policy's expected utility by forward sampling with the decisions resolved from their observed information set, keep the best.
 
-The exact engines (variable elimination, bucket elimination, the linear-Gaussian engine) were built and retired; see [`25_08_2026_numpyro_only_engine.md`](../ADR/25_08_2026_numpyro_only_engine.md) for the decision and `git log --all -- decisionpy/inference/exact` for the history.
+The exact engines (variable elimination, bucket elimination, the linear-Gaussian engine) were built and retired; see [`25_08_2026_numpyro_only_engine.md`](../ADR/25_08_2026_numpyro_only_engine.md) for the decision and `git log --all -- pylimid/inference/exact` for the history.
 
 ## Why NumPyro alone
 

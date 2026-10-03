@@ -39,13 +39,13 @@ from collections.abc import Callable
 import jax
 import jax.numpy as jnp
 
-from decisionpy.graph.chance_node import ChanceNode
-from decisionpy.graph.decision_node import DecisionNode
-from decisionpy.graph.diagram import Snapshot
-from decisionpy.graph.utility_node import UtilityNode
-from decisionpy.inference.numpyro.solvers._policy import info_assignments
-from decisionpy.inference.numpyro.solvers.regularity import solvability_order
-from decisionpy.inference.result import Policy, Solution
+from pylimid.graph.chance_node import ChanceNode
+from pylimid.graph.decision_node import DecisionNode
+from pylimid.graph.diagram import Snapshot
+from pylimid.graph.utility_node import UtilityNode
+from pylimid.inference.numpyro.solvers._policy import info_assignments
+from pylimid.inference.numpyro.solvers.regularity import solvability_order
+from pylimid.inference.result import Policy, Solution
 
 __all__ = ["solve"]
 

@@ -1,4 +1,4 @@
-"""Shared model factories that produce both a decisionpy and a pyAgrum LIMID."""
+"""Shared model factories that produce both a pylimid and a pyAgrum LIMID."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 import pyagrum as gum
 
-from decisionpy.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
+from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
 
 __all__ = [
     "SingleDecisionTreat",
@@ -24,7 +24,7 @@ __all__ = [
 
 class IDFixture:
     """
-    An influence-diagram definition usable by both decisionpy and pyAgrum.
+    An influence-diagram definition usable by both pylimid and pyAgrum.
 
     Attributes:
         edges: Edge list ``[(parent, child), ...]``.
@@ -43,10 +43,10 @@ class IDFixture:
     cpds: dict[str, tuple[list[float], list[str]]]
     utilities: dict[str, tuple[list[float], list[str]]]
 
-    # -- decisionpy ---------------------------------------------------------
+    # -- pylimid ---------------------------------------------------------
 
-    def decisionpy(self) -> InfluenceDiagram:
-        """Build the decisionpy InfluenceDiagram."""
+    def pylimid(self) -> InfluenceDiagram:
+        """Build the pylimid InfluenceDiagram."""
         diag = InfluenceDiagram()
         for name, sts in self.states.items():
             parents = _parents_of(self.edges, name)
@@ -124,7 +124,7 @@ class IDFixture:
 
         Returns:
             A ``(meu, policy)`` pair: the mean expected utility and the
-            per-decision optimal policy in decisionpy's format — decision name
+            per-decision optimal policy in pylimid's format — decision name
             to ``{info_set_assignment: action}``.
         """
         ie = gum.ShaferShenoyLIMIDInference(  # ty: ignore[possibly-missing-attribute]

@@ -4,10 +4,10 @@
 
 ## The history is in git
 
-The engines lived at `decisionpy/inference/exact/` (with their tests at `tests/inference/exact/`) from the reorganization commit `ceb671f` through their retirement in `eefc26f`. Their full history — every commit, the build and the removal — is there:
+The engines lived at `pylimid/inference/exact/` (with their tests at `tests/inference/exact/`) from the reorganization commit `ceb671f` through their retirement in `eefc26f`. Their full history — every commit, the build and the removal — is there:
 
 ```bash
-git log --all -- decisionpy/inference/exact
+git log --all -- pylimid/inference/exact
 ```
 
 Any point in that history can be checked out as it was; nothing was thrown away, it just stopped being maintained.
@@ -23,7 +23,7 @@ Why model class and not algorithm: VE and bucket elimination are the same model 
 ## Target layout
 
 ```
-decisionpy/inference/
+pylimid/inference/
 ├── __init__.py                # infer(), solve(), result types
 ├── engine.py                  # dispatch
 ├── exact/

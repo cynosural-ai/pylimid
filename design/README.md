@@ -1,4 +1,4 @@
-# DecisionPy design notes
+# pylimid design notes
 
 Development notes for the library, aimed at contributors. They capture decisions and their reasoning. The published, user-facing documentation lives in `docs/` (Sphinx); these notes are not part of it.
 
@@ -62,14 +62,14 @@ Read in this order:
 
 ## Code status
 
-`decisionpy/` implements the mutable workspace and a first inference engine:
+`pylimid/` implements the mutable workspace and a first inference engine:
 
 - `graph/node.py` — the shared `Node` base: `name`/`parents`, field validation, and the `UNCONFIGURED`/`STALE`/`CONSISTENT` consistency gate that every node type inherits. Also defines `NodeKind` and `Consistency`.
 - `graph/chance_node.py`, `graph/decision_node.py`, `graph/utility_node.py` — the three node types, all subclassing `Node`. A diagram with only chance nodes is a Bayesian network; adding a decision or utility node makes it an influence diagram (see `diagram.md`, `decision_node.md`, `utility_node.md`).
-- `graph/diagram.py` — the mutable container and `Snapshot` (see `diagram.md`); `graph/validation.py` — the `DiagramProblem` / `ProblemKind` model shared by `validate()` and `probe_discrete_parents()`. Exports `Node`, `NodeKind`, `Consistency`, the three node types, and the problem model from `decisionpy.graph`.
-- `inference/numpyro/` — the NumPyro engine: translates a `Snapshot` into a NumPyro model, with public `samples()` — prior draws with no observations, posterior draws (enumeration / NUTS) with observations, as raw JAX arrays — and `solvers.intervention_scan.solve` — the intervention-scan influence-diagram solver. Bound decisions clamp to their policy values; utilities are skipped. NumPyro is a declared dependency, though nothing in `decisionpy.graph` imports it.
+- `graph/diagram.py` — the mutable container and `Snapshot` (see `diagram.md`); `graph/validation.py` — the `DiagramProblem` / `ProblemKind` model shared by `validate()` and `probe_discrete_parents()`. Exports `Node`, `NodeKind`, `Consistency`, the three node types, and the problem model from `pylimid.graph`.
+- `inference/numpyro/` — the NumPyro engine: translates a `Snapshot` into a NumPyro model, with public `samples()` — prior draws with no observations, posterior draws (enumeration / NUTS) with observations, as raw JAX arrays — and `solvers.intervention_scan.solve` — the intervention-scan influence-diagram solver. Bound decisions clamp to their policy values; utilities are skipped. NumPyro is a declared dependency, though nothing in `pylimid.graph` imports it.
 - `inference/result.py` — the typed results: `Posterior` (raw draws plus `states`, with kind-guarded `marginal()` / `mean()` / `std()` / `hdi()` methods), `Solution`, `Policy`, `InferenceResult`.
-- `inference/engine.py` — unified `infer()` / `solve()` entry-points (NumPyro-only). `infer()` returns one `Posterior` per query variable: raw draws plus the variable's `states` (`None` for continuous); `marginal()` bincounts a discrete posterior into its probability vector and raises on a continuous one. `infer()` takes an all-or-nothing `policy=` binding (unbound decisions raise a clean `InferenceError`); `solve(diagram, method="auto" | "backward_induction" | "scan")` is the solver front door for mixed/continuous influence diagrams with discrete information sets: `"auto"` runs backward induction when the diagram is solvable and the batched scan otherwise. The main names are re-exported from the top-level `decisionpy` package.
+- `inference/engine.py` — unified `infer()` / `solve()` entry-points (NumPyro-only). `infer()` returns one `Posterior` per query variable: raw draws plus the variable's `states` (`None` for continuous); `marginal()` bincounts a discrete posterior into its probability vector and raises on a continuous one. `infer()` takes an all-or-nothing `policy=` binding (unbound decisions raise a clean `InferenceError`); `solve(diagram, method="auto" | "backward_induction" | "scan")` is the solver front door for mixed/continuous influence diagrams with discrete information sets: `"auto"` runs backward induction when the diagram is solvable and the batched scan otherwise. The main names are re-exported from the top-level `pylimid` package.
 
 The exact engines (variable elimination, bucket elimination, the linear-Gaussian engine) were built and retired in favor of the NumPyro-only engine; their history lives in git (see [`25_08_2026_numpyro_only_engine.md`](./ADR/25_08_2026_numpyro_only_engine.md)).
 

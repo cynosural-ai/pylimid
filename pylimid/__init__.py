@@ -1,24 +1,24 @@
 """
-decisionpy — limited-memory influence diagrams with mixed-type variables.
+pylimid — limited-memory influence diagrams with mixed-type variables.
 
 Build a diagram from chance, decision and utility nodes, then query it with
 `infer` or find the optimal policy with `solve`::
 
-    from decisionpy import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-    from decisionpy import infer, solve
+    from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
+    from pylimid import infer, solve
 
-The graph layer (`decisionpy.graph`) holds the node types and the diagram;
-the inference layer (`decisionpy.inference`) holds `infer`, `solve` and
+The graph layer (`pylimid.graph`) holds the node types and the diagram;
+the inference layer (`pylimid.inference`) holds `infer`, `solve` and
 their result types.
 """
 
-from decisionpy.graph import (
+from pylimid.graph import (
     ChanceNode,
     DecisionNode,
     InfluenceDiagram,
     UtilityNode,
 )
-from decisionpy.inference import (
+from pylimid.inference import (
     InferenceError,
     InferenceResult,
     Policy,

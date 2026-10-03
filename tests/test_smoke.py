@@ -3,21 +3,21 @@
 
 def test_version_is_set() -> None:
     """The package exposes a version string."""
-    import decisionpy
+    import pylimid
 
-    assert decisionpy.__version__ == "0.1.0"
+    assert pylimid.__version__ == "0.1.0"
 
 
 def test_top_level_exports_the_public_api() -> None:
-    """The main names import from decisionpy directly."""
-    import decisionpy
-    from decisionpy import graph, inference
+    """The main names import from pylimid directly."""
+    import pylimid
+    from pylimid import graph, inference
 
-    assert decisionpy.InfluenceDiagram is graph.InfluenceDiagram
-    assert decisionpy.ChanceNode is graph.ChanceNode
-    assert decisionpy.DecisionNode is graph.DecisionNode
-    assert decisionpy.UtilityNode is graph.UtilityNode
-    assert decisionpy.infer is inference.infer
-    assert decisionpy.solve is inference.solve
-    assert decisionpy.Solution is inference.Solution
-    assert decisionpy.Posterior is inference.Posterior
+    assert pylimid.InfluenceDiagram is graph.InfluenceDiagram
+    assert pylimid.ChanceNode is graph.ChanceNode
+    assert pylimid.DecisionNode is graph.DecisionNode
+    assert pylimid.UtilityNode is graph.UtilityNode
+    assert pylimid.infer is inference.infer
+    assert pylimid.solve is inference.solve
+    assert pylimid.Solution is inference.Solution
+    assert pylimid.Posterior is inference.Posterior

@@ -1,4 +1,4 @@
-"""Tests for :func:`decisionpy.inference.infer`."""
+"""Tests for :func:`pylimid.inference.infer`."""
 
 from __future__ import annotations
 
@@ -6,11 +6,11 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 import pytest
 
-from decisionpy.graph.chance_node import ChanceNode
-from decisionpy.graph.decision_node import DecisionNode
-from decisionpy.graph.diagram import InfluenceDiagram
-from decisionpy.graph.utility_node import UtilityNode
-from decisionpy.inference import InferenceError, Posterior, infer
+from pylimid.graph.chance_node import ChanceNode
+from pylimid.graph.decision_node import DecisionNode
+from pylimid.graph.diagram import InfluenceDiagram
+from pylimid.graph.utility_node import UtilityNode
+from pylimid.inference import InferenceError, Posterior, infer
 
 # --- helpers -----------------------------------------------------------------
 

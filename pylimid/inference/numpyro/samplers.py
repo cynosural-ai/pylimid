@@ -3,17 +3,17 @@ NumPyro inference backend — posterior and forward sampling.
 
 Thin wrappers around `to_model`.
 Import this module to use NumPyro-based inference; requires ``numpyro``, a
-declared dependency of decisionpy.
+declared dependency of pylimid.
 
 Usage::
 
-    from decisionpy.inference.numpyro import samples
+    from pylimid.inference.numpyro import samples
 
     posterior = samples(diagram.snapshot(), observed={"wet_grass": 1})
 
 API design note
 ---------------
-This module exposes engine-specific functions. The unified `decisionpy.infer`
+This module exposes engine-specific functions. The unified `pylimid.infer`
 entry point dispatches here automatically, so most users should call it
 rather than import this directly.
 """
@@ -26,9 +26,9 @@ from typing import Any
 import jax
 from numpyro.infer import MCMC, NUTS, Predictive
 
-from decisionpy.graph.diagram import Snapshot
-from decisionpy.graph.node import NodeKind
-from decisionpy.inference.numpyro.model import to_model
+from pylimid.graph.diagram import Snapshot
+from pylimid.graph.node import NodeKind
+from pylimid.inference.numpyro.model import to_model
 
 __all__ = ["samples", "to_model"]
 

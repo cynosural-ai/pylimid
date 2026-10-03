@@ -2,15 +2,15 @@
 NumPyro model factory — translate a validated snapshot into a NumPyro model.
 
 Internal module. Public convenience functions that wrap this are in
-`decisionpy.inference.numpyro`.
+`pylimid.inference.numpyro`.
 
 This is the bridge between the backend-agnostic graph layer and a concrete
 probabilistic programming system. It consumes a `Snapshot` and returns a plain
 NumPyro model function the caller feeds to ``numpyro.infer``
 (e.g. ``Predictive``, ``MCMC``, ``SVI``).
 
-NumPyro is a declared runtime dependency of decisionpy (nothing in
-`decisionpy.graph` imports it — the graph layer works on plain callables,
+NumPyro is a declared runtime dependency of pylimid (nothing in
+`pylimid.graph` imports it — the graph layer works on plain callables,
 but the translator itself needs it).
 
 Unobserved discrete nodes are detected automatically via ``node.is_discrete``
@@ -33,10 +33,10 @@ from typing import Any
 import numpyro
 import numpyro.distributions as dist
 
-from decisionpy.graph.chance_node import ChanceNode
-from decisionpy.graph.decision_node import DecisionNode
-from decisionpy.graph.diagram import Snapshot
-from decisionpy.graph.utility_node import UtilityNode
+from pylimid.graph.chance_node import ChanceNode
+from pylimid.graph.decision_node import DecisionNode
+from pylimid.graph.diagram import Snapshot
+from pylimid.graph.utility_node import UtilityNode
 
 __all__ = ["to_model"]
 

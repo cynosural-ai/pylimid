@@ -42,17 +42,17 @@ from __future__ import annotations
 
 import jax
 
-from decisionpy.graph.chance_node import ChanceNode
-from decisionpy.graph.decision_node import DecisionNode
-from decisionpy.graph.diagram import Snapshot
-from decisionpy.graph.utility_node import UtilityNode
-from decisionpy.inference.numpyro.solvers._policy import (
+from pylimid.graph.chance_node import ChanceNode
+from pylimid.graph.decision_node import DecisionNode
+from pylimid.graph.diagram import Snapshot
+from pylimid.graph.utility_node import UtilityNode
+from pylimid.inference.numpyro.solvers._policy import (
     Rule,
     info_assignments,
     policy_array,
     policy_space,
 )
-from decisionpy.inference.result import Policy, Solution
+from pylimid.inference.result import Policy, Solution
 
 __all__ = ["solve"]
 

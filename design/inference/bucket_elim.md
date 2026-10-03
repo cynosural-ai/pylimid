@@ -3,13 +3,13 @@
 > **Historical reference.** The exact engines were retired in favor of the
 > NumPyro-only engine (see
 > [`25_08_2026_numpyro_only_engine.md`](../ADR/25_08_2026_numpyro_only_engine.md));
-> `decisionpy.inference.exact.categorical` no longer exists. This note is
+> `pylimid.inference.exact.categorical` no longer exists. This note is
 > kept as the record of how the solver worked, for recoverability.
 
 The graph-native influence-diagram solver that lived in
-`decisionpy.inference.exact.categorical`, the counterpart to variable elimination: same factor machinery, but for the full decision objective — maximize expected total utility by choosing, per decision, the best action given its observed information set. Numpy-only, exact, and the primary engine behind `solve()` before the NumPyro intervention scan took over.
+`pylimid.inference.exact.categorical`, the counterpart to variable elimination: same factor machinery, but for the full decision objective — maximize expected total utility by choosing, per decision, the best action given its observed information set. Numpy-only, exact, and the primary engine behind `solve()` before the NumPyro intervention scan took over.
 
-> **Where this fits.** [`decision_node.md`](../graph/decision_node.md) settles the decision-node representation and the solving strategies (intervention-scan vs. policy-as-parameters); this note is about the *implemented* exact solver. It consumes a validated `Snapshot` (see [`diagram.md`](../graph/diagram.md)) and the shared factor primitives in `decisionpy.inference.utils` (same as [`variable elimination`](./backend_numpyro.md)'s sibling in the same package).
+> **Where this fits.** [`decision_node.md`](../graph/decision_node.md) settles the decision-node representation and the solving strategies (intervention-scan vs. policy-as-parameters); this note is about the *implemented* exact solver. It consumes a validated `Snapshot` (see [`diagram.md`](../graph/diagram.md)) and the shared factor primitives in `pylimid.inference.utils` (same as [`variable elimination`](./backend_numpyro.md)'s sibling in the same package).
 
 ---
 
@@ -21,14 +21,14 @@ The graph-native influence-diagram solver that lived in
 - **`expected_utility`** — the maximum expected total utility under that policy.
 
 ```python
-from decisionpy.inference.exact.categorical import solve
+from pylimid.inference.exact.categorical import solve
 
 result = solve(diagram.snapshot())
 result.policy["treat"]  # {(0,): 0, (1,): 1}  — action per info-set assignment
 result.expected_utility  # 78.0
 ```
 
-The policy is a solve-time object; it is not stored on the `DecisionNode`. Binding it back onto a diagram (clamping every decision to its chosen action) is the `infer(..., policy=...)` step that collapses the ID to a Bayesian network — the unified `solve()` / `infer()` wiring in `decisionpy.inference.engine` dispatches to this solver for all-categorical diagrams.
+The policy is a solve-time object; it is not stored on the `DecisionNode`. Binding it back onto a diagram (clamping every decision to its chosen action) is the `infer(..., policy=...)` step that collapses the ID to a Bayesian network — the unified `solve()` / `infer()` wiring in `pylimid.inference.engine` dispatches to this solver for all-categorical diagrams.
 
 ## Algorithm
 
@@ -49,4 +49,4 @@ The policy is a solve-time object; it is not stored on the `DecisionNode`. Bindi
 - [`decision_node.md`](../graph/decision_node.md) — decision representation and the two solving strategies (Strategy B: intervention-scan; Strategy A: policy-as-parameters).
 - [`utility_node.md`](../graph/utility_node.md) — the utility representation the solver consumes.
 - [`inference_strategy.md`](./inference_strategy.md) — why VE stays the exact discrete engine and NumPyro grows as the primary mixed-type engine.
-- `decisionpy/inference/exact/categorical/bucket_elim.py` — module docstring with the algorithm steps.
+- `pylimid/inference/exact/categorical/bucket_elim.py` — module docstring with the algorithm steps.

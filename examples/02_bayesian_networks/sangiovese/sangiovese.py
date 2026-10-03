@@ -42,9 +42,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path.cwd() / "examples" / "02_bayesian_networks" / "sangiovese"))
 
-from _sangiovese import TREATMENT_LEVELS, TREATMENT_PRIOR, decisionpy_diagram
+from _sangiovese import TREATMENT_LEVELS, TREATMENT_PRIOR, pylimid_diagram
 
-from decisionpy.inference import infer
+from pylimid.inference import infer
 
 # %% [markdown]
 # ## The model
@@ -55,7 +55,7 @@ from decisionpy.inference import infer
 # of Treatment is a mixture of Gaussians driven by the treatment prior.
 
 # %%
-diag = decisionpy_diagram()
+diag = pylimid_diagram()
 print(diag.validate())
 snapshot = diag.snapshot()
 print("nodes:", len(snapshot.nodes), "| treatments:", len(TREATMENT_LEVELS))
