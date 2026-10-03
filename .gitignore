@@ -93,6 +93,9 @@ TEST*.xml
 # Project specific
 .cursor/
 
+# Sphinx
+docs/_build/
+
 # Translations
 *.mo
 *.pot
