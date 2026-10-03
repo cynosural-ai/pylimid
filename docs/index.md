@@ -88,6 +88,14 @@ getting_started/quickstart
 
 ```{toctree}
 :hidden:
+:caption: Tutorials
+:maxdepth: 1
+
+tutorials/oil_field
+```
+
+```{toctree}
+:hidden:
 :caption: Examples
 :maxdepth: 1
 
