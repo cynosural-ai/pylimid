@@ -1,15 +1,15 @@
-"""Tests for :mod:`decisionpy.graph.diagram`."""
+"""Tests for :mod:`pylimid.graph.diagram`."""
 
 from typing import Any
 
 import pytest
 
-from decisionpy.graph.chance_node import ChanceNode
-from decisionpy.graph.decision_node import DecisionNode
-from decisionpy.graph.diagram import InfluenceDiagram, Snapshot
-from decisionpy.graph.node import Consistency
-from decisionpy.graph.utility_node import UtilityNode
-from decisionpy.graph.validation import ProblemKind
+from pylimid.graph.chance_node import ChanceNode
+from pylimid.graph.decision_node import DecisionNode
+from pylimid.graph.diagram import InfluenceDiagram, Snapshot
+from pylimid.graph.node import Consistency
+from pylimid.graph.utility_node import UtilityNode
+from pylimid.graph.validation import ProblemKind
 
 # --- helpers ----------------------------------------------------------------
 

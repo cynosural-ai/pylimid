@@ -1,4 +1,4 @@
-# decisionpy examples
+# pylimid examples
 
 Interactive notebooks showcasing the library's capabilities. Read in numeric order.
 
@@ -12,7 +12,8 @@ Interactive notebooks showcasing the library's capabilities. Read in numeric ord
 | `02_bayesian_networks/sangiovese/sangiovese.ipynb` | A realistic mixed CLG network (Magrini et al. 2017, from the bnlearn repository, CC BY-SA 3.0): treatment-to-quality queries, including the inverse query (which treatment explains an observed quality profile) |
 | `03_influence_diagrams/medical_treatment.ipynb` | `solve()`: optimal policy and expected utility for a treatment decision |
 | `03_influence_diagrams/counterfactuals_with_policy.ipynb` | `infer(..., policy=)`: interventional queries, unbound-decision errors, solve + evaluate loop |
-| `03_influence_diagrams/solver_comparison.py` | The batched NumPyro intervention scan: optimal policy, Monte-Carlo noise across seeds, mixed/continuous outcomes, pyAgrum's exact solution as the reference, and the Oil Wildcatter ID compared against pyAgrum's exact LIMID solver |
+| `03_influence_diagrams/solver_comparison.py` | The batched NumPyro intervention scan: optimal policy, Monte-Carlo noise across seeds, mixed/continuous outcomes, and pyAgrum's exact solution as the reference |
+| `03_influence_diagrams/mixed_logistics_center.ipynb` | A mixed continuous/discrete LIMID: a continuous Gamma test score binned into a discrete report, solved with the discrete-decision scan and checked against pyAgrum solving the collapsed discrete model; `infer()` on the continuous score given the report |
 
 ## Running
 
@@ -21,17 +22,9 @@ uv sync                          # installs jupyterlab + pyagrum as dev dependen
 uv run jupyter lab examples/
 ```
 
-Three examples (`solver_comparison.py`, `categorical_bn.py`, and the
-`solver_comparison.py` Oil Wildcatter section) build the same models in
-pyAgrum to show the exact answer next to the Monte-Carlo estimate; pyagrum
-is in the `dev` dependency group, so `uv sync` installs it. The Oil
-Wildcatter shares one spec between both libraries
-(`03_influence_diagrams/_oil_wildcatter.py`), so the comparison is exact
-engine vs Monte-Carlo scan on identical tables.
+Several examples (`categorical_bn.py`, `mixed_logistics_center.py`, and `solver_comparison.py`) build the same models in pyAgrum to show the exact answer next to the Monte-Carlo estimate; pyagrum is in the `dev` dependency group, so `uv sync` installs it. The logistics center shares its model and its `P(report | advanced_state)` collapse (`03_influence_diagrams/_logistics_center.py`), so the comparison is exact engine vs Monte-Carlo scan on identical probabilities.
 
-Each notebook is paired with a `.py` twin (Jupyter percent format, kept in sync
-with jupytext) so the examples are greppable and reviewable. Regenerate a
-twin after editing either side with:
+Each notebook is paired with a `.py` twin (Jupyter percent format, kept in sync with jupytext) so the examples are greppable and reviewable. Regenerate a twin after editing either side with:
 
 ```bash
 uv run jupytext --sync examples/01_model_creation/workspace_and_validation.ipynb

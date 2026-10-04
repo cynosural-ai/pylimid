@@ -12,8 +12,8 @@ from __future__ import annotations
 import jax
 import pytest
 
-from decisionpy.inference.numpyro.solvers import batched_solve
-from decisionpy.inference.numpyro.solvers.intervention_scan import solve as scan_solve
+from pylimid.inference.numpyro.solvers import batched_solve
+from pylimid.inference.numpyro.solvers.intervention_scan import solve as scan_solve
 
 from .._limid_fixtures import (
     EmptyInfoDecision,
@@ -38,7 +38,7 @@ NUM_SAMPLES = 500
 
 @pytest.mark.parametrize("fixture", FIXTURES, ids=[type(f).__name__ for f in FIXTURES])
 def test_batched_matches_scan(fixture):
-    snapshot = fixture.decisionpy().snapshot()
+    snapshot = fixture.pylimid().snapshot()
     rng_key = jax.random.PRNGKey(0)
     expected = scan_solve(snapshot, num_samples=NUM_SAMPLES, rng_key=rng_key)
     actual = batched_solve(snapshot, num_samples=NUM_SAMPLES, rng_key=rng_key)

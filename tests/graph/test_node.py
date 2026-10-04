@@ -1,5 +1,5 @@
 """
-Tests for the shared :class:`~decisionpy.graph.node.Node` base.
+Tests for the shared :class:`~pylimid.graph.node.Node` base.
 
 The base owns the contract every node type inherits — shared ``name`` /
 ``parents`` field validation and the consistency gate machinery. These tests
@@ -11,10 +11,10 @@ from typing import Any
 
 import pytest
 
-from decisionpy.graph.chance_node import ChanceNode
-from decisionpy.graph.decision_node import DecisionNode
-from decisionpy.graph.node import Consistency, NodeKind
-from decisionpy.graph.utility_node import UtilityNode
+from pylimid.graph.chance_node import ChanceNode
+from pylimid.graph.decision_node import DecisionNode
+from pylimid.graph.node import Consistency, NodeKind
+from pylimid.graph.utility_node import UtilityNode
 
 # --- shared field validation is inherited -----------------------------------
 

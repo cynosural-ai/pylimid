@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from decisionpy.inference import infer
+from pylimid.inference import infer
 
 from ._clg_fixtures import Chain, LongChain, SingleRoot, VStructure
 
@@ -21,7 +21,7 @@ _TOL = 0.1
 
 
 def _check(fixture, query_vars, observed=None):
-    result = infer(fixture.decisionpy(), query_vars, observed=observed or {})
+    result = infer(fixture.pylimid(), query_vars, observed=observed or {})
     expected = fixture.pyagrum_query(query_vars, observed=observed)
     for var in query_vars:
         exp_mean, exp_var = expected[var]

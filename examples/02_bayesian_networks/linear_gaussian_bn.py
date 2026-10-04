@@ -8,6 +8,10 @@
 #       format_name: percent
 #       format_version: '1.3'
 #       jupytext_version: 1.19.5
+#   kernelspec:
+#     display_name: Python 3 (ipykernel)
+#     language: python
+#     name: python3
 # ---
 
 # %% [markdown]
@@ -27,8 +31,8 @@
 # %%
 import numpyro.distributions as dist
 
-from decisionpy.graph import ChanceNode, InfluenceDiagram
-from decisionpy.inference import infer
+from pylimid.graph import ChanceNode, InfluenceDiagram
+from pylimid.inference import infer
 
 # %% [markdown]
 # ## The model
