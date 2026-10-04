@@ -46,6 +46,7 @@ Homepage = "https://github.com/cynosural-ai/pylimid"
 Repository = "https://github.com/cynosural-ai/pylimid"
 Issues = "https://github.com/cynosural-ai/pylimid/issues"
 Changelog = "https://github.com/cynosural-ai/pylimid/releases"
+Documentation = "https://pylimid.readthedocs.io/"
 
 [dependency-groups]
 dev = [
