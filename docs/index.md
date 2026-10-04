@@ -78,6 +78,8 @@ user_guide/scope_and_limitations
 :maxdepth: 1
 
 tutorials/oil_field
+tutorials/logistics_center
+tutorials/newsvendor
 ```
 
 ```{toctree}
