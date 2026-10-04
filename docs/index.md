@@ -80,6 +80,7 @@ user_guide/scope_and_limitations
 tutorials/oil_field
 tutorials/logistics_center
 tutorials/newsvendor
+tutorials/bayesian_networks
 ```
 
 ```{toctree}
