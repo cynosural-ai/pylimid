@@ -8,7 +8,7 @@ Working document for the first published documentation site. Updated as the work
 | --- | --- |
 | 0. Settle the public API | Done |
 | 1. Sphinx skeleton: home, quickstart, user guide, tutorials, API reference | Done — builds locally; Read the Docs deferred until the repo is public |
-| 2. Examples and tutorials | Oil-field and mixed continuous/discrete (`tutorials/logistics_center`) tutorials done. The docs Examples section was dropped in favour of tutorials; the example notebooks stay in `examples/` and are kept in sync by the pre-push jupytext hook |
+| 2. Examples and tutorials | Oil-field, logistics-center and newsvendor tutorials done, plus a Bayesian-networks tutorial for `infer()`. The standalone example notebooks were folded into the tutorials and `examples/` was removed |
 | 3. User guide pages | Done — building a diagram, chance nodes, decisions and information sets, utilities, inference, solving, rendering, scope and limitations |
 | 4. Background pages + the pyAgrum solvability note | Not started |
 | 5. Graphviz renderer | Done — `to_svg` / `_repr_svg_`; Mermaid kept for text |
@@ -37,7 +37,6 @@ Decisions:
 Carried into step 1:
 
 - Sphinx's `default_role = "py:obj"` only resolves a bare name like `Snapshot` when it is defined in the current module or class. Names used across modules (most of ours) need either a short `missing-reference` hook in `conf.py` that resolves a bare name when it is unique, or fully qualified references. The hook keeps the docstrings readable.
-- The examples still call `batched_solve(diag.snapshot())`; they move to `pylimid.solve` when ported in step 2.
 
 ## 1. Site structure
 
@@ -58,7 +57,7 @@ Carried into step 1:
    - From decision trees to influence diagrams to LIMIDs.
    - Solving influence diagrams: the scan, backward induction, solvability, Monte-Carlo decision analysis.
    - Technical note: the solvability criterion vs. pyAgrum's `isSolvable()`.
-5. **Examples**: the notebooks.
+5. **Tutorials**: worked models end to end.
 6. **API reference**: autosummary pages, one per public module.
 7. **References**: bibliography via `sphinxcontrib-bibtex`.
 8. **Changelog**.
@@ -89,10 +88,14 @@ Draft opening line: *"pylimid models and solves limited-memory influence diagram
 
 ## 3. Examples (first iteration)
 
-- **Medical treatment**: the quickstart (exists).
-- **A mixed influence diagram**: the flagship. The logistics center — a continuous Gamma test score binned into a discrete report, solved with the scan and checked against pyAgrum on the collapsed discrete model (`examples/03_influence_diagrams/_logistics_center.py`, `mixed_logistics_center`). Connects to the blog series.
-- **Policies and counterfactuals**: `counterfactuals_with_policy` (exists).
-- **Bayesian networks**: one page grouping `categorical_bn` and `sangiovese`; secondary, shows `infer`.
+The first iteration lived as Jupytext-paired notebooks under `examples/`. They were folded into the reader-facing pages and the folder removed:
+
+- **Medical treatment**: the quickstart.
+- **A mixed influence diagram**: the flagship. [The logistics center](../docs/tutorials/logistics_center.md) — a continuous Gamma test score binned into a discrete report, solved with the scan.
+- **Bayesian networks**: [Bayesian networks](../docs/tutorials/bayesian_networks.md), covering discrete enumeration and the mixed NUTS path.
+- **Policies and counterfactuals**: covered by the inference guide rather than a standalone tutorial.
+
+The [oil-field](../docs/tutorials/oil_field.md) and [newsvendor](../docs/tutorials/newsvendor.md) tutorials were written directly for the docs.
 
 ## 4. Diagrams
 
@@ -106,7 +109,7 @@ Three different needs:
 ## 5. Tooling
 
 - **Sphinx** + `myst-parser`: prose pages in Markdown.
-- **`myst-nb`** for the examples: executes the jupytext percent `.py` files directly, so the `.py` twins stay the source of truth. `nb_execution_mode = "cache"`, or `"off"` with committed outputs if JAX on Read the Docs is too slow. (`nbsphinx`, used by NumPyro and pyAgrum, also works.)
+- **`myst-nb`** for pages with executable snippets: the `{code-cell}` blocks in the Markdown run through a Jupyter kernel. `nb_execution_mode = "cache"`, or `"off"` with committed outputs if JAX on Read the Docs is too slow. (`nbsphinx`, used by NumPyro and pyAgrum, also works.)
 - **API reference**: `autodoc` + `napoleon` + `autosummary`.
 - **Extras**: `sphinxcontrib-bibtex`, `sphinx-copybutton`, `sphinx-design` (landing-page cards).
 - **Theme**: Read the Docs theme (as in `TODO.md`, matches NumPyro); `pydata-sphinx-theme` or `furo` are a one-line switch later.

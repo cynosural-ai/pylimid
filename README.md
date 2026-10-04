@@ -30,7 +30,7 @@ import numpyro.distributions as dist
 
 from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, solve
 
-orders = jnp.arange(0, 261, 20)   # discrete stock levels
+orders = jnp.arange(0, 261, 20)  # discrete stock levels
 rates = jnp.array([0.1, 1 / 30])  # Gamma rate: quiet mean 40, busy mean 120
 
 diagram = InfluenceDiagram()
@@ -55,8 +55,9 @@ diagram.add_node(
     UtilityNode(
         name="profit",
         parents=("order", "demand"),
-        values=lambda order, demand: 10.0 * jnp.minimum(orders[order], demand)
-        - 1.0 * orders[order],
+        values=lambda order, demand: (
+            10.0 * jnp.minimum(orders[order], demand) - 1.0 * orders[order]
+        ),
     )
 )
 
@@ -81,7 +82,6 @@ For a development checkout, see [CONTRIBUTING.md](CONTRIBUTING.md).
 - [Quickstart](docs/getting_started/quickstart.md)
 - [User guide](docs/user_guide/building_a_diagram.md)
 - [Tutorials](docs/tutorials/oil_field.md)
-- [Notebook examples](examples/README.md)
 
 ## Contributing
 

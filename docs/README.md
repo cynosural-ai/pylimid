@@ -12,7 +12,7 @@ uv run sphinx-build -W docs docs/_build/html
 
 Open `docs/_build/html/index.html`. The `-W` flag turns warnings into errors, so the build fails on broken references, malformed pages, or a code cell that raises.
 
-Rendering the model figures (the examples' `_repr_svg_` cells) needs the Graphviz `dot` binary on `PATH` (`brew install graphviz`, `apt install graphviz`). Without it the build still succeeds, but the diagrams show their plain repr instead of a figure.
+Rendering the model figures (the tutorials' `_repr_svg_` cells) needs the Graphviz `dot` binary on `PATH` (`brew install graphviz`, `apt install graphviz`). Without it the build still succeeds, but the diagrams show their plain repr instead of a figure.
 
 ## Preview locally
 
@@ -43,5 +43,3 @@ Delete `docs/_build` as well if you want the generated HTML rebuilt entirely fro
 - Executable Markdown pages need the `file_format: mystnb` and `kernelspec` top matter (see the quickstart) or myst-nb warns about an unexpected code cell.
 - `conf.py` sets `JAX_PLATFORMS=cpu` before JAX loads: build outputs stay reproducible and notebook cells do not print the GPU fallback notice.
 - `-W` is the gate; a clean build is warning-free.
-- The `examples/` notebooks are kept in sync by the pre-push jupytext hook. Run it on demand with `uv run pre-commit run jupytext-examples --hook-stage pre-push --all-files`.
-

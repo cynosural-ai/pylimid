@@ -34,10 +34,14 @@ The only differences are representational: pyAgrum requires each utility variabl
 ```python
 diag = InfluenceDiagram()
 diag.add_node(DecisionNode(name="D", states=("a", "b")))
-diag.add_node(UtilityNode(name="U1", parents=("D",), values=lambda D: jnp.array([1.0, 0.0])[D]))
-diag.add_node(UtilityNode(name="U2", parents=("D",), values=lambda D: jnp.array([0.0, 2.0])[D]))
+diag.add_node(
+    UtilityNode(name="U1", parents=("D",), values=lambda D: jnp.array([1.0, 0.0])[D])
+)
+diag.add_node(
+    UtilityNode(name="U2", parents=("D",), values=lambda D: jnp.array([0.0, 2.0])[D])
+)
 
-solution = solve(diag)   # {D: b}, expected utility 2.0
+solution = solve(diag)  # {D: b}, expected utility 2.0
 ```
 
 | action | U1 | U2 | total |

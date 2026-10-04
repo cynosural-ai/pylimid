@@ -13,7 +13,7 @@ uv sync --all-groups
 pre-commit install
 ```
 
-`uv sync --all-groups` installs the dev, test, and docs dependency groups. `pre-commit install` wires the lint, type-check, and example-sync hooks.
+`uv sync --all-groups` installs the dev, test, and docs dependency groups. `pre-commit install` wires the lint and type-check hooks.
 
 ## Checks
 
@@ -26,11 +26,7 @@ uv run ty check               # type check
 uv run pytest tests/          # tests
 ```
 
-Ruff and ty also run on every commit through pre-commit; the Jupytext sync runs on push because it imports JAX. To run the example sync on demand:
-
-```bash
-uv run pre-commit run jupytext-examples --hook-stage pre-push --all-files
-```
+Ruff and ty also run on every commit through pre-commit.
 
 ## Repository layout
 
@@ -40,7 +36,6 @@ uv run pre-commit run jupytext-examples --hook-stage pre-push --all-files
 | `pylimid/inference/` | The NumPyro engine, solvers, and result types |
 | `tests/` | The pytest suite; fully discrete models are cross-checked against pyAgrum |
 | `docs/` | The published Sphinx site (see `docs/README.md` for build details) |
-| `examples/` | Runnable notebooks, each paired with a Jupytext `.py` twin |
 | `design/` | Contributor-facing decision records and design notes; not published |
 | `AGENTS.md` | Detailed code style and design conventions |
 
@@ -63,12 +58,6 @@ uv run sphinx-build -W docs docs/_build/html
 ```
 
 The `-W` flag turns warnings into errors. Prose pages are Markdown; pages with executable snippets carry `file_format: mystnb` frontmatter and use `{code-cell}` fences. Add a new page to the appropriate `{toctree}` in `docs/index.md`. Development notes for contributors belong in `design/`, not `docs/`.
-
-Examples are paired `.ipynb` / `.py` files. The `.py` side is the source of truth; edit it and let the pre-push hook sync and execute the pair, or sync a single example with:
-
-```bash
-uv run jupytext --sync examples/03_influence_diagrams/medical_treatment.py
-```
 
 ## Pull requests
 

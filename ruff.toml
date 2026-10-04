@@ -29,7 +29,6 @@ task-tags = ["TODO", "todo"]
 # In ruff.toml, it is cleaner to use a section for ignores rather than an inline table
 [lint.per-file-ignores]
 "tests/*" = ["D100", "D103", "D104"]  # test modules/functions don't need docstrings
-"examples/**" = ["B018", "D100", "E402", "E501"]  # notebook cells use bare expressions and mid-notebook imports
 
 [lint.pycodestyle]
 ignore-overlong-task-comments = true

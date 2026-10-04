@@ -48,7 +48,7 @@ An exact all-continuous engine mirroring variable elimination step for step, but
 - `gaussian_factor` — a factor over a variable set in canonical form `exp(-1/2 xᵀJx + hᵀx)`: multiply = add `(J, h)`, marginalize = Schur complement, condition = clamp. The LG analog of `utils.factor.Factor`.
 - `query()` — same elimination schedule as `variable_elim.query()`.
 - Result type `Gaussian(mean, variance)` — a Gaussian posterior is not raw draws, so the current `Draws` contract does not fit; the `InferenceResult` union grows but the NumPyro default path is untouched.
-- Example fills in `examples/02_bayesian_networks/linear_gaussian_bn.py` (currently a placeholder).
+- Example fills in the linear-Gaussian walkthrough (the placeholder notebook was later removed with the `examples/` folder).
 
 ### Validation
 

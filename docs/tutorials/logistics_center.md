@@ -482,8 +482,9 @@ inferred together, from one graph.
 ```{admonition} Next
 :class: seealso
 The oil-field tutorial covers a fully discrete diagram and the memory-arc
-mechanics in more depth. The examples folder has runnable notebooks, including
-the pyAgrum cross-check of this model: pyAgrum cannot solve a mixed LIMID, so
-the continuous score is integrated out into its induced report distribution
-and the collapsed discrete model is solved exactly.
+mechanics in more depth. [The newsvendor](newsvendor.md) shows another
+mixed-type pattern, and [Bayesian networks](bayesian_networks.md) covers
+inference without decisions. For the exact reference here: pyAgrum cannot
+solve a mixed LIMID, but integrating the continuous score out into its
+induced report distribution leaves a discrete model it can solve exactly.
 ```
