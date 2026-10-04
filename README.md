@@ -2,6 +2,7 @@
 
 **Mixed-type limited-memory influence diagrams, on NumPyro.**
 
+[![PyPI](https://img.shields.io/pypi/v/pylimid.svg)](https://pypi.org/project/pylimid/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE.md)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 
@@ -69,10 +70,16 @@ The solver stocks well above the average demand — 60 on a quiet day (mean 40),
 
 ## Installation
 
-Requires Python 3.12. pylimid is not on PyPI yet:
+Requires Python 3.12.
 
 ```bash
-pip install "pylimid @ git+https://github.com/cynosural-ai/pylimid.git"
+pip install pylimid
+```
+
+The default install runs on the CPU. For an NVIDIA GPU, install the CUDA extra — it pulls the matching CUDA-enabled JAX plugin:
+
+```bash
+pip install "pylimid[cuda12]"   # or "pylimid[cuda13]" for newer drivers
 ```
 
 For a development checkout, see [CONTRIBUTING.md](CONTRIBUTING.md).
