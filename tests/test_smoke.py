@@ -2,10 +2,12 @@
 
 
 def test_version_is_set() -> None:
-    """The package exposes a version string."""
+    """The package exposes the version recorded in its distribution metadata."""
+    from importlib.metadata import version
+
     import pylimid
 
-    assert pylimid.__version__ == "0.1.0"
+    assert pylimid.__version__ == version("pylimid")
 
 
 def test_top_level_exports_the_public_api() -> None:
