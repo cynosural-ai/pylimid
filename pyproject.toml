@@ -29,9 +29,22 @@ test = [
     # pyagrum.clg imports pandas at module load without declaring it.
     "pandas>=2.0",
 ]
+docs = [
+    # myst-parser 5.1 is not yet compatible with Sphinx 9.
+    "sphinx>=8.2,<9",
+    "myst-parser>=4",
+    "myst-nb>=1.2",
+    "sphinx-rtd-theme>=3",
+    "sphinx-copybutton>=0.5",
+    "sphinx-design>=0.6",
+    # myst-nb executes the guide snippets in a Jupyter kernel.
+    "ipykernel>=6",
+    # The logistics tutorial draws the score densities and the sensitivity plot.
+    "matplotlib>=3.8",
+]
 
 [tool.uv]
-default-groups = ["dev", "test"]
+default-groups = ["dev", "test", "docs"]
 
 [build-system]
 requires = ["hatchling"]

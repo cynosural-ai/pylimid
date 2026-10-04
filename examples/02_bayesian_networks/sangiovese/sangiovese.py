@@ -8,6 +8,10 @@
 #       format_name: percent
 #       format_version: '1.3'
 #       jupytext_version: 1.19.5
+#   kernelspec:
+#     display_name: Python 3 (ipykernel)
+#     language: python
+#     name: python3
 # ---
 
 # %% [markdown]
@@ -86,7 +90,9 @@ quality = ["GrapeW", "Brix", "Anthoc", "Polyph", "Acid", "pH"]
 prior = infer(diag, quality)
 for name in quality:
     p = prior[name]
-    print(f"{name:8s} mean={p.mean():+.3f}  sd={p.std():.3f}  hdi=({p.hdi()[0]:+.3f}, {p.hdi()[1]:+.3f})")
+    print(
+        f"{name:8s} mean={p.mean():+.3f}  sd={p.std():.3f}  hdi=({p.hdi()[0]:+.3f}, {p.hdi()[1]:+.3f})"
+    )
 
 # %% [markdown]
 # ## Inverting the model: which treatment produced this quality?
@@ -150,7 +156,9 @@ post_t3b = infer(diag, quality, observed={"Treatment": t3b})
 for name in quality:
     p = post_t3b[name]
     pr = prior[name]
-    print(f"{name:8s} prior mean={pr.mean():+.3f} -> T3b mean={p.mean():+.3f}  (sd {p.std():.3f})")
+    print(
+        f"{name:8s} prior mean={pr.mean():+.3f} -> T3b mean={p.mean():+.3f}  (sd {p.std():.3f})"
+    )
 
 # %% [markdown]
 # ## What the comparison says

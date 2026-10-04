@@ -8,17 +8,21 @@
 #       format_name: percent
 #       format_version: '1.3'
 #       jupytext_version: 1.19.5
+#   kernelspec:
+#     display_name: Python 3 (ipykernel)
+#     language: python
+#     name: python3
 # ---
 
 # %% [markdown]
-# # Influence diagrams — solve() with the batched NumPyro intervention scan
+# # Influence diagrams — the intervention scan vs the exact answer
 #
-# This notebook uses the batched scan (`batched_solve`): the intervention
-# scan (Strategy B) enumerates the discrete policy space and estimates each
-# policy's expected utility by forward sampling, keeping the best — with
-# every policy evaluated in one vmapped pass. The expected utility is a
-# Monte-Carlo estimate — the seed makes it reproducible, and mixed and
-# continuous diagrams are handled by the same forward sampling.
+# This notebook uses the intervention scan (`solve(method="scan")`): it
+# enumerates the discrete policy space and estimates each policy's expected
+# utility by forward sampling, keeping the best — every policy evaluated in
+# one vmapped pass. The expected utility is a Monte-Carlo estimate — the
+# seed makes it reproducible, and mixed and continuous diagrams are handled
+# by the same forward sampling.
 #
 # Model: does the patient have the disease? Do we treat? Does the patient
 # recover? The payoff is 100 per recovery minus 20 if we treated.
@@ -28,8 +32,8 @@ import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
+from pylimid import solve
 from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from pylimid.inference.numpyro.solvers import batched_solve
 
 # %% [markdown]
 # ## The model (all categorical)
@@ -81,7 +85,7 @@ print(diag.validate())
 # `0.6 * 90 + 0.4 * 60`; the estimate lands close.
 
 # %%
-solution = batched_solve(diag.snapshot())
+solution = solve(diag, method="scan")
 print("policy:", solution.policy["treat"])
 print("expected utility:", round(solution.expected_utility, 3))
 
@@ -156,7 +160,7 @@ print("pyagrum (exact):       ", exact_meu, exact_policy)
 
 # %%
 for seed in range(3):
-    solution = batched_solve(diag.snapshot(), rng_key=jax.random.PRNGKey(seed))
+    solution = solve(diag, method="scan", rng_key=jax.random.PRNGKey(seed))
     print(
         f"seed {seed}: EU = {solution.expected_utility:.3f}",
         f"policy = {solution.policy['treat']}",
@@ -202,7 +206,7 @@ mixed.add_node(
     )
 )
 
-mc = batched_solve(mixed.snapshot())
+mc = solve(mixed, method="scan")
 print("policy:", mc.policy["treat"], "EU:", round(mc.expected_utility, 2))
 
 # %% [markdown]
@@ -215,72 +219,3 @@ print("policy:", mc.policy["treat"], "EU:", round(mc.expected_utility, 2))
 
 # %%
 print("0.6 * 90 + 0.4 * 60 =", 0.6 * 90 + 0.4 * 60)
-
-# %% [markdown]
-# ## The Oil Wildcatter — pyAgrum exact vs the scan
-#
-# Up to now the reference answers were computed by hand on small models. For
-# a bigger, classic problem we let pyAgrum solve the diagram *exactly* (LIMID
-# with the Shafer-Shenoy algorithm) and compare its answer against the scan.
-#
-# The Oil Wildcatter is the textbook example of a decision under uncertainty
-# (Raiffa's classic, and the model shipped with pyAgrum's tutorials). An oil
-# deposit may be Dry, Wet, or Soaking. We may run an expensive test whose
-# report — closed, open, or diffuse — is informative about the deposit;
-# then we decide whether to drill. Drilling pays off per deposit type, the
-# test costs 10. Six nodes, two decisions, and the drilling decision
-# observes the test report.
-#
-# The exact optimum: run the test, then drill unless the report is
-# "diffuse". MEU = 22.5.
-
-# %%
-from _oil_wildcatter import pyagrum_solution, pylimid_diagram
-
-oil = pylimid_diagram()
-print(oil.validate())
-
-meu, exact_policy = pyagrum_solution()
-print("pyAgrum MEU:", meu)
-print("pyAgrum Testing:", exact_policy["Testing"])
-reports = {
-    r: exact_policy["Drilling"][(1, i)]
-    for i, r in enumerate(("closed", "open", "diffuse"))
-}
-print("pyAgrum Drilling (report -> action):", reports)
-
-# %% [markdown]
-# ## The batched scan agrees on the realized policy
-#
-# The scan evaluates every policy by forward sampling — with 128 candidate
-# policies (the drilling rule has 2 actions over its 6-assignment
-# information set) the batched solver runs the whole enumeration in one
-# vmapped pass, so this cell uses the default 2000 samples and still
-# finishes in well under a second.
-
-# %%
-oil_solution = batched_solve(oil.snapshot())
-print("scan MEU:", round(oil_solution.expected_utility, 3))
-
-# Drilling's info set is (Testing, TestResult); the branch that matters is
-# the one the optimal policy realizes — the test runs (Testing=Yes).
-reports = {
-    r: oil_solution.policy["Drilling"][(1, i)]
-    for i, r in enumerate(("closed", "open", "diffuse"))
-}
-print("scan Drilling given the test ran:", reports)
-
-# %% [markdown]
-# ## Reading the comparison
-#
-# - **MEU**: the exact answer is 22.5; the scan's estimate lands within its
-#   Monte-Carlo noise (the reward spreads over −70..200, so a 2–3 point
-#   wobble is expected even at 2000 samples).
-# - **The decision rule**: restricted to the branch that actually occurs —
-#   the test is run, so the drilling rule conditions on the report — both
-#   engines agree: drill on closed and open, not on diffuse.
-# - **The no-test branch**: the scan fills in a rule for `Testing=No` rows
-#   too, but that branch is never realized under the optimal policy (its
-#   prior probability under the policy is zero), so those rows do not
-#   affect the expected utility. pyAgrum's `optimalDecision` drops the
-#   decision parent from the returned table entirely.

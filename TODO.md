@@ -4,7 +4,7 @@ Forward plan. The engine work is done (numpyro-only, scan + batched scan + backw
 
 ## 1. Finish discrete decisions
 
-- **More examples.** Cover the decision classes the library is meant to demonstrate, so the docs and the API have something concrete to point at.
+- **More examples.** Cover the decision classes the library is meant to demonstrate, so the docs and the API have something concrete to point at. The two planned problem benchmarks — the mixed continuous/discrete logistics center (buildable now) and the future continuous-decision ride-hailing problem — are scoped in `design/problems/`.
 - **Proper documentation.** Turn the current living notes into reader-facing documentation: concepts, the solving strategies, and the result contract.
 - **Reorganize the code.** Settle the module layout now, with discrete decisions as the scope, so later work lands on a stable surface.
 

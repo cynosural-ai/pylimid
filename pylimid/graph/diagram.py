@@ -39,8 +39,10 @@ from dataclasses import dataclass
 
 from pylimid.graph.chance_node import ChanceNode, DistFactory
 from pylimid.graph.decision_node import DecisionNode
-from pylimid.graph.mermaid import to_mermaid
 from pylimid.graph.node import Consistency, Node
+from pylimid.graph.render.graphviz import available as graphviz_available
+from pylimid.graph.render.graphviz import to_svg
+from pylimid.graph.render.mermaid import to_mermaid
 from pylimid.graph.utility_node import UtilityNode
 from pylimid.graph.validation import DiagramProblem, ProblemKind
 
@@ -466,6 +468,10 @@ class InfluenceDiagram:
         """All node names in insertion order."""
         return tuple(self._nodes)
 
+    def __repr__(self) -> str:
+        """A deterministic summary, used when Graphviz cannot draw a figure."""
+        return f"InfluenceDiagram({', '.join(self.names)})"
+
     # --- rendering ----------------------------------------------------------
 
     def to_mermaid(self) -> str:
@@ -476,12 +482,40 @@ class InfluenceDiagram:
         edges) and usable on the live workspace: no validation required, so
         an incomplete diagram renders with dangling parents as dashed ghost
         nodes and non-consistent nodes tinted via ``classDef``. See
-        `pylimid.graph.mermaid`.
+        `pylimid.graph.render.mermaid`.
 
         Returns:
             Mermaid flowchart source; paste into a Mermaid renderer to view.
         """
         return to_mermaid(self)
+
+    def to_svg(self) -> str:
+        """
+        Render the diagram as an SVG string with Graphviz.
+
+        Shells out to the Graphviz ``dot`` binary, which must be on ``PATH``.
+        In Jupyter the diagram renders itself through this method; see
+        `pylimid.graph.render.graphviz`.
+
+        Returns:
+            SVG source.
+
+        Raises:
+            FileNotFoundError: If the ``dot`` binary is not on ``PATH``.
+            subprocess.CalledProcessError: If ``dot`` rejects the graph.
+        """
+        return to_svg(self)
+
+    def _repr_svg_(self) -> str | None:
+        """
+        Jupyter display hook: the SVG rendering, or ``None`` without ``dot``.
+
+        Returning ``None`` when the ``dot`` binary is missing makes Jupyter
+        fall back to the plain repr instead of failing the display.
+        """
+        if not graphviz_available():
+            return None
+        return to_svg(self)
 
     # --- internals ----------------------------------------------------------
 

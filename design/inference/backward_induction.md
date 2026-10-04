@@ -50,7 +50,7 @@ Adding memory arcs turns a non-solvable diagram into a regular one, but that is 
 ## Validation plan
 
 - `is_solvable` equals pyAgrum's `isSolvable()` on every fixture and on a structural battery (separate-utility decisions sharing info, d-separated influence chains, forgotten irrelevant observations, unordered decisions) — the zero-tolerance test, except the pinned divergence where pyAgrum's level shortcut is unsound and the paper's criterion rejects the diagram.
-- Soluble diagrams: policy and expected utility against pyAgrum's exact solver at Monte-Carlo tolerances (LIMID fixtures + Oil Wildcatter).
+- Soluble diagrams: policy and expected utility against pyAgrum's exact solver at Monte-Carlo tolerances (LIMID fixtures).
 - Non-soluble: the error path; when SPU lands, against the scan at MC tolerance — the scan is the only global reference there, since pyAgrum refuses non-soluble LIMIDs.
 - Determinism: a fixed `rng_key` reproduces the same policy.
 
