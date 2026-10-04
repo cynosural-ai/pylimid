@@ -9,7 +9,7 @@ pylimid requires Python 3.12 or newer. NumPyro and JAX are installed as dependen
 pylimid is not on PyPI yet. Install the latest development version with pip:
 
 ```bash
-pip install "pylimid @ git+https://github.com/cynosural-ai/decisionpy.git"
+pip install "pylimid @ git+https://github.com/cynosural-ai/pylimid.git"
 ```
 
 ## Development setup
@@ -17,8 +17,8 @@ pip install "pylimid @ git+https://github.com/cynosural-ai/decisionpy.git"
 For working on pylimid itself, clone the repository and use [uv](https://docs.astral.sh/uv/):
 
 ```bash
-git clone https://github.com/cynosural-ai/decisionpy
-cd decisionpy
+git clone https://github.com/cynosural-ai/pylimid
+cd pylimid
 uv sync --all-groups
 uv run pytest
 ```
