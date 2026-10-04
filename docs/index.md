@@ -96,10 +96,11 @@ tutorials/oil_field
 
 ```{toctree}
 :hidden:
-:caption: Examples
+:caption: User guide
 :maxdepth: 1
 
-examples/influence_diagrams/medical_treatment
+user_guide/building_a_diagram
+user_guide/chance_nodes
 ```
 
 ```{toctree}

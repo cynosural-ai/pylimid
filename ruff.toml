@@ -3,9 +3,6 @@
 line-length = 88
 indent-width = 4
 
-# Symlinks to the example notebooks under examples/, already linted there.
-extend-exclude = ["docs/examples"]
-
 [format]
 # Enable reformatting of code snippets in docstrings.
 docstring-code-format = true

@@ -53,12 +53,6 @@ myst_heading_anchors = 3
 nb_execution_mode = "cache"
 nb_execution_timeout = 600
 
-# The examples live in ``examples/`` as jupytext percent scripts and are
-# surfaced through the ``docs/examples`` symlinks. jupytext parses them so
-# myst-nb can execute them; ``add_nb_custom_formats`` also registers ``.py``
-# as a Myst-NB source suffix.
-nb_custom_formats = {".py": ["jupytext.reads", {"fmt": "py:percent"}]}
-
 # ``default_role = "py:obj"`` turns a bare ``Name`` in a docstring into a
 # cross-reference, but Sphinx resolves a bare name only in the current
 # module or class. Most of our references cross modules (``Snapshot``,
@@ -103,14 +97,6 @@ html_title = "pylimid"
 # ``:members:``.
 templates_path = ["_templates"]
 
-# ``docs/README.md`` documents the build for contributors and is not
-# part of the published site. Under ``examples/`` only the jupytext ``.py``
-# sources are pages: the committed ``.ipynb`` twins and the shared helper
-# modules (``_oil_wildcatter.py``) stay out of the build.
-exclude_patterns = [
-    "_build",
-    "conf.py",
-    "README.md",
-    "examples/**/*.ipynb",
-    "examples/**/_*.py",
-]
+# ``docs/README.md`` documents the build for contributors and is not part
+# of the published site.
+exclude_patterns = ["_build", "README.md"]
