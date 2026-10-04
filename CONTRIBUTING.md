@@ -4,7 +4,7 @@ Thanks for your interest in improving pylimid. This guide covers the development
 
 ## Development setup
 
-pylimid requires Python 3.12 or newer and [uv](https://docs.astral.sh/uv/).
+pylimid requires Python 3.12 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 git clone https://github.com/cynosural-ai/pylimid
