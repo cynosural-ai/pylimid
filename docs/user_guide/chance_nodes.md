@@ -106,7 +106,7 @@ infer(clg, ["quality"], observed={"yield": 2.0})["quality"].marginal()
 `dist` is not called once in Python: it is traced and evaluated inside vectorized forward passes and, for continuous posteriors, inside NUTS. Two consequences:
 
 - Write it as a pure `jnp` expression — no `float()` / `int()` coercion, and no Python `if` on a traced parent value. Use `jnp.where` for branching.
-- The signature is the contract. Every parent must be named as a parameter for the node to be `CONSISTENT` (see [](building_a_diagram.md)). A `**kwargs` callable does not count: the gate cannot verify that it reads anything. Callables that resolve parents dynamically should declare a generated named-parameter signature — the pattern the bundled examples use for table-backed distributions.
+- The signature is the contract. Every parent must be named as a parameter for the node to be `CONSISTENT` (see [](building_a_diagram.md)). A `**kwargs` callable does not count: the gate cannot verify that it reads anything. Callables that resolve parents dynamically should declare a generated named-parameter signature — a common pattern for table-backed distributions.
 
 Editing is the same mutable-workspace story as the rest of the graph: `node.dist = new_callable`, or `diagram.set_dist(name, new_callable)`, and re-validate. Changing the *parent set* makes the node stale until the signature is updated.
 

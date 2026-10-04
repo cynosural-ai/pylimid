@@ -17,11 +17,6 @@ dev = [
     "pre-commit>=3.1.1",
     "ruff==0.16.0",
     "ty==0.0.14",
-    "jupyterlab>=4.1",
-    "jupytext>=1.16",
-    "ipywidgets>=8.0",
-    # The examples build the same models in pyAgrum as the exact reference.
-    "pyagrum>=1.12",
 ]
 test = [
     "pytest>=8.4.0",

@@ -201,5 +201,5 @@ Whatever the demand distribution, the optimal stock solves ``F(Q) = (price - cos
 
 ```{admonition} Next
 :class: seealso
-[The oil field](oil_field.md) is a fully discrete decision problem with a memory arc, and [the logistics center](logistics_center.md) shows the other mixed-type pattern: a continuous score binned into a discrete report before the decision sees it. The examples folder has runnable notebooks for both.
+[The oil field](oil_field.md) is a fully discrete decision problem with a memory arc, and [the logistics center](logistics_center.md) shows the other mixed-type pattern: a continuous score binned into a discrete report before the decision sees it. For inference without decisions, see [Bayesian networks](bayesian_networks.md).
 ```
