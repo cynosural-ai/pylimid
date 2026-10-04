@@ -3,6 +3,7 @@
 **Mixed-type limited-memory influence diagrams, on NumPyro.**
 
 [![PyPI](https://img.shields.io/pypi/v/pylimid.svg)](https://pypi.org/project/pylimid/)
+[![Documentation](https://readthedocs.org/projects/pylimid/badge/?version=latest)](https://pylimid.readthedocs.io/en/latest/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE.md)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 
@@ -85,6 +86,8 @@ pip install "pylimid[cuda12]"   # or "pylimid[cuda13]" for newer drivers
 For a development checkout, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentation
+
+The full documentation is at **<https://pylimid.readthedocs.io>**.
 
 - [Quickstart](docs/getting_started/quickstart.md)
 - [User guide](docs/user_guide/building_a_diagram.md)
