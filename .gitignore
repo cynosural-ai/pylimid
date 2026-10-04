@@ -89,6 +89,7 @@ TEST*.xml
 
 # Project specific
 .cursor/
+pylimid/_version.py
 
 # Sphinx
 docs/_build/

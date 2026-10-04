@@ -12,6 +12,7 @@ the inference layer (`pylimid.inference`) holds `infer`, `solve` and
 their result types.
 """
 
+from pylimid._version import __version__
 from pylimid.graph import (
     ChanceNode,
     DecisionNode,
@@ -29,8 +30,6 @@ from pylimid.inference import (
     infer,
     solve,
 )
-
-__version__ = "0.1.0"
 
 __all__ = [
     "ChanceNode",
