@@ -89,6 +89,10 @@ html_theme_options = {
     "collapse_navigation": False,
     "navigation_depth": 3,
 }
+html_static_path = ["_static"]
+# Center the figure directive's images (docutils' default is left-aligned) and
+# the images embedded in executed notebook outputs.
+html_css_files = ["custom.css"]
 html_title = "pylimid"
 
 # The bundled autosummary class template omits ``:members:``, so a class

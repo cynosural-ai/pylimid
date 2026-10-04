@@ -23,7 +23,7 @@ Guarantee: the global optimum of the Monte-Carlo estimate — every policy is ev
 
 The same algorithm with the same semantics and the same guarantees, engineered to be fast: all policies evaluated in one vmapped call with the policy arrays as a leading batch dimension, and the forward step jitted once — one trace, one dispatch for the whole solve. Because it uses the same PRNG key schedule per policy, it returns the same policy and the same EU as Tier 1, which makes the validation trivial: the two must agree (to float rounding, since the unbatched scan accumulates in float64 in Python).
 
-The cost stays exponential (the enumeration is the same); what goes away is the per-policy JAX re-trace overhead, which dominated the runtime (measured ~260ms per 500-sample evaluation, ~60% of it trace machinery from user `dist` callables). Measured ~220× on the Oil Wildcatter fixture: 112s → 0.5s at 2000 samples per policy. One constraint: utility `values` callables must be JAX-traceable (no `float()`/`int()` coercion), because they are evaluated inside the vmapped walk. Implementation: `pylimid.inference.numpyro.solvers.batched_scan`.
+The cost stays exponential (the enumeration is the same); what goes away is the per-policy JAX re-trace overhead, which dominated the runtime (measured ~260ms per 500-sample evaluation, ~60% of it trace machinery from user `dist` callables). Measured ~220× on a six-node soluble LIMID example: 112s → 0.5s at 2000 samples per policy. One constraint: utility `values` callables must be JAX-traceable (no `float()`/`int()` coercion), because they are evaluated inside the vmapped walk. Implementation: `pylimid.inference.numpyro.solvers.batched_scan`.
 
 ## Tier 3 — backward induction / single policy updating (regular diagrams implemented)
 
@@ -74,7 +74,7 @@ One-pass backward induction is sound exactly on *soluble* LIMIDs, so the gate is
 ## How each tier is validated
 
 - **Batched scan:** must reproduce the scan bit-for-bit (same PRNG key schedule) — a pure-performance change with no behavior change.
-- **Backward induction (soluble diagrams):** compare against pyAgrum's exact LIMID solver (Shafer-Shenoy message passing) at Monte-Carlo tolerances — the Oil Wildcatter is a natural fixture, and `isSolvable()` must be true for it. The gate itself follows the paper's criterion, which is stricter than pyAgrum's on the pinned divergence; there pyAgrum is the wrong reference and the scan is the only one.
+- **Backward induction (soluble diagrams):** compare against pyAgrum's exact LIMID solver (Shafer-Shenoy message passing) at Monte-Carlo tolerances — a six-node soluble LIMID is a natural fixture, and `isSolvable()` must be true for it. The gate itself follows the paper's criterion, which is stricter than pyAgrum's on the pinned divergence; there pyAgrum is the wrong reference and the scan is the only one.
 - **SPU (true LIMIDs):** compare against the scan at Monte-Carlo tolerances — pyAgrum refuses non-regular LIMIDs outright (it has no SPU), so the scan is the only global reference for that case.
 
 ## Status

@@ -6,14 +6,14 @@ Working document for the first published documentation site. Updated as the work
 
 | Step | Status |
 | --- | --- |
-| 0. Settle the public API | Done on branch `refactor/public-api`|
-| 1. Sphinx skeleton: home, quickstart, API reference, Read the Docs build | Not started |
-| 2. Port the example notebooks + write the mixed influence-diagram example | Not started |
-| 3. User guide pages | Not started |
+| 0. Settle the public API | Done |
+| 1. Sphinx skeleton: home, quickstart, user guide, tutorials, API reference | Done — builds locally; Read the Docs deferred until the repo is public |
+| 2. Examples and tutorials | Oil-field and mixed continuous/discrete (`tutorials/logistics_center`) tutorials done. The docs Examples section was dropped in favour of tutorials; the example notebooks stay in `examples/` and are kept in sync by the pre-push jupytext hook |
+| 3. User guide pages | Done — building a diagram, chance nodes, decisions and information sets, utilities, inference, solving, rendering, scope and limitations |
 | 4. Background pages + the pyAgrum solvability note | Not started |
-| 5. Graphviz renderer, swapped into the examples | Not started |
+| 5. Graphviz renderer | Done — `to_svg` / `_repr_svg_`; Mermaid kept for text |
 
-Steps 0–2 are enough for a credible beta site; 3–5 can follow in later iterations.
+The site order is **Getting started → User guide → Tutorials → API reference**, with Background planned between Tutorials and API reference.
 
 ## 0. Settle the public API first
 
@@ -90,8 +90,7 @@ Draft opening line: *"pylimid models and solves limited-memory influence diagram
 ## 3. Examples (first iteration)
 
 - **Medical treatment**: the quickstart (exists).
-- **Oil Wildcatter**: the flagship. Connects to the blog series and already has a pyAgrum twin (`examples/03_influence_diagrams/_oil_wildcatter.py`). Both solvers next to the exact reference.
-- **A mixed influence diagram** (missing, most important): e.g. the Oil Wildcatter with a continuous oil amount and price (lognormal) and a utility computed from them. Candidate may exist in the personal examples repo.
+- **A mixed influence diagram**: the flagship. The logistics center — a continuous Gamma test score binned into a discrete report, solved with the scan and checked against pyAgrum on the collapsed discrete model (`examples/03_influence_diagrams/_logistics_center.py`, `mixed_logistics_center`). Connects to the blog series.
 - **Policies and counterfactuals**: `counterfactuals_with_policy` (exists).
 - **Bayesian networks**: one page grouping `categorical_bn` and `sangiovese`; secondary, shows `infer`.
 

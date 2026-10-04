@@ -1,6 +1,6 @@
 # Automated logistics center — mixed continuous/discrete chance nodes
 
-**Status:** planned example. Not built. This note parks the design so the first mixed continuous/discrete problem is built deliberately instead of improvised.
+**Status:** implemented — first cut. The shared model lives in [`examples/03_influence_diagrams/_logistics_center.py`](../../examples/03_influence_diagrams/_logistics_center.py), the example walkthrough in [`examples/03_influence_diagrams/mixed_logistics_center.ipynb`](../../examples/03_influence_diagrams/mixed_logistics_center.ipynb), and the published tutorial in [`docs/tutorials/logistics_center.md`](../../docs/tutorials/logistics_center.md). The model uses the continuous-score variant (1) below with a fresh Gamma parameterization and validates against pyAgrum solving the collapsed discrete model; the continuous-consequence variant (2) and exact table calibration are still open. This section records the design the implementation follows.
 
 **Scope.** A single-problem design note. The library behavior it rests on — continuous chance nodes, discrete decisions and utilities, the NumPyro solver family — is settled elsewhere ([`chance_node.md`](../graph/chance_node.md), [`decision_node.md`](../graph/decision_node.md), [`backend_numpyro.md`](../inference/backend_numpyro.md)). The case where a *decision observes a continuous variable* is out of scope here; that is a solver-generalization question, not a problem-design one.
 
@@ -34,7 +34,7 @@ R = bin(s)           # the existing bad / good / excellent report
 
 `R` stays discrete, so `I`'s information set stays discrete and the solver is untouched. The report's probabilities are now *induced* by a continuous density and its thresholds rather than written down directly. Pick a non-Gaussian `p_A` on purpose — this is the point of the exercise. A `Gamma`/`LogNormal` score is positive and skewed (a natural model for a performance or time-to-failure measurement); a `StudentT` score is heavy-tailed (a test that occasionally throws large outliers in the same units as the state).
 
-Calibrating the thresholds so the induced `P(R | A)` matches the original table gives a built-in regression test: the mixed model must reproduce the discrete baseline exactly when the bins are chosen that way.
+Calibrating the thresholds so the induced `P(R | A)` matches the original table would give a built-in regression to the discrete baseline, but it is over-constrained for a single natural family and shared thresholds. The implementation instead uses a fresh parameterization and checks the mixed model against pyAgrum solving the *collapsed* discrete model built from the induced `P(R | A)` — the same expectation, reached through the exact solver.
 
 ### 2. A continuous consequence feeding the payoff
 
@@ -67,7 +67,7 @@ or a demand/revenue term `Demand ~ LogNormal` that scales the chosen system's pa
 
 ## Validation
 
-1. **Discrete fallback.** With bins calibrated to reproduce `P(R | A)`, the mixed model's MEU and policy must match the exact pyAgrum LIMID from the base problem.
+1. **Collapsed-discrete reference.** Build the all-discrete diagram whose `P(R | A)` is the one the continuous score induces, solve it exactly with pyAgrum, and require the mixed model's MEU and the test-branch policy to agree up to Monte-Carlo noise (`_logistics_center.py` does exactly this).
 2. **Monte-Carlo convergence.** MEU and the continuous marginals stabilise as the sample count grows; the scan already reports Monte-Carlo estimates.
 3. **Value-of-information sanity.** A more informative `s` (narrower per-state densities) cannot hurt: `MEU(test) − MEU(no test)` is non-negative and increases with informativeness.
 4. **Continuous posterior.** `infer()` on `s` given an observed `R` returns draws whose `mean()` / `std()` / `hdi()` respond correctly to the bin.

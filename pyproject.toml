@@ -39,6 +39,8 @@ docs = [
     "sphinx-design>=0.6",
     # myst-nb executes the guide snippets in a Jupyter kernel.
     "ipykernel>=6",
+    # The logistics tutorial draws the score densities and the sensitivity plot.
+    "matplotlib>=3.8",
 ]
 
 [tool.uv]
