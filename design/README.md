@@ -41,6 +41,14 @@ Read in this order:
 
 10. **[`backward_induction.md`](./inference/backward_induction.md)** — the Level 2 estimator design (planned): the per-decision `Q(a, k)` conditional expectation, stratified grouping over information-set assignments, the regularity gate, variance expectations, and the validation plan against pyAgrum.
 
+## Problem design notes
+
+Living notes for the example decision problems the library is meant to demonstrate. Each note describes the model, the capability it is meant to exercise, and its validation plan; the library capabilities it depends on are settled in the notes above. They are parked, not being executed.
+
+1. **[`problems/automated_logistics_center.md`](./problems/automated_logistics_center.md)** — the first mixed continuous/discrete problem: keep discrete decisions and utilities, add continuous chance nodes (a non-Gaussian latent score binned into the existing report, and later a continuous consequence feeding the payoff). Buildable with the current solver; the exact discrete LIMID is its regression oracle.
+
+2. **[`problems/ride_hailing.md`](./problems/ride_hailing.md)** — the future continuous-decision problem: the offer becomes a real-valued incentive, retention and value become smooth functions of it, and a Bayesian-prior variant learns the retention rates from synthetic or real churn data. Depends on Strategy A (continuous decisions) and the deferred `fit` work.
+
 ## Status of each decision
 
 | Topic                | Status      | Where                              |
@@ -59,6 +67,8 @@ Read in this order:
 | `infer()` result format | Settled — one `Posterior` per query (draws + `states`; `marginal()`/`mean()`/`std()`/`hdi()`) | `ADR/25_08_2026_unified_posterior_result.md` |
 | `from_cpt` sugar     | Deferred    | `chance_node.md` (resolved q)      |
 | Parametric learning (`fit`) | Deferred | `diagram.md`                 |
+| Mixed continuous/discrete example | Planned — buildable now | `problems/automated_logistics_center.md` |
+| Continuous-decision + priors example | Future — needs Strategy A and `fit` | `problems/ride_hailing.md` |
 
 ## Code status
 
