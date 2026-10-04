@@ -35,3 +35,13 @@ uv run sphinx-build -W -E -a -D nb_execution_mode=force docs docs/_build/html
 ```
 
 Delete `docs/_build` as well if you want the generated HTML rebuilt entirely from scratch.
+
+## Notes
+
+- List `myst_nb` in `extensions`, not `myst_parser`: myst-nb pulls myst-parser in, and registering both repeats directives and fails `-W`.
+- Sphinx is pinned to `<9` in `pyproject.toml` because myst-parser 5.1 crashes on Sphinx 9. Drop the pin once myst-parser supports it.
+- Executable Markdown pages need the `file_format: mystnb` and `kernelspec` top matter (see the quickstart) or myst-nb warns about an unexpected code cell.
+- `conf.py` sets `JAX_PLATFORMS=cpu` before JAX loads: build outputs stay reproducible and notebook cells do not print the GPU fallback notice.
+- `-W` is the gate; a clean build is warning-free.
+- The `examples/` notebooks are kept in sync by the pre-push jupytext hook. Run it on demand with `uv run pre-commit run jupytext-examples --hook-stage pre-push --all-files`.
+
