@@ -3,7 +3,7 @@
 **Mixed-type limited-memory influence diagrams, on NumPyro.**
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE.md)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 
 pylimid is a Python library for decision models that mix discrete and continuous variables. You describe chance, decision, and utility nodes; it validates the diagram, infers posteriors, and returns the optimal policy.
 
@@ -69,7 +69,7 @@ The solver stocks well above the average demand — 60 on a quiet day (mean 40),
 
 ## Installation
 
-Requires Python 3.12 or newer. pylimid is not on PyPI yet:
+Requires Python 3.12. pylimid is not on PyPI yet:
 
 ```bash
 pip install "pylimid @ git+https://github.com/cynosural-ai/pylimid.git"

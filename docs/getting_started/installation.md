@@ -2,7 +2,7 @@
 
 ## Requirements
 
-pylimid requires Python 3.12 or newer. NumPyro and JAX are installed as dependencies; the default JAX wheel runs on CPU.
+pylimid requires Python 3.12 (3.13 is not supported yet). NumPyro and JAX are installed as dependencies; the default JAX wheel runs on CPU.
 
 ## Install from source
 
