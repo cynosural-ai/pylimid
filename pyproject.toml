@@ -34,6 +34,13 @@ dependencies = [
     "funsor>=0.4",
 ]
 
+[project.optional-dependencies]
+# The default jax/jaxlib wheels are CPU-only, so the GPU extras pull the CUDA
+# plugin. ``gpu`` tracks the currently recommended CUDA major.
+gpu = ["jax[cuda12]"]
+cuda12 = ["jax[cuda12]"]
+cuda13 = ["jax[cuda13]"]
+
 [project.urls]
 Homepage = "https://github.com/cynosural-ai/pylimid"
 Repository = "https://github.com/cynosural-ai/pylimid"
