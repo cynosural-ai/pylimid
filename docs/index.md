@@ -1,14 +1,14 @@
 # pylimid
 
-**pylimid** models and solves *limited-memory influence diagrams* (LIMIDs) whose chance variables can be discrete, continuous, or mixed.
+PyLIMID is a *lightweight* Python library built on top of [NumPyro](https://num.pyro.ai) for building and solving *limited-memory influence diagrams* (LIMIDs) whose chance variables can be discrete, continuous, or mixed. 
 
-A decision's information set is exactly the parents you draw — there is no implicit no-forgetting — and any past information an agent needs is an explicit memory arc. Chance distributions, decisions, and utilities are ordinary Python callables, so a model can mix types freely and a payoff can be any function of its parents. A classical influence diagram is the special case where all the memory arcs happen to be drawn.
+In PyLIMID, chance distributions, decisions, and utilities are ordinary Python callables, so a model can mix types freely and a payoff can be any function of its parents.
 
-The library is built on [NumPyro](https://num.pyro.ai). Distributions and utilities are traced and evaluated with JAX, posterior inference enumerates discrete sites or runs NUTS, and the optimal decisions are found by Monte-Carlo solvers with a stated guarantee per solver. That is what lets `pylimid` reach models exact tabular solvers cannot: arbitrary continuous distributions, mixed diagrams, and utilities that are not tables.
+Distributions and utilities are traced and evaluated with [JAX](https://docs.jax.dev/en/latest/), posterior inference enumerates discrete sites or runs NUTS, and the optimal decisions are found by Monte-Carlo solvers with a stated guarantee per solver. That is what lets `pylimid` reach models exact tabular solvers cannot: arbitrary continuous distributions, mixed diagrams, and utilities that are not tables.
 
 ```{admonition} Early development
 :class: warning
-pylimid is pre-1.0. The public API is still settling and may change between releases; pin a version if you build on it.
+The public API is still settling and may change between releases.
 ```
 
 ::::{grid} 1 1 2 2
