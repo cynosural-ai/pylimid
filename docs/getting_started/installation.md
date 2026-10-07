@@ -1,50 +1,29 @@
 # Installation
 
-## Requirements
-
-pylimid requires Python 3.12 (3.13 is not supported yet). NumPyro and JAX are installed as dependencies; the default JAX wheel runs on CPU.
+PyLIMID uses Python 3.12. Installing it also pulls in NumPyro and JAX, so there is nothing else to set up.
 
 ## Install
 
-Install the latest release from PyPI:
+To get the latest release from PyPI:
 
 ```bash
 pip install pylimid
 ```
 
-Or the development version from the repository:
+
+## Running on a GPU
+
+PyLIMID runs on whichever device JAX picks. By default, it is installed in its CPU-only version. So, if you have an NVIDIA GPU, install the extra that matches your CUDA version, which pulls in the CUDA build of JAX:
 
 ```bash
-pip install "pylimid @ git+https://github.com/cynosural-ai/pylimid.git"
+pip install "pylimid[cuda12]"  # CUDA 12
+pip install "pylimid[cuda13]"  # CUDA 13, for newer drivers
 ```
 
-## CPU and GPU
-
-pylimid runs on whichever device JAX selects; there is no device setting to change. The default install ships the CPU build of JAX.
-
-For an NVIDIA GPU, install the `cuda12` extra (or `cuda13` for newer drivers), which pulls the matching CUDA-enabled JAX plugin:
+If PyLIMID is already installed, you can also add GPU support by upgrading JAX directly:
 
 ```bash
-pip install "pylimid[cuda12]"
+pip install --upgrade "jax[cuda12]"
 ```
 
-You can also add the plugin to an existing install directly with `pip install --upgrade "jax[cuda12]"`. See the [JAX installation guide](https://docs.jax.dev/en/latest/installation.html) for the full CUDA-version table. Without a CUDA build, JAX prints a one-line notice and falls back to CPU.
-
-## Development setup
-
-For working on pylimid itself, clone the repository and use [uv](https://docs.astral.sh/uv/):
-
-```bash
-git clone https://github.com/cynosural-ai/pylimid
-cd pylimid
-uv sync --all-groups
-uv run pytest
-```
-
-Build the documentation locally with Sphinx:
-
-```bash
-uv run sphinx-build -W docs docs/_build/html
-```
-
-The `-W` flag turns warnings into errors, so the build fails on broken references and malformed pages.
+The [JAX installation guide](https://docs.jax.dev/en/latest/installation.html) explains which CUDA version matches your drivers. If JAX finds a GPU but no CUDA build is installed, it prints a short warning and keeps running on CPU.
