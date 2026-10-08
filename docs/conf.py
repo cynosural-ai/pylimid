@@ -106,6 +106,6 @@ html_title = "pylimid"
 # ``:members:``.
 templates_path = ["_templates"]
 
-# ``docs/README.md`` documents the build for contributors and is not part
-# of the published site.
-exclude_patterns = ["_build", "README.md"]
+# ``docs/README.md`` documents the build for contributors and ``docs/quickstart``
+# holds drafts for the quickstart; neither is part of the published site.
+exclude_patterns = ["_build", "README.md", "quickstart"]

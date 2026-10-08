@@ -1,30 +1,45 @@
-# pylimid
-
-**Mixed-type limited-memory influence diagrams, on NumPyro.**
+# PyLIMID
 
 [![PyPI](https://img.shields.io/pypi/v/pylimid.svg)](https://pypi.org/project/pylimid/)
 [![Documentation](https://readthedocs.org/projects/pylimid/badge/?version=latest)](https://pylimid.readthedocs.io/en/latest/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE.md)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 
-pylimid is a Python library for decision models that mix discrete and continuous variables. You describe chance, decision, and utility nodes; it validates the diagram, infers posteriors, and returns the optimal policy.
+PyLIMID is a Python library built on top of [NumPyro](https://num.pyro.ai) for building and solving *limited-memory influence diagrams* (LIMIDs) whose chance nodes can be discrete, continuous, or both in the same model.
 
-Exact tabular solvers like pyAgrum are the right tool for fully discrete influence diagrams, but they cannot express a continuous variable or a payoff that is not a table. pylimid takes the other trade. Distributions, decisions, and utilities are ordinary NumPyro callables evaluated with JAX, and every answer is a Monte-Carlo estimate from a solver with a stated guarantee. That makes reachable models that tabular solvers cannot express: arbitrary continuous distributions, mixed diagrams, and payoffs like `jnp.log(wealth)`.
+Rather than requiring every chance and utility node to be represented as a table, PyLIMID uses NumPyro distributions, [JAX](https://docs.jax.dev/en/latest/) functions, and sampling. And because JAX compiles and vectorises the computations, models run efficiently on both CPU and GPU.
 
-> **Early development.** pylimid is pre-1.0; the public API may change between releases. Pin a version if you build on it.
+> **Early development.** The public API is still settling and may change between releases, so pin a version if you build on it.
 
-## Capabilities
+## Features
 
-- **Mixed-type by construction.** Chance nodes can be discrete, continuous, or mixed, using any NumPyro distribution.
-- **Callables, not tables.** A distribution or utility is a Python function of its parents, so a payoff can be any JAX-traceable expression.
-- **Explicit information sets.** A decision observes exactly the parents you draw — there is no implicit no-forgetting. Anything an agent should remember is a memory arc you add, and a classical influence diagram is the special case where all of them are drawn.
-- **Two verbs.** `infer` computes posterior draws — exact enumeration for discrete sites, NUTS for continuous ones — and `solve` returns an optimal policy with its expected utility.
-- **Monte-Carlo with stated guarantees.** Backward induction on solvable diagrams, an exhaustive scan otherwise; the result records which solver ran.
-- **A mutable workspace.** Build incrementally, wire and rewire edges, and gate inference behind an explicit `validate()` / `snapshot()` checkpoint.
+- **Flexible distributions.** A chance node is a NumPyro distribution whose parameters can be any JAX expression of its parents, so you are not limited to a conditional probability table.
+- **Utilities as functions.** A utility is a Python function of its parents written with JAX, so it can express thresholds, nonlinearities, or risk preferences instead of a lookup table.
+- **Mixed inference.** Posteriors are computed by exact enumeration for discrete nodes and by MCMC sampling (NUTS) for continuous ones, so a single diagram can combine both.
 
-## Decision problem example
+## Limitations
 
-A newsvendor stocks newspapers before the day's demand is known. Each paper costs \$1 and sells for \$10; leftovers are worthless. Demand is a right-skewed Gamma — quiet days average 40, busy days average 120 — and the profit is an arbitrary function of what is stocked and demanded.
+- **Decisions are discrete.** A decision node must choose among a finite set of actions (continuous decisions are not *yet* supported).
+- **Results are approximate.** Inference and solving both return Monte Carlo estimates rather than exact answers, and they get more precise with more samples. For purely discrete diagrams, an exact solver like [pyAgrum](https://pyagrum.readthedocs.io) is the better choice.
+
+## Installation
+
+PyLIMID uses Python 3.12. Installing it also pulls in NumPyro and JAX:
+
+```bash
+pip install pylimid
+```
+
+By default, JAX is installed in its CPU-only version. If you have an NVIDIA GPU, install the extra that matches your CUDA version:
+
+```bash
+pip install "pylimid[cuda12]"  # CUDA 12
+pip install "pylimid[cuda13]"  # CUDA 13, for newer drivers
+```
+
+## Example
+
+A street vendor sells ice cream. Every morning they check the weather forecast and decide how many ice creams to stock, from 0 to 200 in steps of 20. Each ice cream costs \$1 and sells for \$10, and anything not sold by the evening is thrown away. The forecast is cloudy with probability 0.7 and sunny with probability 0.3, and demand is uncertain either way: about 40 ice creams on an average cloudy day and 120 on an average sunny one. How many should the vendor stock?
 
 ```python
 import jax.numpy as jnp
@@ -32,71 +47,59 @@ import numpyro.distributions as dist
 
 from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, solve
 
-orders = jnp.arange(0, 261, 20)  # discrete stock levels
-rates = jnp.array([0.1, 1 / 30])  # Gamma rate: quiet mean 40, busy mean 120
+WEATHER_STATES = ("cloudy", "sunny")
+DEMAND_MEANS = jnp.array([40.0, 120.0])
+ORDERS = jnp.arange(0, 201, 20)
+
+
+def demand_dist(weather):
+    return dist.Gamma(concentration=4.0, rate=4.0 / DEMAND_MEANS[weather])
+
+
+def profit(order, demand):
+    stocked = ORDERS[order]
+    return 10.0 * jnp.minimum(stocked, demand) - 1.0 * stocked
+
 
 diagram = InfluenceDiagram()
 diagram.add_node(
     ChanceNode(
-        name="day",
-        states=("quiet", "busy"),
+        name="weather",
+        states=WEATHER_STATES,
         dist=lambda: dist.Categorical(probs=jnp.array([0.7, 0.3])),
     )
 )
+diagram.add_node(ChanceNode(name="demand", parents=("weather",), dist=demand_dist))
 diagram.add_node(
-    ChanceNode(
-        name="demand",
-        parents=("day",),
-        dist=lambda day: dist.Gamma(concentration=4.0, rate=rates[day]),
+    DecisionNode(
+        name="order", parents=("weather",), states=tuple(str(n) for n in ORDERS)
     )
 )
-diagram.add_node(
-    DecisionNode(name="order", parents=("day",), states=tuple(str(n) for n in orders))
-)
-diagram.add_node(
-    UtilityNode(
-        name="profit",
-        parents=("order", "demand"),
-        values=lambda order, demand: (
-            10.0 * jnp.minimum(orders[order], demand) - 1.0 * orders[order]
-        ),
-    )
-)
+diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=profit))
 
-solution = solve(diagram)
-solution.policy  # stock 60 on a quiet day, 200 on a busy day
+solution = solve(diagram, num_samples=50_000)
+for info, action in solution.policy["order"].items():
+    print(f"{WEATHER_STATES[info[0]]}: stock {int(ORDERS[action])}")
+# cloudy: stock 60
+# sunny: stock 200
 ```
 
-The solver stocks well above the average demand — 60 on a quiet day (mean 40), 200 on a busy day (mean 120) — because a missed sale forfeits the \$9 margin while an unsold paper costs only \$1, so the optimum tracks the 90th percentile. The [newsvendor tutorial](docs/tutorials/newsvendor.md) walks through the full derivation.
+`weather` is a discrete chance node, `demand` is a continuous one, `order` is the decision, and `profit` is the utility. The decision's parents are what is known when it is made, so `order` sees the weather but not the demand. Note that `order` is the index of the chosen action, which is why `profit` looks the stock level up in `ORDERS`.
 
-## Installation
-
-Requires Python 3.12.
-
-```bash
-pip install pylimid
-```
-
-The default install runs on the CPU. For an NVIDIA GPU, install the CUDA extra — it pulls the matching CUDA-enabled JAX plugin:
-
-```bash
-pip install "pylimid[cuda12]"   # or "pylimid[cuda13]" for newer drivers
-```
-
-For a development checkout, see [CONTRIBUTING.md](CONTRIBUTING.md).
+The vendor should stock far more than the average demand: a missed sale loses \$9 of margin, while a leftover ice cream only costs \$1. The [quickstart](https://pylimid.readthedocs.io/en/latest/getting_started/quickstart.html) walks through this example step by step.
 
 ## Documentation
 
-The full documentation is at **<https://pylimid.readthedocs.io>**.
+The full documentation is at **<https://pylimid.readthedocs.io>**:
 
-- [Quickstart](docs/getting_started/quickstart.md)
-- [User guide](docs/user_guide/building_a_diagram.md)
-- [Tutorials](docs/tutorials/oil_field.md)
+- The [quickstart](https://pylimid.readthedocs.io/en/latest/getting_started/quickstart.html) builds and solves the example above.
+- The [user guide](https://pylimid.readthedocs.io/en/latest/user_guide/building_a_diagram.html) explains each piece in depth: chance nodes, decisions, utilities, inference, and solving.
+- The [tutorials](https://pylimid.readthedocs.io/en/latest/tutorials/oil_field.html) build complete models step by step.
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup, the checks, and the conventions.
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to set up a development environment, which checks a change has to pass, and the conventions the project follows.
 
 ## License
 
-Apache 2.0 — see [LICENSE.md](LICENSE.md).
+PyLIMID is released under the Apache 2.0 license. See [LICENSE.md](LICENSE.md) for details.
