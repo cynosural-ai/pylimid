@@ -60,6 +60,8 @@ old_tuple = tuple(old_lookup[v] for v in self.variables)
 ## Writing Markdown files
 `docs/` holds only the published Sphinx documentation, written for users. Development notes for contributors (decision records, design notes, plans) go in `design/`.
 
+Before changing anything in `docs/` or `README.md`, read `design/documentation_plan.md`: it records the current state of the docs, the agreed structure, and the writing conventions every page follows.
+
 Dont break lines at 80 characters, let lines flow and the viewer will adjust 
 
 
