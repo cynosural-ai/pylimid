@@ -11,6 +11,11 @@ from sphinx.util.nodes import make_refnode
 # no CUDA jaxlib" warning on machines that happen to have an NVIDIA card.
 os.environ.setdefault("JAX_PLATFORMS", "cpu")
 
+# NumPyro imports tqdm, which warns in a notebook kernel when ipywidgets is
+# not installed. The progress bars are never shown in the built pages, so the
+# warning would only clutter the first cell's output.
+os.environ.setdefault("PYTHONWARNINGS", "ignore:IProgress not found")
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 project = "pylimid"
@@ -101,6 +106,6 @@ html_title = "pylimid"
 # ``:members:``.
 templates_path = ["_templates"]
 
-# ``docs/README.md`` documents the build for contributors and is not part
-# of the published site.
-exclude_patterns = ["_build", "README.md"]
+# ``docs/README.md`` documents the build for contributors and ``docs/quickstart``
+# holds drafts for the quickstart; neither is part of the published site.
+exclude_patterns = ["_build", "README.md", "quickstart"]

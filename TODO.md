@@ -6,6 +6,10 @@ Forward plan. The engine work is done (numpyro-only, scan + batched scan + backw
 
 - **More worked examples in the docs.** Cover the decision classes the library is meant to demonstrate, so the guides and the API have something concrete to point at. The two planned problem benchmarks — the mixed continuous/discrete logistics center (buildable now) and the future continuous-decision ride-hailing problem — are scoped in `design/problems/`.
 - **Proper documentation.** Turn the current living notes into reader-facing documentation: concepts, the solving strategies, and the result contract.
+- **Bayesian priors as a feature.** A parameter of a distribution can itself be a chance node with a prior, which lets a model encode personal experience, such as the ice-cream vendor's belief about tomorrow's weather or their insight on demand. List it under Features in `docs/index.md` and `README.md`, and show it in the docs, for example as an extension of the quickstart. Things to know first:
+  - Scalar priors already work in `solve` and `infer`: a `Beta` prior on the chance of sun, or a `LogNormal` scale on the demand mean, solves and updates correctly after an observation.
+  - Vector-valued priors do not: a `Dirichlet` node over the weather probabilities solves, but `infer` crashes when it builds the `Posterior`, because `_infer_numpyro` in `pylimid/inference/engine.py` converts every draw with `float()`. Fix that before advertising Dirichlet priors.
+  - Pick the example carefully. A prior on the weather probabilities alone leaves the quickstart's policy unchanged, since only its mean matters for a single forecast. A prior on demand does change it (a cloudy-day stock of 80 instead of 60), so it is the more convincing demonstration.
 - **Reorganize the code.** Settle the module layout now, with discrete decisions as the scope, so later work lands on a stable surface.
 
 ## 2. Library documentation site

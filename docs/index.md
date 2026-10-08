@@ -1,14 +1,23 @@
-# pylimid
+# PyLIMID
 
-**pylimid** models and solves *limited-memory influence diagrams* (LIMIDs) whose chance variables can be discrete, continuous, or mixed.
+PyLIMID is a Python library built on top of [NumPyro](https://num.pyro.ai) for building and solving *limited-memory influence diagrams* (LIMIDs) whose chance nodes can be discrete, continuous, or both in the same model.
 
-A decision's information set is exactly the parents you draw — there is no implicit no-forgetting — and any past information an agent needs is an explicit memory arc. Chance distributions, decisions, and utilities are ordinary Python callables, so a model can mix types freely and a payoff can be any function of its parents. A classical influence diagram is the special case where all the memory arcs happen to be drawn.
+Rather than requiring every chance and utility nodes to be represented as a table, PyLIMID uses [NumPyro](https://num.pyro.ai) distributions, [JAX](https://docs.jax.dev/en/latest/) functions, and sampling. Also, by compiling and vectorising computations with [JAX](https://docs.jax.dev/en/latest/), models can run efficiently on both CPU and GPU.
 
-The library is built on [NumPyro](https://num.pyro.ai). Distributions and utilities are traced and evaluated with JAX, posterior inference enumerates discrete sites or runs NUTS, and the optimal decisions are found by Monte-Carlo solvers with a stated guarantee per solver. That is what lets `pylimid` reach models exact tabular solvers cannot: arbitrary continuous distributions, mixed diagrams, and utilities that are not tables.
+## Features
+
+- **Flexible distributions.** A chance node is a NumPyro distribution whose parameters can be any JAX expression of its parents, so you are not limited to a conditional probability table.
+- **Utilities as functions.** A utility is a Python function of its parents written with JAX, so it can express thresholds, nonlinearities, or risk preferences instead of a lookup table.
+- **Mixed inference.** Posteriors are computed by exact enumeration for discrete nodes and by MCMC sampling (NUTS) for continuous ones, so a single diagram can combine both.
+
+## Limitations
+
+- **Decisions are discrete.** A decision node must choose among a finite set of actions (continuous decisions are not *yet* supported).
+- **Results are approximate.** Inference and solving both return Monte-Carlo estimates rather than exact answers, and they get more precise with more samples. For purely discrete diagrams, an exact solver like [pyAgrum](https://pyagrum.readthedocs.io) is the better choice.
 
 ```{admonition} Early development
 :class: warning
-pylimid is pre-1.0. The public API is still settling and may change between releases; pin a version if you build on it.
+The public API is still settling and may change between releases.
 ```
 
 ::::{grid} 1 1 2 2
