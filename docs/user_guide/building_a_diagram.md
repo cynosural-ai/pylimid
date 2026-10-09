@@ -37,7 +37,7 @@ def profit(order, demand):
 
 ## Building in any order
 
-You don't need to fill the whole {py:class}`InfluenceDiagram` in one go. You can add a node before its parents exist, add arcs later, and fill in a node's details whenever you are ready. Completeness isn't checked until you ask for it.
+You don't need to fill the whole {py:class}`InfluenceDiagram` in one go. You can add a node before its parents exist, add arcs later, and fill in a node's details whenever you are ready. Nothing is checked until you ask for it, not even cycles: {py:meth}`~InfluenceDiagram.validate` reports every problem at once.
 
 For example, we can start with the decision and the profit, before describing the weather or the demand:
 
@@ -51,11 +51,24 @@ diagram.add_node(
 diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=profit))
 ```
 
-The diagram can be drawn at any point, even unfinished. Parents that don't exist yet appear as dashed nodes:
+The diagram can be drawn at any point, even unfinished. In Jupyter, a diagram on the last line of a cell draws itself with [Graphviz](https://graphviz.org/download/), which needs the `dot` program installed on your system ({py:meth}`~InfluenceDiagram.to_svg` returns the same picture as SVG):
 
 ```{code-cell} ipython3
 diagram
 ```
+
+```{admonition} Reading the drawing
+:class: note
+
+Chance nodes are circles, decision nodes are rectangles, and utility nodes are diamonds. A parent that doesn't exist yet appears as a dashed node, a node that is missing its distribution, actions or utility function is grey, and a stale node is yellow.
+```
+
+{py:meth}`~InfluenceDiagram.to_mermaid` returns the same diagram as [Mermaid](https://mermaid.js.org) text, which needs nothing installed and renders in GitHub comments and Markdown files. It is also "easier to read" for LLMs:
+
+```{code-cell} ipython3
+print(diagram.to_mermaid())
+```
+
 
 Now we add the two chance nodes. The weather node is complete, but we leave the demand node's distribution out for now:
 
@@ -136,16 +149,4 @@ diagram.validate()
 
 PyLIMID matches a function to its parents by the names of its arguments, so `weather` and `weekend` must be spelled exactly like the parent nodes, in any order.
 
-```{admonition} Problems are reported by validate()
-:class: important
-
-Adding nodes and arcs never checks whether the diagram makes sense. Missing parents, missing distributions, stale nodes, cycles and arcs out of a utility node are all reported by `validate()`, however and in whatever order you built the diagram. The editing methods only refuse requests they can't carry out: {py:meth}`~InfluenceDiagram.add_node` rejects a name that is already taken, and {py:meth}`~InfluenceDiagram.add_edge` needs the child node to be in the diagram already.
-```
-
-To take things out, {py:meth}`~InfluenceDiagram.remove_edge` removes an arc and {py:meth}`~InfluenceDiagram.remove_node` removes a node along with its arcs. Removing doesn't update the children's functions, so a child that used the removed node becomes stale until you update its distribution.
-
-## Drawing the diagram
-
-In Jupyter, a diagram on the last line of a cell draws itself, as in the examples above. Chance nodes are circles, decision nodes are rectangles, and utility nodes are diamonds. Drawing never validates the diagram, so it also shows what is left to do: a missing parent appears as a dashed node, an unconfigured node is grey, and a stale node is yellow.
-
-Drawing needs the [Graphviz](https://graphviz.org/download/) `dot` program installed on your system; without it, Jupyter shows a one-line text summary instead. {py:meth}`~InfluenceDiagram.to_svg` returns the picture as SVG, and {py:meth}`~InfluenceDiagram.to_mermaid` returns it as [Mermaid](https://mermaid.js.org) text, which needs nothing installed and is handy in GitHub comments or prompts to an LLM.
+To take things out of the diagram in running time, you can use {py:meth}`~InfluenceDiagram.remove_edge` and {py:meth}`~InfluenceDiagram.remove_node` (which removes a node along with its arcs). Removing doesn't update the children's functions, so they would become `STALE`.
