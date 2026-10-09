@@ -96,9 +96,9 @@ Each node also reports its own state through {py:attr}`~Node.consistency`, which
 diagram["demand"].consistency
 ```
 
-## Changing the model
+## Changing the diagram
 
-Suppose the vendor notices that weekends are busier than weekdays. We add a `weekend` node and an arc from it to `demand`:
+Suppose the vendor notices that weekends are busier than weekdays and wants the model to take it into consideration. Thus, we add a `weekend` node and an arc from it to `demand`:
 
 ```{code-cell} ipython3
 diagram.add_node(
@@ -114,13 +114,13 @@ for problem in diagram.validate():
     print(problem.kind.name, "-", problem.message)
 ```
 
-`demand` is now `STALE`: its distribution is a function of `weather` only, so it can't use the new parent, and PyLIMID doesn't guess what the arc should mean. The drawing highlights it in yellow:
+`demand` is now `STALE`: its distribution is currently a function of `weather` only, so it can't use the new parent. The drawing highlights it in yellow:
 
 ```{code-cell} ipython3
 diagram
 ```
 
-To fix it, we give `demand` a distribution that takes both parents. Weekends multiply the average demand by 1.5:
+To fix it, we give `demand` a distribution that considers both parents. As an example, let's say that weekends multiply the average demand by 1.5:
 
 ```{code-cell} ipython3
 WEEKEND_BOOST = jnp.array([1.0, 1.5])
@@ -136,7 +136,13 @@ diagram.validate()
 
 PyLIMID matches a function to its parents by the names of its arguments, so `weather` and `weekend` must be spelled exactly like the parent nodes, in any order.
 
-Unlike {py:meth}`~InfluenceDiagram.add_node`, {py:meth}`~InfluenceDiagram.add_edge` is checked straight away: both nodes must already exist, and an arc that would create a cycle or leave a utility node is rejected with an error. To take things out, {py:meth}`~InfluenceDiagram.remove_edge` removes an arc and {py:meth}`~InfluenceDiagram.remove_node` removes a node along with its arcs. Removing doesn't update the children's functions, so a child that used the removed node becomes stale until you update its distribution.
+```{admonition} Problems are reported by validate()
+:class: important
+
+Adding nodes and arcs never checks whether the diagram makes sense. Missing parents, missing distributions, stale nodes, cycles and arcs out of a utility node are all reported by `validate()`, however and in whatever order you built the diagram. The editing methods only refuse requests they can't carry out: {py:meth}`~InfluenceDiagram.add_node` rejects a name that is already taken, and {py:meth}`~InfluenceDiagram.add_edge` needs the child node to be in the diagram already.
+```
+
+To take things out, {py:meth}`~InfluenceDiagram.remove_edge` removes an arc and {py:meth}`~InfluenceDiagram.remove_node` removes a node along with its arcs. Removing doesn't update the children's functions, so a child that used the removed node becomes stale until you update its distribution.
 
 ## Drawing the diagram
 

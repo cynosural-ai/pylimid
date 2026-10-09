@@ -44,7 +44,7 @@ DEMAND_MEANS = jnp.array([40.0, 120.0])
 ORDERS = jnp.arange(0, 201, 20)
 ```
 
-Demand is always positive, and most days are quiet while a few are very busy, so we model it with a Gamma distribution whose mean depends on the weather:
+Demand is always positive, and most days are quiet while a few are very busy, so we model it with a {py:class}`Gamma distribution <numpyro.distributions.continuous.Gamma>` whose mean depends on the weather:
 
 ```{code-cell} ipython3
 def demand_dist(weather):
@@ -70,7 +70,7 @@ def profit(order, demand):
 
 Note that `order` is the *index* of the chosen action, not the stock level itself, which is why `profit` looks it up in `ORDERS`. The same goes for `weather`: `0` is cloudy and `1` is sunny.
 
-Now we put the four nodes into a diagram. A node's `parents` are the nodes it depends on. For a decision, the parents are what is known when the decision is made, so `order` lists `weather` but not `demand`:
+Now we put the four nodes into an {py:class}`InfluenceDiagram`: `weather` and `demand` are each a {py:class}`ChanceNode`, `order` is a {py:class}`DecisionNode`, and `profit` is a {py:class}`UtilityNode`. A node's `parents` are the nodes it depends on. For a decision, the parents are what is known when the decision is made, so `order` lists `weather` but not `demand`:
 
 ```{code-cell} ipython3
 diagram = InfluenceDiagram()
@@ -92,7 +92,7 @@ diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=
 
 ## Validating the model
 
-`validate()` lists anything that would stop the diagram from being solved, such as a parent that doesn't exist or a cycle. An empty list means the diagram is ready:
+{py:meth}`~InfluenceDiagram.validate` lists anything that would stop the diagram from being solved, such as a parent that doesn't exist or a cycle. An empty list means the diagram is ready:
 
 ```{code-cell} ipython3
 diagram.validate()
@@ -106,7 +106,7 @@ diagram
 
 ## Solving the model
 
-`solve()` finds the policy with the highest expected profit, that is, how many ice creams to stock for each forecast:
+{py:func}`solve` finds the policy with the highest expected profit, that is, how many ice creams to stock for each forecast. It returns a {py:class}`Solution`, whose `policy` maps each forecast to the index of the best order and whose `expected_utility` is the expected profit under that policy:
 
 ```{code-cell} ipython3
 solution = solve(diagram, num_samples=50_000)
