@@ -29,7 +29,7 @@ The ``parents`` field
 ---------------------
 Every node type carries a ``parents`` tuple of node names. Its semantics differ
 by type, but the structural bookkeeping (validation, topological ordering,
-cycle prevention) is identical, which is why it lives on the base:
+cycle detection) is identical, which is why it lives on the base:
 
 - **Chance node** — the variables ``P(name | parents)`` conditions on (causal /
   statistical dependency).
