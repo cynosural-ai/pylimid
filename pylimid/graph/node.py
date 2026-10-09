@@ -29,7 +29,7 @@ The ``parents`` field
 ---------------------
 Every node type carries a ``parents`` tuple of node names. Its semantics differ
 by type, but the structural bookkeeping (validation, topological ordering,
-cycle prevention) is identical, which is why it lives on the base:
+cycle detection) is identical, which is why it lives on the base:
 
 - **Chance node** — the variables ``P(name | parents)`` conditions on (causal /
   statistical dependency).
@@ -171,8 +171,8 @@ class Node:
 
         ``False`` for chance and decision nodes. Utility nodes override to
         ``True`` — a payoff is terminal in an influence diagram.
-        `InfluenceDiagram.add_edge` reads this to reject an edge that would
-        give a sink a child, rather than branching on node type.
+        `InfluenceDiagram.validate` reads this to report a sink with a
+        child, rather than branching on node type.
         """
         return False
 

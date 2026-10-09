@@ -44,14 +44,14 @@ A malformed value (empty name) is never a useful intermediate state, so it is re
 
 ---
 
-## Principle 4 — structural invariants are enforced eagerly on the happy path, defensively elsewhere
+## Principle 4 — structural invariants are checked in `validate()`, whatever the mutation path
 
-Two structural invariants are "never a useful intermediate state" and get this two-layer treatment:
+Two structural invariants must hold before inference:
 
-- **Acyclicity.** A cycle is never useful. `add_edge` rejects an edge that would close a cycle before applying it. But a node is independently mutable through its own `add_parent`, which bypasses the diagram, so `validate()` runs a defensive cycle check as the backstop.
-- **Utility nodes are sinks.** A payoff with a child is never valid. `add_edge` rejects an edge whose parent is a utility node (read via `node.is_sink`). The same direct-mutation bypass applies, so `validate()` reports any utility node that has nonetheless acquired a child as `DiagramProblemKind.UTILITY_NOT_SINK`.
+- **Acyclicity.** `validate()` reports a cycle as `DiagramProblemKind.CYCLE`, naming its nodes in edge order.
+- **Utility nodes are sinks.** A payoff with a child is never valid. `validate()` reports any utility node with a child as `DiagramProblemKind.UTILITY_NOT_SINK` (read via `node.is_sink`).
 
-Two layers because there are two mutation paths; neither alone is sufficient.
+An edge can be created three ways: `add_edge`, `parents=` in `add_node`, and a node's own `add_parent`. All three are checked by the same code at the same time, so the result does not depend on how or in which order the diagram was built, and edits such as reversing an arc (add the new one, then remove the old one) are possible. Editing methods only refuse what they cannot carry out: a duplicate name, an edge into a child that is not in the diagram, a malformed field. See [`09_10_2026_structural_checks_in_validate.md`](../ADR/09_10_2026_structural_checks_in_validate.md) for why the earlier eager checks in `add_edge` were removed.
 
 ---
 

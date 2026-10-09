@@ -141,45 +141,75 @@ def test_add_edge_idempotent() -> None:
     assert diag.parents_of("b") == ("a",)
 
 
-def test_add_edge_unknown_endpoint_raises() -> None:
+def test_add_edge_unknown_child_raises() -> None:
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="a", dist=_dist_matching))
 
     with pytest.raises(KeyError):
         diag.add_edge("a", "ghost")
-    with pytest.raises(KeyError):
-        diag.add_edge("ghost", "a")
+
+
+def test_add_edge_tolerates_dangling_parent() -> None:
+    """Like a parent declared in add_node, a missing parent waits for validate."""
+    diag = InfluenceDiagram()
+    diag.add_node(ChanceNode(name="a", dist=_dist_matching))
+
+    diag.add_edge("ghost", "a")
+
+    assert diag.parents_of("a") == ("ghost",)
+    kinds = {p.kind for p in diag.validate()}
+    assert DiagramProblemKind.DANGLING_PARENT in kinds
 
 
 def test_add_edge_self_loop_rejected() -> None:
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="a", dist=_dist_matching))
 
-    with pytest.raises(ValueError, match="own parent"):
+    with pytest.raises(ValueError, match="itself"):
         diag.add_edge("a", "a")
 
 
-def test_add_edge_rejects_cycle() -> None:
-    """A -> b already exists; adding b -> a would close a cycle."""
+def test_add_edge_accepts_cycle_and_validate_reports_it() -> None:
+    """A -> b exists; b -> a is accepted, and validate names the cycle."""
     diag = InfluenceDiagram()
     for n in ("a", "b"):
         diag.add_node(ChanceNode(name=n, dist=_dist_matching))
     diag.add_edge("a", "b")
 
-    with pytest.raises(ValueError, match="cycle"):
-        diag.add_edge("b", "a")
+    diag.add_edge("b", "a")
+
+    cycles = [p for p in diag.validate() if p.kind is DiagramProblemKind.CYCLE]
+    assert len(cycles) == 1
+    assert cycles[0].node in {"a", "b"}
 
 
-def test_add_edge_rejects_longer_cycle() -> None:
-    """A -> b -> c exists; adding c -> a would close a 3-cycle."""
+def test_validate_names_a_longer_cycle_in_edge_order() -> None:
+    """A -> b -> c -> a, plus d downstream of the cycle but not on it."""
     diag = InfluenceDiagram()
-    for n in ("a", "b", "c"):
+    for n in ("a", "b", "c", "d"):
         diag.add_node(ChanceNode(name=n, dist=_dist_matching))
     diag.add_edge("a", "b")
     diag.add_edge("b", "c")
+    diag.add_edge("c", "a")
+    diag.add_edge("c", "d")
 
-    with pytest.raises(ValueError, match="cycle"):
-        diag.add_edge("c", "a")
+    cycles = [p for p in diag.validate() if p.kind is DiagramProblemKind.CYCLE]
+    assert len(cycles) == 1
+    assert cycles[0].message == "Diagram contains a cycle: 'b' -> 'c' -> 'a' -> 'b'."
+
+
+def test_reversing_an_arc_in_either_order() -> None:
+    """Adding the new arc before removing the old one is a valid edit."""
+    diag = InfluenceDiagram()
+    for n in ("a", "b"):
+        diag.add_node(ChanceNode(name=n, dist=_dist_matching))
+    diag.add_edge("a", "b")
+
+    diag.add_edge("b", "a")
+    diag.remove_edge("a", "b")
+
+    assert diag.parents_of("a") == ("b",)
+    assert diag.topological_sort() == ("b", "a")
 
 
 def test_remove_edge() -> None:
@@ -307,7 +337,7 @@ def test_validate_reports_all_problems_at_once() -> None:
 
 
 def test_validate_detects_cycle_from_direct_node_mutation() -> None:
-    """A node mutated via its own add_parent bypasses add_edge; validate catches it."""
+    """A node mutated via its own add_parent bypasses the diagram; validate sees it."""
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="a", dist=_dist_matching))
     diag.add_node(ChanceNode(name="b", dist=_dist_matching))
@@ -410,14 +440,18 @@ def test_mixed_diagram_snapshot_is_valid() -> None:
     assert snap.nodes[2][1].is_sink is True
 
 
-def test_add_edge_rejects_utility_as_child_eagerly() -> None:
-    """A utility node is a sink: wiring a child edge is rejected on add_edge."""
+def test_add_edge_from_utility_reported_by_validate() -> None:
+    """A utility node is a sink: an edge out of one is reported, not rejected."""
     diag = InfluenceDiagram()
     diag.add_node(UtilityNode(name="payoff", values=_utility_values))
     diag.add_node(ChanceNode(name="x", dist=_dist_matching))
 
-    with pytest.raises(ValueError, match="cannot have children"):
-        diag.add_edge("payoff", "x")
+    diag.add_edge("payoff", "x")
+
+    sink_problems = [
+        p for p in diag.validate() if p.kind is DiagramProblemKind.UTILITY_NOT_SINK
+    ]
+    assert [p.node for p in sink_problems] == ["payoff"]
 
 
 def test_validate_reports_unconfigured_decision_and_utility() -> None:
@@ -435,19 +469,10 @@ def test_validate_reports_unconfigured_decision_and_utility() -> None:
     assert unconfigured == {"invest", "payoff"}
 
 
-def test_validate_reports_utility_not_sink_defensively() -> None:
-    """
-    A utility mutated via its own add_parent bypasses add_edge; validate catches it.
-
-    We cannot give a utility a *child* through add_edge (rejected eagerly), so
-    simulate the bypass: register a node whose `parents` already list the
-    utility as a parent — i.e. the utility is a parent of something.
-    """
+def test_validate_reports_utility_not_sink_declared_in_add_node() -> None:
+    """A node that lists a utility among its parents is reported by validate."""
     diag = InfluenceDiagram()
     diag.add_node(UtilityNode(name="payoff", values=_utility_values))
-
-    # A chance node that declares the utility as a parent — constructed with
-    # the dangling reference, so add_edge's eager check never runs.
     diag.add_node(
         ChanceNode(
             name="x", parents=("payoff",), dist=_dist_matching, states=("a", "b")
@@ -463,17 +488,12 @@ def test_validate_reports_utility_not_sink_defensively() -> None:
 
 
 def test_validate_detects_cycle_through_decision() -> None:
-    """
-    Decisions participate in cycle detection like any node.
-
-    add_edge rejects the cycle eagerly, so reach the defensive backstop in
-    validate() by wiring the back-edge directly on the node.
-    """
+    """Decisions participate in cycle detection like any node."""
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="a", dist=_dist_matching))
     diag.add_node(DecisionNode(name="d", states=("x", "y")))
-    diag["a"].add_parent("d")  # bypass add_edge
-    diag["d"].add_parent("a")  # bypass add_edge — closes a -> d -> a
+    diag.add_edge("d", "a")
+    diag.add_edge("a", "d")  # closes a -> d -> a
 
     problems = diag.validate()
     assert any(p.kind is DiagramProblemKind.CYCLE for p in problems)
@@ -493,17 +513,7 @@ def test_set_dist_rejects_non_chance_node() -> None:
         diag.set_dist("u", _dist_matching)
 
 
-# --- add_edge eager checks (documented behavior) ----------------------------
-
-
-def test_add_edge_from_utility_as_parent_raises() -> None:
-    """A utility node as a *parent* would gain a child — rejected eagerly."""
-    diag = InfluenceDiagram()
-    diag.add_node(UtilityNode(name="payoff", values=_utility_values))
-    diag.add_node(ChanceNode(name="x", dist=_dist_matching, states=("a", "b")))
-
-    with pytest.raises(ValueError, match="utility"):
-        diag.add_edge("payoff", "x")
+# --- edges into utility nodes -----------------------------------------------
 
 
 def test_add_edge_to_utility_as_child_is_allowed() -> None:

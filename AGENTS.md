@@ -19,15 +19,16 @@ def add_edge(self, parent: str, child: str) -> None:
     """
     Wire an edge parent -> child.
 
-    Both endpoints must already be in the diagram; see `InfluenceDiagram.add_node`.
+    The child must already be in the diagram; see `InfluenceDiagram.add_node`.
+    Cycles are reported by `InfluenceDiagram.validate`, not rejected here.
 
     Args:
         parent: Name of the parent node.
         child: Name of the child node.
 
     Raises:
-        KeyError: If either endpoint is not in the diagram.
-        ValueError: If the edge would create a cycle or the child is a utility node.
+        KeyError: If the child is not in the diagram.
+        ValueError: If the edge is a self-loop.
     """
 ```
 
