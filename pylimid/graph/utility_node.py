@@ -12,7 +12,7 @@ Utility nodes are terminal
 --------------------------
 In an influence diagram a payoff is always a **sink**: it has parents but no
 children. `InfluenceDiagram.validate` reports a utility node that has
-children, like it reports a cycle, however the edge was created.
+children, like it reports a cycle, however the arc was created.
 """
 
 from collections.abc import Callable

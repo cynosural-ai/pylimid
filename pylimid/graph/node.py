@@ -12,7 +12,7 @@ set the distribution / action space / utility function, swap states — by an
 external author: a script, a UI, or an LLM driving the diagram over a tool
 interface. Because of that, a node is allowed to exist in an *inconsistent*
 state: its configurable field (``dist`` / ``values`` / action ``states``) may
-be unset, or its signature may not yet match its parents after an edge change.
+be unset, or its signature may not yet match its parents after an arc change.
 
 Two layers of checking reflect this:
 

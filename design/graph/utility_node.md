@@ -34,7 +34,7 @@ For a purely discrete utility, the table is simply an array indexed by the paren
 
 ## Utility nodes are terminal (sinks)
 
-In an influence diagram a payoff is always a **sink**: it has parents but no children. Like acyclicity ([`diagram.md`](./diagram.md), Principle 4), this is checked in `InfluenceDiagram.validate`, which reports a utility node with a child as a `DiagramProblemKind.UTILITY_NOT_SINK` problem, whether the edge came from `add_edge`, `parents=` in `add_node`, or a node's own `add_parent`.
+In an influence diagram a payoff is always a **sink**: it has parents but no children. Like acyclicity ([`diagram.md`](./diagram.md), Principle 4), this is checked in `InfluenceDiagram.validate`, which reports a utility node with a child as a `DiagramProblemKind.UTILITY_NOT_SINK` problem, whether the arc came from `add_arc`, `parents=` in `add_node`, or a node's own `add_parent`.
 
 The check reads `node.is_sink` rather than branching on node type, so the container stays free of per-type logic.
 

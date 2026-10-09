@@ -16,7 +16,7 @@ Both are queried with the same call, `infer(diagram, query, observed=...)`. The 
 
 ### The model
 
-Suppose smoking and air pollution both raise the risk of cancer, and an x-ray may reveal it. Four chance nodes, three edges: two independent causes, a shared effect with two parents, and one noisy observation of that effect.
+Suppose smoking and air pollution both raise the risk of cancer, and an x-ray may reveal it. Four chance nodes, three arcs: two independent causes, a shared effect with two parents, and one noisy observation of that effect.
 
 The conditional tables come first, one per node. `CANCER` is indexed by both parents — `CANCER[smoking, pollution]` — so it holds one probability row per combination:
 

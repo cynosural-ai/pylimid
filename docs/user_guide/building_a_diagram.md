@@ -121,7 +121,7 @@ diagram.add_node(
         dist=lambda: dist.Categorical(probs=jnp.array([5 / 7, 2 / 7])),
     )
 )
-diagram.add_edge("weekend", "demand")
+diagram.add_arc("weekend", "demand")
 
 for problem in diagram.validate():
     print(problem.kind.name, "-", problem.message)
@@ -149,4 +149,4 @@ diagram.validate()
 
 PyLIMID matches a function to its parents by the names of its arguments, so `weather` and `weekend` must be spelled exactly like the parent nodes, in any order.
 
-To take things out of the diagram in running time, you can use {py:meth}`~InfluenceDiagram.remove_edge` and {py:meth}`~InfluenceDiagram.remove_node` (which removes a node along with its arcs). Removing doesn't update the children's functions, so they would become `STALE`.
+To take things out of the diagram in running time, you can use {py:meth}`~InfluenceDiagram.remove_arc` and {py:meth}`~InfluenceDiagram.remove_node` (which removes a node along with its arcs). Removing doesn't update the children's functions, so they would become `STALE`.

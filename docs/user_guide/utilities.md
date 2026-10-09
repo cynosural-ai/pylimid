@@ -72,7 +72,7 @@ That is the same optimal policy as the quickstart's single-utility version, with
 
 ## Utilities are sinks
 
-A payoff is terminal: a utility node may not have children. `validate()` reports a utility node that has children, however the arc was added. Like every node, a utility is `UNCONFIGURED` until `values` is set, and `STALE` if its signature no longer matches its parents after an edge change.
+A payoff is terminal: a utility node may not have children. `validate()` reports a utility node that has children, however the arc was added. Like every node, a utility is `UNCONFIGURED` until `values` is set, and `STALE` if its signature no longer matches its parents after an arc change.
 
 ## The callable runs inside JAX
 

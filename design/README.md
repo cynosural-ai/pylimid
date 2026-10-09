@@ -17,7 +17,7 @@ The notes split into two kinds:
 
 4. **[`13_08_2026_typed_inference_results.md`](./ADR/13_08_2026_typed_inference_results.md)** — committed `infer()` to typed per-entry results: `Marginal` for discrete variables, `Draws` for continuous ones. **Superseded** by [`25_08_2026_unified_posterior_result.md`](./ADR/25_08_2026_unified_posterior_result.md), which unifies both into a single `Posterior` (draws + `states`, with `marginal()` / `mean()` / `std()` / `hdi()` methods).
 
-5. **[`09_10_2026_structural_checks_in_validate.md`](./ADR/09_10_2026_structural_checks_in_validate.md)** — cycles and utility nodes with children are reported by `validate()` only; `add_edge` no longer rejects them and accepts a parent that is not added yet. Supersedes the earlier eager-plus-defensive form of Principle 4 in `diagram.md`.
+5. **[`09_10_2026_structural_checks_in_validate.md`](./ADR/09_10_2026_structural_checks_in_validate.md)** — cycles and utility nodes with children are reported by `validate()` only; `add_arc` no longer rejects them and accepts a parent that is not added yet. Supersedes the earlier eager-plus-defensive form of Principle 4 in `diagram.md`.
 
 ## Living design notes
 

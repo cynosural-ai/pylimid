@@ -15,9 +15,9 @@ uv run pytest tests/       # run tests
 
 Example:
 ```python
-def add_edge(self, parent: str, child: str) -> None:
+def add_arc(self, parent: str, child: str) -> None:
     """
-    Wire an edge parent -> child.
+    Wire an arc parent -> child.
 
     The child must already be in the diagram; see `InfluenceDiagram.add_node`.
     Cycles are reported by `InfluenceDiagram.validate`, not rejected here.
@@ -28,7 +28,7 @@ def add_edge(self, parent: str, child: str) -> None:
 
     Raises:
         KeyError: If the child is not in the diagram.
-        ValueError: If the edge is a self-loop.
+        ValueError: If the arc is a self-loop.
     """
 ```
 
