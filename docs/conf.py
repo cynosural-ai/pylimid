@@ -28,6 +28,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
     "sphinx_copybutton",
     "sphinx_design",
 ]
@@ -36,6 +37,17 @@ extensions = [
 # used across modules need a short missing-reference hook that resolves a
 # bare name when it is unique; that hook lands with the API reference.
 default_role = "py:obj"
+
+# Report every cross-reference that does not resolve, so the ``-W`` build
+# fails on a broken link instead of rendering it as plain code.
+nitpicky = True
+
+# Links to the libraries PyLIMID builds on, for type annotations and prose.
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "jax": ("https://docs.jax.dev/en/latest", None),
+    "numpyro": ("https://num.pyro.ai/en/stable", None),
+}
 
 autosummary_generate = True
 

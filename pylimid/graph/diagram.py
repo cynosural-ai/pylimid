@@ -96,6 +96,9 @@ class DiagramSnapshot:
     Produced by `InfluenceDiagram.snapshot` only after validation passes.
     It holds references to the (still mutable) nodes, so it is a *logical*
     snapshot: editing the diagram after taking a snapshot invalidates it.
+
+    Attributes:
+        nodes: ``(name, node)`` pairs in topological order.
     """
 
     nodes: tuple[tuple[str, Node], ...]
@@ -482,7 +485,7 @@ class InfluenceDiagram:
         edges) and usable on the live workspace: no validation required, so
         an incomplete diagram renders with dangling parents as dashed ghost
         nodes and non-consistent nodes tinted via ``classDef``. See
-        `pylimid.graph.render.mermaid`.
+        ``pylimid.graph.render.mermaid``.
 
         Returns:
             Mermaid flowchart source; paste into a Mermaid renderer to view.
@@ -495,7 +498,7 @@ class InfluenceDiagram:
 
         Shells out to the Graphviz ``dot`` binary, which must be on ``PATH``.
         In Jupyter the diagram renders itself through this method; see
-        `pylimid.graph.render.graphviz`.
+        ``pylimid.graph.render.graphviz``.
 
         Returns:
             SVG source.

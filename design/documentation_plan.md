@@ -112,6 +112,11 @@ These conventions came out of reviewing the home, installation and quickstart pa
 
 - Inside `docs/`, use relative links to other pages.
 - In `README.md`, link to the Read the Docs pages, not to `.md` sources: GitHub does not execute the `{code-cell}` blocks, so the sources show code without outputs.
+- Link API names in prose to the API reference with MyST roles: ``{py:class}`InfluenceDiagram` ``, ``{py:meth}`~InfluenceDiagram.validate` `` (the `~` shows only the short name, and Sphinx adds the parentheses), ``{py:func}`solve` ``, ``{py:attr}`~Node.consistency` ``. Plain backticks in a `.md` page render as code without a link.
+- Link the first mention of each name in a section, not every mention. Do not link inside headings or code cells.
+- External names (Python, JAX, NumPyro) resolve through `intersphinx_mapping` in `docs/conf.py`, for example ``{py:class}`numpyro.distributions.Gamma` ``.
+- `nitpicky = True` is on, so any reference that does not resolve, in a page or in a docstring, fails the `-W` build. In docstrings, refer to modules and objects that are not in the API reference with double backticks (``` ``pylimid.graph.render.mermaid`` ```), not single ones. Every public name that appears in a signature or docstring must be exported and listed in `docs/api/`, rather than silenced with `nitpick_ignore`.
+- Incremental builds only re-check changed pages, so check links with a fresh build: `uv run sphinx-build -W -E docs /tmp/pylimid-docs`.
 
 ## Files, figures and drafts
 

@@ -67,7 +67,7 @@ def solve(
     Enumerates the discrete policy space, estimates expected utility for
     every policy in one vmapped forward pass, and keeps the best policy.
     With the same *rng_key* and *num_samples*, returns the same policy as
-    `intervention_scan.solve`; the expected utility matches to float
+    ``intervention_scan.solve``; the expected utility matches to float
     rounding.
 
     Args:

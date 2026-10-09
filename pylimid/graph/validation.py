@@ -52,6 +52,11 @@ class DiagramProblem:
 
     Carries enough structure for a UI or LLM to render or act on the problem
     without parsing prose.
+
+    Attributes:
+        kind: The category of the problem.
+        node: The name of the node the problem belongs to.
+        message: A human-readable description of the problem.
     """
 
     kind: DiagramProblemKind
