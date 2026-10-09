@@ -5,7 +5,7 @@ Mutable workspace, validated gate
 ---------------------------------
 The diagram is a workspace that an external author — a script, a UI, or an LLM
 driving the model over a tool interface — edits incrementally: drop a node
-here, wire an edge there, fill in a distribution later. Two consequences shape
+here, wire an arc there, fill in a distribution later. Two consequences shape
 the API:
 
 - The diagram is allowed to be **incomplete** at all times. A node may declare
@@ -19,7 +19,7 @@ the API:
   a point-in-time view only when validation passes.
 
 Structural soundness is checked in one place. Editing methods only refuse
-requests they cannot carry out (a duplicate name, an edge into a node that is
+requests they cannot carry out (a duplicate name, an arc into a node that is
 not in the diagram, a malformed field); cycles and utility nodes with children
 are reported by `InfluenceDiagram.validate`, however the diagram was built.
 
@@ -114,7 +114,7 @@ class InfluenceDiagram:
     moment a decision or utility node is added it becomes an influence diagram.
 
     Nodes are registered by name. Unlike a build-once container, a node may be
-    added before its parents exist, edges may be wired and unwired freely, and
+    added before its parents exist, arcs may be wired and unwired freely, and
     distributions may be set at any time. `validate` is the checkpoint
     that decides whether the current state is sound enough to infer on.
     """
@@ -160,13 +160,13 @@ class InfluenceDiagram:
                 survivor.remove_parent(name)
         return node
 
-    # --- edges --------------------------------------------------------------
+    # --- arcs --------------------------------------------------------------
 
-    def add_edge(self, parent: str, child: str) -> None:
+    def add_arc(self, parent: str, child: str) -> None:
         """
-        Wire an edge ``parent -> child``.
+        Wire an arc ``parent -> child``.
 
-        The child must be in the diagram, since the edge is stored on it. The
+        The child must be in the diagram, since the arc is stored on it. The
         parent need not be: like a parent declared in `add_node`, it is a
         dangling reference until that node is added. The child's parent set is
         updated through its own ``add_parent``, so the child's field
@@ -174,20 +174,20 @@ class InfluenceDiagram:
         result, which is expected.
 
         Structural problems (a cycle, a utility node with a child) are not
-        rejected here; `validate` reports them, as it does for edges declared
-        in `add_node`. Idempotent: a duplicate edge is a no-op.
+        rejected here; `validate` reports them, as it does for arcs declared
+        in `add_node`. Idempotent: a duplicate arc is a no-op.
 
         Raises:
             KeyError: If the child is not in the diagram.
-            ValueError: If the edge is a self-loop.
+            ValueError: If the arc is a self-loop.
         """
         if child not in self._nodes:
             raise KeyError(f"Child {child!r} is not in the diagram.")
         self._nodes[child].add_parent(parent)
 
-    def remove_edge(self, parent: str, child: str) -> None:
+    def remove_arc(self, parent: str, child: str) -> None:
         """
-        Remove the edge ``parent -> child`` if present; no-op otherwise.
+        Remove the arc ``parent -> child`` if present; no-op otherwise.
 
         Going through the child's ``remove_parent`` keeps its parent set and
         the (derived) adjacency consistent.
@@ -220,7 +220,7 @@ class InfluenceDiagram:
         """
         Return node names in a topological order (parents before children).
 
-        Uses Kahn's algorithm over edges between *existing* nodes; dangling
+        Uses Kahn's algorithm over arcs between *existing* nodes; dangling
         parent references are ignored for ordering.
 
         Raises:
@@ -265,7 +265,7 @@ class InfluenceDiagram:
         One cycle among the nodes Kahn's algorithm could not order.
 
         Every blocked node has a blocked parent, so walking up parents from
-        any of them must eventually repeat a node. Returned in edge order
+        any of them must eventually repeat a node. Returned in arc order
         (parent before child), starting from the repeated node.
         """
         current = min(blocked)
@@ -481,7 +481,7 @@ class InfluenceDiagram:
         Render the diagram as a Mermaid ``flowchart`` source string.
 
         Deterministic (topological node order, declared parent order for
-        edges) and usable on the live workspace: no validation required, so
+        arcs) and usable on the live workspace: no validation required, so
         an incomplete diagram renders with dangling parents as dashed ghost
         nodes and non-consistent nodes tinted via ``classDef``. See
         ``pylimid.graph.render.mermaid``.

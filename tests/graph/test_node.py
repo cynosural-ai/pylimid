@@ -90,7 +90,7 @@ def test_each_node_type_reports_its_kind() -> None:
 
 
 def test_only_utility_is_a_sink() -> None:
-    """`is_sink` is the structural property the diagram's edge check reads."""
+    """`is_sink` is the structural property `validate` reads for a sink."""
     assert ChanceNode(name="c").is_sink is False
     assert DecisionNode(name="d").is_sink is False
     assert UtilityNode(name="u").is_sink is True
