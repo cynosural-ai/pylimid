@@ -17,6 +17,8 @@ The notes split into two kinds:
 
 4. **[`13_08_2026_typed_inference_results.md`](./ADR/13_08_2026_typed_inference_results.md)** — committed `infer()` to typed per-entry results: `Marginal` for discrete variables, `Draws` for continuous ones. **Superseded** by [`25_08_2026_unified_posterior_result.md`](./ADR/25_08_2026_unified_posterior_result.md), which unifies both into a single `Posterior` (draws + `states`, with `marginal()` / `mean()` / `std()` / `hdi()` methods).
 
+5. **[`09_10_2026_structural_checks_in_validate.md`](./ADR/09_10_2026_structural_checks_in_validate.md)** — cycles and utility nodes with children are reported by `validate()` only; `add_edge` no longer rejects them and accepts a parent that is not added yet. Supersedes the earlier eager-plus-defensive form of Principle 4 in `diagram.md`.
+
 ## Living design notes
 
 Read in this order:
@@ -27,7 +29,7 @@ Read in this order:
 
 3. **[`decision_node.md`](./decision_node.md)** — settles the *solving strategy*: the NumPyro intervention scan (Strategy B, implemented) for discrete decisions with discrete information sets, mixed/continuous diagrams included; bucket elimination retired (historical); policy-as-parameters (Strategy A) deferred. Includes the `DecisionNode` *representation* in `graph/` (information set, action space, consistency model).
 
-4. **[`utility_node.md`](./utility_node.md)** — the `UtilityNode` *representation*: a callable `values(parent_assignments) -> float`, no dist/states, always a sink (enforced eagerly + defensively). Inherits the consistency model from `diagram.md`. Consumed by the intervention-scan solver's expected-utility estimation.
+4. **[`utility_node.md`](./utility_node.md)** — the `UtilityNode` *representation*: a callable `values(parent_assignments) -> float`, no dist/states, always a sink (checked by `validate()`). Inherits the consistency model from `diagram.md`. Consumed by the intervention-scan solver's expected-utility estimation.
 
 5. **[`multiple_utility_nodes.md`](./graph/multiple_utility_nodes.md)** — what several utility nodes mean: the additive convention, its equivalence to pyAgrum, and why true multi-objective (Pareto) optimization is out of scope.
 
@@ -56,6 +58,7 @@ Living notes for the example decision problems the library is meant to demonstra
 | Overall vision       | Settled     | `ADR/16_07_2026 - initial plan`    |
 | Mutable workspace + validation gate | Settled | `diagram.md` |
 | Build-once vs. mutable (commit) | Settled — mutable | `ADR/17_07_2026_mutability_design_decision.md` |
+| Where structural checks run | Settled — `validate()` only | `diagram.md` (Principle 4), `ADR/09_10_2026_structural_checks_in_validate.md` |
 | Chance-node distribution form | Settled | `chance_node.md`             |
 | Decision-node representation | Settled — graph layer | `decision_node.md` |
 | Utility-node representation | Settled — graph layer | `utility_node.md` |
