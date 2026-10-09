@@ -72,9 +72,8 @@ getting_started/quickstart
 :maxdepth: 1
 
 user_guide/building_a_diagram
-user_guide/chance_nodes
+user_guide/distributions_and_utilities
 user_guide/decisions_and_information_sets
-user_guide/utilities
 user_guide/inference
 user_guide/solving
 user_guide/scope_and_limitations

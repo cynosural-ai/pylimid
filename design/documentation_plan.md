@@ -14,7 +14,7 @@ The docs are being reviewed by hand, top-down, one page at a time, because the f
 | Home (`docs/index.md`) | Reviewed. Intro, Features, Limitations. |
 | Installation | Reviewed. |
 | Quickstart | Reviewed. The ice-cream vendor (newsvendor) problem. |
-| User guide | Next. Restructure agreed in principle, see [User guide](#user-guide); page outline still to be drafted and approved. |
+| User guide | In progress, see [User guide](#user-guide). Building a diagram is reviewed. Distributions and utilities is drafted and awaiting review; it replaced `chance_nodes.md` and `utilities.md`. |
 | Tutorials | Not reviewed yet. |
 | API reference | Not reviewed yet. Generated from docstrings with autosummary. |
 
@@ -133,7 +133,7 @@ These conventions came out of reviewing the home, installation and quickstart pa
 
 ## Open items
 
-- **User guide**: draft the outline described above, get it approved, then rewrite page by page starting with Building a diagram.
+- **User guide**: rewrite the remaining pages one at a time (Decisions and information sets, Solving, Inference, Further reading). Bayesian priors were left out of Distributions and utilities for now: the planned example (see Bayesian priors below) needs a wider order menu than the 0–200 used across the guide, so decide whether it goes there or only in the quickstart extension.
 - **Newsvendor tutorial**: the quickstart now covers this problem, so `docs/tutorials/newsvendor.md` (still about umbrellas) will probably be removed. When it is, update the quickstart's Next steps (the tutorials link and "including a longer version of this one"), the Tutorials toctree in `docs/index.md`, and this plan. Anything worth keeping from it (the critical-fractile explanation) can move into the quickstart or a user guide page.
 - **Tutorials order and review**: the home page's Tutorials card and the README link point to `oil_field`, the first tutorial. Revisit the order when the tutorials are reviewed.
 - **Bayesian priors**: planned as a Features bullet and a quickstart extension; see `docs/quickstart/bayesian_priors.md` and the matching item in `TODO.md`. Dirichlet (vector-valued) priors crash in `infer` until `_infer_numpyro` in `pylimid/inference/engine.py` stops converting every draw with `float()`.
