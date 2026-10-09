@@ -22,18 +22,18 @@ first, and every later entry is tested against the ones already placed.
 
 from __future__ import annotations
 
-from pylimid.graph.diagram import Snapshot
+from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.node import NodeKind
 
 __all__ = ["is_solvable", "solvability_order"]
 
 
-def is_solvable(snapshot: Snapshot) -> bool:
+def is_solvable(snapshot: DiagramSnapshot) -> bool:
     """Whether *snapshot* admits an exact solution ordering."""
     return solvability_order(snapshot) is not None
 
 
-def solvability_order(snapshot: Snapshot) -> list[str] | None:
+def solvability_order(snapshot: DiagramSnapshot) -> list[str] | None:
     """
     The decisions in solving order, or None if the diagram is not soluble.
 
@@ -73,7 +73,7 @@ def solvability_order(snapshot: Snapshot) -> list[str] | None:
 # ---------------------------------------------------------------------------
 
 
-def _graph(snapshot: Snapshot):
+def _graph(snapshot: DiagramSnapshot):
     names = [name for name, _ in snapshot.nodes]
     kinds = {name: node.kind for name, node in snapshot.nodes}
     parents = {name: tuple(node.parents) for name, node in snapshot.nodes}

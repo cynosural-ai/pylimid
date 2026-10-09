@@ -44,7 +44,7 @@ from pylimid.graph.render.graphviz import available as graphviz_available
 from pylimid.graph.render.graphviz import to_svg
 from pylimid.graph.render.mermaid import to_mermaid
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.graph.validation import DiagramProblem, ProblemKind
+from pylimid.graph.validation import DiagramProblem, DiagramProblemKind
 
 
 def _distribution_fingerprint(output) -> tuple[object, ...]:
@@ -89,7 +89,7 @@ def _freeze(value):
 
 
 @dataclass(frozen=True)
-class Snapshot:
+class DiagramSnapshot:
     """
     A point-in-time, validated view of a diagram — what inference consumes.
 
@@ -300,7 +300,7 @@ class InfluenceDiagram:
                 if parent not in self._nodes:
                     problems.append(
                         DiagramProblem(
-                            kind=ProblemKind.DANGLING_PARENT,
+                            kind=DiagramProblemKind.DANGLING_PARENT,
                             node=name,
                             message=(
                                 f"Parent {parent!r} of {name!r} is not in the diagram."
@@ -317,7 +317,7 @@ class InfluenceDiagram:
             if state is Consistency.UNCONFIGURED:
                 problems.append(
                     DiagramProblem(
-                        kind=ProblemKind.UNCONFIGURED,
+                        kind=DiagramProblemKind.UNCONFIGURED,
                         node=name,
                         message=node.consistency_message(state),
                     )
@@ -325,7 +325,7 @@ class InfluenceDiagram:
             elif state is Consistency.STALE:
                 problems.append(
                     DiagramProblem(
-                        kind=ProblemKind.STALE,
+                        kind=DiagramProblemKind.STALE,
                         node=name,
                         message=node.consistency_message(state),
                     )
@@ -340,7 +340,7 @@ class InfluenceDiagram:
             if node.is_sink and self.children_of(name):
                 problems.append(
                     DiagramProblem(
-                        kind=ProblemKind.UTILITY_NOT_SINK,
+                        kind=DiagramProblemKind.UTILITY_NOT_SINK,
                         node=name,
                         message=(
                             f"Utility node {name!r} must be terminal but has "
@@ -357,7 +357,7 @@ class InfluenceDiagram:
         except ValueError:
             problems.append(
                 DiagramProblem(
-                    kind=ProblemKind.CYCLE,
+                    kind=DiagramProblemKind.CYCLE,
                     node="*",
                     message="Diagram contains a cycle.",
                 )
@@ -416,7 +416,7 @@ class InfluenceDiagram:
                 if len(fingerprints) == 1:
                     problems.append(
                         DiagramProblem(
-                            kind=ProblemKind.DIST_IGNORES_PARENT,
+                            kind=DiagramProblemKind.DIST_IGNORES_PARENT,
                             node=name,
                             message=(
                                 f"Node {name!r}'s callable returns the same "
@@ -429,9 +429,9 @@ class InfluenceDiagram:
                     )
         return problems
 
-    def snapshot(self) -> Snapshot:
+    def snapshot(self) -> DiagramSnapshot:
         """
-        Return a validated, point-in-time `Snapshot` of the diagram.
+        Return a validated, point-in-time `DiagramSnapshot` of the diagram.
 
         Raises:
             ValueError: If `validate` reports any problem, with the
@@ -443,7 +443,7 @@ class InfluenceDiagram:
             raise ValueError(f"Diagram is not valid: {formatted}")
         order = self.topological_sort()
         nodes = tuple((name, self._nodes[name]) for name in order)
-        return Snapshot(nodes=nodes)
+        return DiagramSnapshot(nodes=nodes)
 
     # --- lookups ------------------------------------------------------------
 

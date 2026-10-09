@@ -60,7 +60,7 @@ nb_execution_timeout = 600
 
 # ``default_role = "py:obj"`` turns a bare ``Name`` in a docstring into a
 # cross-reference, but Sphinx resolves a bare name only in the current
-# module or class. Most of our references cross modules (``Snapshot``,
+# module or class. Most of our references cross modules (``DiagramSnapshot``,
 # ``Posterior``, ``InfluenceDiagram.validate``), so a missing-reference
 # hook links a name when exactly one documented object matches it.
 

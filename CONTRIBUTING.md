@@ -44,7 +44,7 @@ Ruff and ty also run on every commit through pre-commit.
 The full conventions live in [AGENTS.md](AGENTS.md); the highlights:
 
 - Google-style docstrings for every public function, method, and class.
-- Public API names in single backticks (`` `Snapshot` ``), literals in double backticks (`` ``None`` ``).
+- Public API names in single backticks (`` `DiagramSnapshot` ``), literals in double backticks (`` ``None`` ``).
 - No comments that reference design notes, ADRs, or ticket numbers; docstrings describe what the code does, not the history of the decision.
 - Prefer a loud failure over a silent fallback, and do not defensively re-clean data an earlier step already guarantees.
 - The production API comes first: do not add parameters, hooks, or injection points just so tests can override them.

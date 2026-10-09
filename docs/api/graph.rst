@@ -13,8 +13,9 @@ Nodes and the diagram. This layer is backend-agnostic: nothing here imports a pr
    DecisionNode
    UtilityNode
    InfluenceDiagram
+   DiagramSnapshot
    Node
    NodeKind
    Consistency
    DiagramProblem
-   ProblemKind
+   DiagramProblemKind

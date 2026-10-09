@@ -10,7 +10,7 @@ uv run pytest tests/       # run tests
 
 ## Code style
 - Google-style docstrings for all public functions, methods, and classes.
-- Cross-references to public names use single backticks: `Snapshot`, `InfluenceDiagram.validate`. The documentation site resolves them into links (Sphinx `default_role`). No explicit Sphinx roles (`:class:`, `:func:`).
+- Cross-references to public names use single backticks: `DiagramSnapshot`, `InfluenceDiagram.validate`. The documentation site resolves them into links (Sphinx `default_role`). No explicit Sphinx roles (`:class:`, `:func:`).
 - Literal code and values use double backticks: ``None``, ``num_samples=500``, ``jnp``.
 
 Example:

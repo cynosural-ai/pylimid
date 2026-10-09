@@ -26,7 +26,7 @@ from typing import Any
 import jax
 from numpyro.infer import MCMC, NUTS, Predictive
 
-from pylimid.graph.diagram import Snapshot
+from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.node import NodeKind
 from pylimid.inference.numpyro.model import to_model
 
@@ -34,7 +34,7 @@ __all__ = ["samples", "to_model"]
 
 
 def samples(
-    snapshot: Snapshot,
+    snapshot: DiagramSnapshot,
     *,
     observed: dict[str, Any] | None = None,
     query: list[str] | None = None,
@@ -83,7 +83,7 @@ def samples(
 
 def _draw(
     model: Callable[[], dict[str, Any]],
-    snapshot: Snapshot,
+    snapshot: DiagramSnapshot,
     observed: dict[str, Any],
     num_samples: int,
     num_warmup: int,
@@ -112,7 +112,7 @@ def _draw(
     return Predictive(model, num_samples=num_samples, infer_discrete=True)(rng_key)
 
 
-def _has_continuous_latent(snapshot: Snapshot, observed: dict[str, Any]) -> bool:
+def _has_continuous_latent(snapshot: DiagramSnapshot, observed: dict[str, Any]) -> bool:
     """Whether any unobserved chance node is continuous."""
     for name, node in snapshot.nodes:
         if name in observed:

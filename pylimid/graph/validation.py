@@ -15,10 +15,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-__all__ = ["DiagramProblem", "ProblemKind"]
+__all__ = ["DiagramProblem", "DiagramProblemKind"]
 
 
-class ProblemKind(Enum):
+class DiagramProblemKind(Enum):
     """
     Category of a `DiagramProblem`.
 
@@ -54,6 +54,6 @@ class DiagramProblem:
     without parsing prose.
     """
 
-    kind: ProblemKind
+    kind: DiagramProblemKind
     node: str
     message: str

@@ -19,19 +19,20 @@ A Bayesian network is an `InfluenceDiagram` containing only chance nodes.
 
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
-from pylimid.graph.diagram import InfluenceDiagram
+from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.node import Consistency, Node, NodeKind
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.graph.validation import DiagramProblem, ProblemKind
+from pylimid.graph.validation import DiagramProblem, DiagramProblemKind
 
 __all__ = [
     "ChanceNode",
     "Consistency",
     "DecisionNode",
     "DiagramProblem",
+    "DiagramProblemKind",
+    "DiagramSnapshot",
     "InfluenceDiagram",
     "Node",
     "NodeKind",
-    "ProblemKind",
     "UtilityNode",
 ]

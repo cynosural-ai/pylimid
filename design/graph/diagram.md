@@ -49,7 +49,7 @@ A malformed value (empty name) is never a useful intermediate state, so it is re
 Two structural invariants are "never a useful intermediate state" and get this two-layer treatment:
 
 - **Acyclicity.** A cycle is never useful. `add_edge` rejects an edge that would close a cycle before applying it. But a node is independently mutable through its own `add_parent`, which bypasses the diagram, so `validate()` runs a defensive cycle check as the backstop.
-- **Utility nodes are sinks.** A payoff with a child is never valid. `add_edge` rejects an edge whose parent is a utility node (read via `node.is_sink`). The same direct-mutation bypass applies, so `validate()` reports any utility node that has nonetheless acquired a child as `ProblemKind.UTILITY_NOT_SINK`.
+- **Utility nodes are sinks.** A payoff with a child is never valid. `add_edge` rejects an edge whose parent is a utility node (read via `node.is_sink`). The same direct-mutation bypass applies, so `validate()` reports any utility node that has nonetheless acquired a child as `DiagramProblemKind.UTILITY_NOT_SINK`.
 
 Two layers because there are two mutation paths; neither alone is sufficient.
 

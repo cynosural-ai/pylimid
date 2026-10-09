@@ -37,7 +37,7 @@ For a purely discrete utility, the table is simply an array indexed by the paren
 In an influence diagram a payoff is always a **sink**: it has parents but no children. This is enforced with the same two-layer treatment as acyclicity ([`diagram.md`](./diagram.md), Principle 4):
 
 - **Eagerly** in `InfluenceDiagram.add_edge`: an edge whose *parent* is a utility node is rejected immediately. `add_edge(parent, child)` makes `parent` gain a child, so if `parent.is_sink` is true, the call raises. A utility-with-child is never a useful intermediate state.
-- **Defensively** in `InfluenceDiagram.validate`: a node can be mutated directly through its own `add_parent`, bypassing `add_edge`, so a utility node may nonetheless appear as some other node's parent. `validate` reports this as a `ProblemKind.UTILITY_NOT_SINK` problem — the robust backstop.
+- **Defensively** in `InfluenceDiagram.validate`: a node can be mutated directly through its own `add_parent`, bypassing `add_edge`, so a utility node may nonetheless appear as some other node's parent. `validate` reports this as a `DiagramProblemKind.UTILITY_NOT_SINK` problem — the robust backstop.
 
 The check reads `node.is_sink` rather than branching on node type, so the container stays free of per-type logic.
 

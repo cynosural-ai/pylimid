@@ -6,10 +6,10 @@ import pytest
 
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
-from pylimid.graph.diagram import InfluenceDiagram, Snapshot
+from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.node import Consistency
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.graph.validation import ProblemKind
+from pylimid.graph.validation import DiagramProblemKind
 
 # --- helpers ----------------------------------------------------------------
 
@@ -263,7 +263,7 @@ def test_validate_reports_dangling_parent() -> None:
 
     problems = diag.validate()
     assert len(problems) == 1
-    assert problems[0].kind is ProblemKind.DANGLING_PARENT
+    assert problems[0].kind is DiagramProblemKind.DANGLING_PARENT
     assert problems[0].node == "wet"
 
 
@@ -273,7 +273,7 @@ def test_validate_reports_unconfigured_node() -> None:
 
     problems = diag.validate()
     assert len(problems) == 1
-    assert problems[0].kind is ProblemKind.UNCONFIGURED
+    assert problems[0].kind is DiagramProblemKind.UNCONFIGURED
     assert problems[0].node == "rain"
 
 
@@ -284,8 +284,8 @@ def test_validate_reports_stale_node() -> None:
 
     problems = diag.validate()
     kinds = {p.kind for p in problems}
-    assert ProblemKind.STALE in kinds
-    stale_nodes = [p.node for p in problems if p.kind is ProblemKind.STALE]
+    assert DiagramProblemKind.STALE in kinds
+    stale_nodes = [p.node for p in problems if p.kind is DiagramProblemKind.STALE]
     assert "wet_grass" in stale_nodes
 
 
@@ -302,8 +302,8 @@ def test_validate_reports_all_problems_at_once() -> None:
 
     problems = diag.validate()
     kinds = {p.kind for p in problems}
-    assert ProblemKind.DANGLING_PARENT in kinds
-    assert ProblemKind.UNCONFIGURED in kinds
+    assert DiagramProblemKind.DANGLING_PARENT in kinds
+    assert DiagramProblemKind.UNCONFIGURED in kinds
 
 
 def test_validate_detects_cycle_from_direct_node_mutation() -> None:
@@ -316,7 +316,7 @@ def test_validate_detects_cycle_from_direct_node_mutation() -> None:
     diag["a"].add_parent("b")  # now a -> b -> a cycle
 
     problems = diag.validate()
-    assert any(p.kind is ProblemKind.CYCLE for p in problems)
+    assert any(p.kind is DiagramProblemKind.CYCLE for p in problems)
 
 
 # --- snapshot() -------------------------------------------------------------
@@ -326,7 +326,7 @@ def test_snapshot_returns_validated_view_in_topological_order() -> None:
     diag = _consistent_rain_wetgrass()
     snap = diag.snapshot()
 
-    assert isinstance(snap, Snapshot)
+    assert isinstance(snap, DiagramSnapshot)
     assert snap.order == ("rain", "wet_grass")
     assert [name for name, _ in snap.nodes] == ["rain", "wet_grass"]
 
@@ -428,8 +428,10 @@ def test_validate_reports_unconfigured_decision_and_utility() -> None:
 
     problems = diag.validate()
     kinds = {p.kind for p in problems}
-    assert ProblemKind.UNCONFIGURED in kinds
-    unconfigured = {p.node for p in problems if p.kind is ProblemKind.UNCONFIGURED}
+    assert DiagramProblemKind.UNCONFIGURED in kinds
+    unconfigured = {
+        p.node for p in problems if p.kind is DiagramProblemKind.UNCONFIGURED
+    }
     assert unconfigured == {"invest", "payoff"}
 
 
@@ -453,7 +455,9 @@ def test_validate_reports_utility_not_sink_defensively() -> None:
     )
 
     problems = diag.validate()
-    sink_problems = [p for p in problems if p.kind is ProblemKind.UTILITY_NOT_SINK]
+    sink_problems = [
+        p for p in problems if p.kind is DiagramProblemKind.UTILITY_NOT_SINK
+    ]
     assert len(sink_problems) == 1
     assert sink_problems[0].node == "payoff"
 
@@ -472,7 +476,7 @@ def test_validate_detects_cycle_through_decision() -> None:
     diag["d"].add_parent("a")  # bypass add_edge — closes a -> d -> a
 
     problems = diag.validate()
-    assert any(p.kind is ProblemKind.CYCLE for p in problems)
+    assert any(p.kind is DiagramProblemKind.CYCLE for p in problems)
 
 
 # --- set_dist narrowing -----------------------------------------------------
