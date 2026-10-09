@@ -171,8 +171,8 @@ class Node:
 
         ``False`` for chance and decision nodes. Utility nodes override to
         ``True`` — a payoff is terminal in an influence diagram.
-        `InfluenceDiagram.add_edge` reads this to reject an edge that would
-        give a sink a child, rather than branching on node type.
+        `InfluenceDiagram.validate` reads this to report a sink with a
+        child, rather than branching on node type.
         """
         return False
 
