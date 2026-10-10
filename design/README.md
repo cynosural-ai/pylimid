@@ -17,6 +17,8 @@ The notes split into two kinds:
 
 4. **[`13_08_2026_typed_inference_results.md`](./ADR/13_08_2026_typed_inference_results.md)** — committed `infer()` to typed per-entry results: `Marginal` for discrete variables, `Draws` for continuous ones. **Superseded** by [`25_08_2026_unified_posterior_result.md`](./ADR/25_08_2026_unified_posterior_result.md), which unifies both into a single `Posterior` (draws + `states`, with `marginal()` / `mean()` / `std()` / `hdi()` methods).
 
+5. **[`09_10_2026_structural_checks_in_validate.md`](./ADR/09_10_2026_structural_checks_in_validate.md)** — cycles and utility nodes with children are reported by `validate()` only; `add_arc` no longer rejects them and accepts a parent that is not added yet. Supersedes the earlier eager-plus-defensive form of Principle 4 in `diagram.md`.
+
 ## Living design notes
 
 Read in this order:
@@ -27,11 +29,11 @@ Read in this order:
 
 3. **[`decision_node.md`](./decision_node.md)** — settles the *solving strategy*: the NumPyro intervention scan (Strategy B, implemented) for discrete decisions with discrete information sets, mixed/continuous diagrams included; bucket elimination retired (historical); policy-as-parameters (Strategy A) deferred. Includes the `DecisionNode` *representation* in `graph/` (information set, action space, consistency model).
 
-4. **[`utility_node.md`](./utility_node.md)** — the `UtilityNode` *representation*: a callable `values(parent_assignments) -> float`, no dist/states, always a sink (enforced eagerly + defensively). Inherits the consistency model from `diagram.md`. Consumed by the intervention-scan solver's expected-utility estimation.
+4. **[`utility_node.md`](./utility_node.md)** — the `UtilityNode` *representation*: a callable `values(parent_assignments) -> float`, no dist/states, always a sink (checked by `validate()`). Inherits the consistency model from `diagram.md`. Consumed by the intervention-scan solver's expected-utility estimation.
 
 5. **[`multiple_utility_nodes.md`](./graph/multiple_utility_nodes.md)** — what several utility nodes mean: the additive convention, its equivalence to pyAgrum, and why true multi-objective (Pareto) optimization is out of scope.
 
-6. **[`backend_numpyro.md`](./backend_numpyro.md)** — the NumPyro engine: turns a validated `Snapshot` into a NumPyro model. Chance nodes always; bound decisions become degenerate observed sites and utilities are skipped. `samples()` covers both forward sampling and posterior inference (enumeration / NUTS); `solvers.intervention_scan.solve` runs the intervention scan for influence diagrams. NumPyro is a declared dependency, though the graph layer itself never imports it.
+6. **[`backend_numpyro.md`](./backend_numpyro.md)** — the NumPyro engine: turns a validated `DiagramSnapshot` into a NumPyro model. Chance nodes always; bound decisions become degenerate observed sites and utilities are skipped. `samples()` covers both forward sampling and posterior inference (enumeration / NUTS); `solvers.intervention_scan.solve` runs the intervention scan for influence diagrams. NumPyro is a declared dependency, though the graph layer itself never imports it.
 
 7. **[`inference_strategy.md`](./inference_strategy.md)** — analysis of inference backends for the full influence diagram roadmap. Decision: NumPyro as the only engine (see [`25_08_2026_numpyro_only_engine.md`](./ADR/25_08_2026_numpyro_only_engine.md)), with pyAgrum's exact solvers as the external validation reference.
 
@@ -56,6 +58,7 @@ Living notes for the example decision problems the library is meant to demonstra
 | Overall vision       | Settled     | `ADR/16_07_2026 - initial plan`    |
 | Mutable workspace + validation gate | Settled | `diagram.md` |
 | Build-once vs. mutable (commit) | Settled — mutable | `ADR/17_07_2026_mutability_design_decision.md` |
+| Where structural checks run | Settled — `validate()` only | `diagram.md` (Principle 4), `ADR/09_10_2026_structural_checks_in_validate.md` |
 | Chance-node distribution form | Settled | `chance_node.md`             |
 | Decision-node representation | Settled — graph layer | `decision_node.md` |
 | Utility-node representation | Settled — graph layer | `utility_node.md` |
@@ -76,9 +79,10 @@ Living notes for the example decision problems the library is meant to demonstra
 
 - `graph/node.py` — the shared `Node` base: `name`/`parents`, field validation, and the `UNCONFIGURED`/`STALE`/`CONSISTENT` consistency gate that every node type inherits. Also defines `NodeKind` and `Consistency`.
 - `graph/chance_node.py`, `graph/decision_node.py`, `graph/utility_node.py` — the three node types, all subclassing `Node`. A diagram with only chance nodes is a Bayesian network; adding a decision or utility node makes it an influence diagram (see `diagram.md`, `decision_node.md`, `utility_node.md`).
-- `graph/diagram.py` — the mutable container and `Snapshot` (see `diagram.md`); `graph/validation.py` — the `DiagramProblem` / `ProblemKind` model shared by `validate()` and `probe_discrete_parents()`. Exports `Node`, `NodeKind`, `Consistency`, the three node types, and the problem model from `pylimid.graph`.
-- `inference/numpyro/` — the NumPyro engine: translates a `Snapshot` into a NumPyro model, with public `samples()` — prior draws with no observations, posterior draws (enumeration / NUTS) with observations, as raw JAX arrays — and `solvers.intervention_scan.solve` — the intervention-scan influence-diagram solver. Bound decisions clamp to their policy values; utilities are skipped. NumPyro is a declared dependency, though nothing in `pylimid.graph` imports it.
-- `inference/result.py` — the typed results: `Posterior` (raw draws plus `states`, with kind-guarded `marginal()` / `mean()` / `std()` / `hdi()` methods), `Solution`, `Policy`, `InferenceResult`.
+- `graph/diagram.py` — the mutable container and `DiagramSnapshot` (see `diagram.md`); `graph/validation.py` — the `DiagramProblem` / `DiagramProblemKind` model shared by `validate()` and `probe_discrete_parents()`. Exports `Node`, `NodeKind`, `Consistency`, the three node types, and the problem model from `pylimid.graph`.
+- `inference/numpyro/` — the NumPyro engine: translates a `DiagramSnapshot` into a NumPyro model, with public `samples()` — prior draws with no observations, posterior draws (enumeration / NUTS) with observations, as raw JAX arrays — and `solvers.intervention_scan.solve` — the intervention-scan influence-diagram solver. Bound decisions clamp to their policy values; utilities are skipped. NumPyro is a declared dependency, though nothing in `pylimid.graph` imports it.
+- `inference/posterior.py` — the typed result of `infer()`: `Posterior` (raw draws plus `states`, with kind-guarded `marginal()` / `mean()` / `std()` / `hdi()` methods) and the `InferenceResult` alias.
+- `inference/solution.py` — the typed result of `solve()`: `Solution` (policy, expected utility, solver name, plus `render()` for label-decoded display), the `Policy` alias, and `SolverName`.
 - `inference/engine.py` — unified `infer()` / `solve()` entry-points (NumPyro-only). `infer()` returns one `Posterior` per query variable: raw draws plus the variable's `states` (`None` for continuous); `marginal()` bincounts a discrete posterior into its probability vector and raises on a continuous one. `infer()` takes an all-or-nothing `policy=` binding (unbound decisions raise a clean `InferenceError`); `solve(diagram, method="auto" | "backward_induction" | "scan")` is the solver front door for mixed/continuous influence diagrams with discrete information sets: `"auto"` runs backward induction when the diagram is solvable and the batched scan otherwise. The main names are re-exported from the top-level `pylimid` package.
 
 The exact engines (variable elimination, bucket elimination, the linear-Gaussian engine) were built and retired in favor of the NumPyro-only engine; their history lives in git (see [`25_08_2026_numpyro_only_engine.md`](./ADR/25_08_2026_numpyro_only_engine.md)).

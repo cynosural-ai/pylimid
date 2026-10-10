@@ -15,10 +15,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-__all__ = ["DiagramProblem", "ProblemKind"]
+__all__ = ["DiagramProblem", "DiagramProblemKind"]
 
 
-class ProblemKind(Enum):
+class DiagramProblemKind(Enum):
     """
     Category of a `DiagramProblem`.
 
@@ -52,8 +52,13 @@ class DiagramProblem:
 
     Carries enough structure for a UI or LLM to render or act on the problem
     without parsing prose.
+
+    Attributes:
+        kind: The category of the problem.
+        node: The name of the node the problem belongs to.
+        message: A human-readable description of the problem.
     """
 
-    kind: ProblemKind
+    kind: DiagramProblemKind
     node: str
     message: str

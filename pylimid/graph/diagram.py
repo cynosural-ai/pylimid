@@ -5,7 +5,7 @@ Mutable workspace, validated gate
 ---------------------------------
 The diagram is a workspace that an external author — a script, a UI, or an LLM
 driving the model over a tool interface — edits incrementally: drop a node
-here, wire an edge there, fill in a distribution later. Two consequences shape
+here, wire an arc there, fill in a distribution later. Two consequences shape
 the API:
 
 - The diagram is allowed to be **incomplete** at all times. A node may declare
@@ -18,19 +18,15 @@ the API:
   `DiagramProblem` instances. `InfluenceDiagram.snapshot` produces
   a point-in-time view only when validation passes.
 
-Acyclicity is enforced *eagerly* on `InfluenceDiagram.add_edge` (a cycle is
-never a useful intermediate state) and *defensively* in
-`InfluenceDiagram.validate` (a node can be
-mutated directly through its own ``add_parent``, bypassing the diagram, so
-validation is the robust backstop).
+Structural soundness is checked in one place. Editing methods only refuse
+requests they cannot carry out (a duplicate name, an arc into a node that is
+not in the diagram, a malformed field); cycles and utility nodes with children
+are reported by `InfluenceDiagram.validate`, however the diagram was built.
 
 Three node kinds live in one container: chance, decision, and utility (see
-`NodeKind`). They share the ``parents`` field, so
-topological ordering and cycle prevention work uniformly across them. Utility
-nodes are *sinks* — `InfluenceDiagram.add_edge` rejects an edge giving one a
-child (eager, alongside the cycle check), and `InfluenceDiagram.validate`
-reports any utility node that
-nonetheless has children (defensive backstop, the same two-layer treatment).
+`NodeKind`). They share the ``parents`` field, so topological ordering and
+cycle detection work uniformly across them. Utility nodes are *sinks*: a
+payoff with a child is reported as a problem.
 """
 
 from __future__ import annotations
@@ -44,7 +40,7 @@ from pylimid.graph.render.graphviz import available as graphviz_available
 from pylimid.graph.render.graphviz import to_svg
 from pylimid.graph.render.mermaid import to_mermaid
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.graph.validation import DiagramProblem, ProblemKind
+from pylimid.graph.validation import DiagramProblem, DiagramProblemKind
 
 
 def _distribution_fingerprint(output) -> tuple[object, ...]:
@@ -89,13 +85,16 @@ def _freeze(value):
 
 
 @dataclass(frozen=True)
-class Snapshot:
+class DiagramSnapshot:
     """
     A point-in-time, validated view of a diagram — what inference consumes.
 
     Produced by `InfluenceDiagram.snapshot` only after validation passes.
     It holds references to the (still mutable) nodes, so it is a *logical*
     snapshot: editing the diagram after taking a snapshot invalidates it.
+
+    Attributes:
+        nodes: ``(name, node)`` pairs in topological order.
     """
 
     nodes: tuple[tuple[str, Node], ...]
@@ -115,7 +114,7 @@ class InfluenceDiagram:
     moment a decision or utility node is added it becomes an influence diagram.
 
     Nodes are registered by name. Unlike a build-once container, a node may be
-    added before its parents exist, edges may be wired and unwired freely, and
+    added before its parents exist, arcs may be wired and unwired freely, and
     distributions may be set at any time. `validate` is the checkpoint
     that decides whether the current state is sound enough to infer on.
     """
@@ -161,53 +160,34 @@ class InfluenceDiagram:
                 survivor.remove_parent(name)
         return node
 
-    # --- edges --------------------------------------------------------------
+    # --- arcs --------------------------------------------------------------
 
-    def add_edge(self, parent: str, child: str) -> None:
+    def add_arc(self, parent: str, child: str) -> None:
         """
-        Wire an edge ``parent -> child``.
+        Wire an arc ``parent -> child``.
 
-        Both endpoints must already be in the diagram (use `add_node`
-        first). The child's parent set is updated through its own
-        ``add_parent``, so the child's field validation runs — and its
-        ``dist`` / ``values`` may become stale as a result, which is expected.
+        The child must be in the diagram, since the arc is stored on it. The
+        parent need not be: like a parent declared in `add_node`, it is a
+        dangling reference until that node is added. The child's parent set is
+        updated through its own ``add_parent``, so the child's field
+        validation runs, and its ``dist`` / ``values`` may become stale as a
+        result, which is expected.
 
-        Cycle prevention: if a path ``child -> ... -> parent`` already exists,
-        adding ``parent -> child`` would close a cycle, and the call is
-        rejected. Utility-sink prevention: an edge whose *parent* is a utility
-        node is rejected (the parent would gain a child, and a payoff must be
-        terminal). Both are eager checks (a cycle and a utility-with-child are
-        never useful intermediate states). Idempotent: a duplicate edge is a
-        no-op.
+        Structural problems (a cycle, a utility node with a child) are not
+        rejected here; `validate` reports them, as it does for arcs declared
+        in `add_node`. Idempotent: a duplicate arc is a no-op.
 
         Raises:
-            KeyError: If either endpoint is not in the diagram.
-            ValueError: If the edge would create a cycle (including a
-                self-loop), or if the parent is a sink node (utility).
+            KeyError: If the child is not in the diagram.
+            ValueError: If the arc is a self-loop.
         """
-        if parent not in self._nodes:
-            raise KeyError(f"Parent {parent!r} is not in the diagram.")
         if child not in self._nodes:
             raise KeyError(f"Child {child!r} is not in the diagram.")
-        if self._nodes[parent].is_sink:
-            raise ValueError(
-                f"Node {parent!r} is a utility node and cannot have children "
-                f"(rejected edge {parent!r} -> {child!r})."
-            )
-        if parent == child:
-            raise ValueError(f"Node {parent!r} cannot be its own parent.")
-        if parent in self._nodes[child].parents:
-            return  # idempotent
-        if _reaches(self._children_of, start=child, target=parent):
-            raise ValueError(
-                f"Edge {parent!r} -> {child!r} would create a cycle "
-                f"(a path {child!r} -> ... -> {parent!r} already exists)."
-            )
         self._nodes[child].add_parent(parent)
 
-    def remove_edge(self, parent: str, child: str) -> None:
+    def remove_arc(self, parent: str, child: str) -> None:
         """
-        Remove the edge ``parent -> child`` if present; no-op otherwise.
+        Remove the arc ``parent -> child`` if present; no-op otherwise.
 
         Going through the child's ``remove_parent`` keeps its parent set and
         the (derived) adjacency consistent.
@@ -240,10 +220,26 @@ class InfluenceDiagram:
         """
         Return node names in a topological order (parents before children).
 
-        Uses Kahn's algorithm over edges between *existing* nodes; dangling
-        parent references are ignored for ordering. Raises if a cycle is
-        present (possible only if a node was mutated directly, bypassing
-        the cycle check in `add_edge`).
+        Uses Kahn's algorithm over arcs between *existing* nodes; dangling
+        parent references are ignored for ordering.
+
+        Raises:
+            ValueError: If the diagram contains a cycle.
+        """
+        order = self._kahn_order()
+        if len(order) != len(self._nodes):
+            raise ValueError(
+                "Diagram has a cycle; cannot topologically sort. "
+                "Run validate() to locate it."
+            )
+        return tuple(order)
+
+    def _kahn_order(self) -> list[str]:
+        """
+        Kahn's algorithm, stopping where a cycle blocks it.
+
+        Returns every node when the diagram is acyclic. Otherwise the nodes
+        left out are those on a cycle or downstream of one.
         """
         nodes = self._nodes
         indegree: dict[str, int] = dict.fromkeys(nodes, 0)
@@ -262,12 +258,24 @@ class InfluenceDiagram:
                 indegree[child] -= 1
                 if indegree[child] == 0:
                     queue.append(child)
-        if len(order) != len(nodes):
-            raise ValueError(
-                "Diagram has a cycle; cannot topologically sort. "
-                "Run validate() to locate it."
-            )
-        return tuple(order)
+        return order
+
+    def _find_cycle(self, blocked: set[str]) -> tuple[str, ...]:
+        """
+        One cycle among the nodes Kahn's algorithm could not order.
+
+        Every blocked node has a blocked parent, so walking up parents from
+        any of them must eventually repeat a node. Returned in arc order
+        (parent before child), starting from the repeated node.
+        """
+        current = min(blocked)
+        path: list[str] = []
+        position: dict[str, int] = {}
+        while current not in position:
+            position[current] = len(path)
+            path.append(current)
+            current = next(p for p in self._nodes[current].parents if p in blocked)
+        return tuple(reversed(path[position[current] :]))
 
     def parents_of(self, name: str) -> tuple[str, ...]:
         """Return the declared parents of ``name``."""
@@ -280,6 +288,29 @@ class InfluenceDiagram:
             for other_name, other in self._nodes.items()
             if name in other.parents
         )
+
+    def states_of(self, name: str) -> tuple[str, ...]:
+        """
+        Return the state labels of a discrete chance or decision node.
+
+        Args:
+            name: Name of the node.
+
+        Returns:
+            The node's ``states`` labels.
+
+        Raises:
+            KeyError: If ``name`` is not in the diagram.
+            ValueError: If the node has no state labels — a continuous chance
+                node, an unconfigured decision, or a utility node.
+        """
+        node = self._nodes[name]
+        if not isinstance(node, (ChanceNode, DecisionNode)) or node.states is None:
+            raise ValueError(
+                f"Node {name!r} has no state labels; only discrete chance "
+                f"and decision nodes do."
+            )
+        return node.states
 
     # --- validation ---------------------------------------------------------
 
@@ -300,7 +331,7 @@ class InfluenceDiagram:
                 if parent not in self._nodes:
                     problems.append(
                         DiagramProblem(
-                            kind=ProblemKind.DANGLING_PARENT,
+                            kind=DiagramProblemKind.DANGLING_PARENT,
                             node=name,
                             message=(
                                 f"Parent {parent!r} of {name!r} is not in the diagram."
@@ -317,7 +348,7 @@ class InfluenceDiagram:
             if state is Consistency.UNCONFIGURED:
                 problems.append(
                     DiagramProblem(
-                        kind=ProblemKind.UNCONFIGURED,
+                        kind=DiagramProblemKind.UNCONFIGURED,
                         node=name,
                         message=node.consistency_message(state),
                     )
@@ -325,22 +356,18 @@ class InfluenceDiagram:
             elif state is Consistency.STALE:
                 problems.append(
                     DiagramProblem(
-                        kind=ProblemKind.STALE,
+                        kind=DiagramProblemKind.STALE,
                         node=name,
                         message=node.consistency_message(state),
                     )
                 )
 
-        # Defensive utility-sink check: `add_edge` rejects a utility child
-        # eagerly, but a node can be mutated directly via its own `add_parent`
-        # (bypassing the diagram), so a utility node may nonetheless appear as
-        # some other node's parent. This is the backstop, mirroring the cycle
-        # check below.
+        # A utility node is a payoff, so it must be terminal.
         for name, node in self._nodes.items():
             if node.is_sink and self.children_of(name):
                 problems.append(
                     DiagramProblem(
-                        kind=ProblemKind.UTILITY_NOT_SINK,
+                        kind=DiagramProblemKind.UTILITY_NOT_SINK,
                         node=name,
                         message=(
                             f"Utility node {name!r} must be terminal but has "
@@ -349,17 +376,15 @@ class InfluenceDiagram:
                     )
                 )
 
-        # Defensive cycle check: a node may have been mutated directly via its
-        # own `add_parent`, bypassing `add_edge`. Kahn's leftover-node count is
-        # the signal.
-        try:
-            self.topological_sort()
-        except ValueError:
+        blocked = set(self._nodes) - set(self._kahn_order())
+        if blocked:
+            cycle = self._find_cycle(blocked)
+            path = " -> ".join(repr(name) for name in (*cycle, cycle[0]))
             problems.append(
                 DiagramProblem(
-                    kind=ProblemKind.CYCLE,
-                    node="*",
-                    message="Diagram contains a cycle.",
+                    kind=DiagramProblemKind.CYCLE,
+                    node=cycle[0],
+                    message=f"Diagram contains a cycle: {path}.",
                 )
             )
 
@@ -416,7 +441,7 @@ class InfluenceDiagram:
                 if len(fingerprints) == 1:
                     problems.append(
                         DiagramProblem(
-                            kind=ProblemKind.DIST_IGNORES_PARENT,
+                            kind=DiagramProblemKind.DIST_IGNORES_PARENT,
                             node=name,
                             message=(
                                 f"Node {name!r}'s callable returns the same "
@@ -429,9 +454,9 @@ class InfluenceDiagram:
                     )
         return problems
 
-    def snapshot(self) -> Snapshot:
+    def snapshot(self) -> DiagramSnapshot:
         """
-        Return a validated, point-in-time `Snapshot` of the diagram.
+        Return a validated, point-in-time `DiagramSnapshot` of the diagram.
 
         Raises:
             ValueError: If `validate` reports any problem, with the
@@ -443,7 +468,7 @@ class InfluenceDiagram:
             raise ValueError(f"Diagram is not valid: {formatted}")
         order = self.topological_sort()
         nodes = tuple((name, self._nodes[name]) for name in order)
-        return Snapshot(nodes=nodes)
+        return DiagramSnapshot(nodes=nodes)
 
     # --- lookups ------------------------------------------------------------
 
@@ -479,10 +504,10 @@ class InfluenceDiagram:
         Render the diagram as a Mermaid ``flowchart`` source string.
 
         Deterministic (topological node order, declared parent order for
-        edges) and usable on the live workspace: no validation required, so
+        arcs) and usable on the live workspace: no validation required, so
         an incomplete diagram renders with dangling parents as dashed ghost
         nodes and non-consistent nodes tinted via ``classDef``. See
-        `pylimid.graph.render.mermaid`.
+        ``pylimid.graph.render.mermaid``.
 
         Returns:
             Mermaid flowchart source; paste into a Mermaid renderer to view.
@@ -495,7 +520,7 @@ class InfluenceDiagram:
 
         Shells out to the Graphviz ``dot`` binary, which must be on ``PATH``.
         In Jupyter the diagram renders itself through this method; see
-        `pylimid.graph.render.graphviz`.
+        ``pylimid.graph.render.graphviz``.
 
         Returns:
             SVG source.
@@ -516,30 +541,3 @@ class InfluenceDiagram:
         if not graphviz_available():
             return None
         return to_svg(self)
-
-    # --- internals ----------------------------------------------------------
-
-    def _children_of(self, name: str) -> tuple[str, ...]:
-        """Names of nodes that list ``name`` as a parent (derived on demand)."""
-        return self.children_of(name)
-
-
-def _reaches(children_of, start: str, target: str) -> bool:
-    """
-    Whether ``target`` is reachable from ``start`` following child edges.
-
-    DFS over the (derived) child adjacency. Used by
-    `InfluenceDiagram.add_edge` to detect whether a prospective edge would
-    close a cycle.
-    """
-    stack = [start]
-    seen: set[str] = set()
-    while stack:
-        current = stack.pop()
-        if current == target:
-            return True
-        if current in seen:
-            continue
-        seen.add(current)
-        stack.extend(children_of(current))
-    return False

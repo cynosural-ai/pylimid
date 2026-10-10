@@ -5,7 +5,7 @@ Internal module. Public convenience functions that wrap this are in
 `pylimid.inference.numpyro`.
 
 This is the bridge between the backend-agnostic graph layer and a concrete
-probabilistic programming system. It consumes a `Snapshot` and returns a plain
+probabilistic programming system. It consumes a `DiagramSnapshot` and returns a plain
 NumPyro model function the caller feeds to ``numpyro.infer``
 (e.g. ``Predictive``, ``MCMC``, ``SVI``).
 
@@ -35,14 +35,14 @@ import numpyro.distributions as dist
 
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
-from pylimid.graph.diagram import Snapshot
+from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
 
 __all__ = ["to_model"]
 
 
 def to_model(
-    snapshot: Snapshot,
+    snapshot: DiagramSnapshot,
     observed: dict[str, Any] | None = None,
 ) -> Callable[[], dict[str, Any]]:
     """

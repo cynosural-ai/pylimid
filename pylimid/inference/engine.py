@@ -27,13 +27,8 @@ from pylimid.inference.numpyro.solvers import (
     batched_solve,
     is_solvable,
 )
-from pylimid.inference.result import (
-    InferenceResult,
-    Policy,
-    Posterior,
-    Solution,
-    SolverName,
-)
+from pylimid.inference.posterior import InferenceResult, Posterior
+from pylimid.inference.solution import Policy, Solution, SolverName
 
 __all__ = [
     "InferenceError",

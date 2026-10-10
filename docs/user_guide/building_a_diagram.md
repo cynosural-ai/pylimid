@@ -6,17 +6,19 @@ kernelspec:
 
 # Building a diagram
 
-An influence diagram in `pylimid` is a **mutable workspace**, not a build-once container. You add nodes before their parents exist, wire and unwire edges freely, and configure distributions, action spaces, and utilities as you go. Nothing is enforced until you ask for it: inference is gated behind an explicit validation checkpoint.
+This page covers how to build and edit an influence diagram, check that it is complete, and draw it. What goes inside each node (distributions, decisions and utilities) has its own pages in the user guide.
 
-A Bayesian network is simply a diagram that contains only chance nodes. The moment you add a decision or a utility node, it becomes an influence diagram.
+We use the ice-cream vendor example from the [Quickstart](../getting_started/quickstart.md) page as a running example.
 
-## The three node kinds
+## Nodes and arcs
 
-Every node carries a `name` and a `parents` tuple, but the meaning of `parents` depends on the kind:
+There are three kinds of nodes, and every node has a `name` and a tuple of `parents` (i.e., the nodes where its arcs come from):
 
-- `ChanceNode` — a random variable `P(name | parents)`; `parents` are a statistical dependency.
-- `DecisionNode` — a variable the agent controls; `parents` are its **information set** (what is observed when choosing), and `states` are the available actions.
-- `UtilityNode` — a deterministic payoff `U(parents)`; always a sink.
+- {py:class}`ChanceNode` represents a random variable, like the weather or the demand.
+- {py:class}`DecisionNode` is a choice, like how many ice creams to stock. Its parents are what is known when the choice is made (i.e., its *information set*).
+- {py:class}`UtilityNode` indicates the resulting payoff, like the vendor's profit. A utility node can't have children: nothing in the diagram depends on a payoff.
+
+We start with the numbers and the profit function from the quickstart:
 
 ```{code-cell} ipython3
 import jax.numpy as jnp
@@ -24,109 +26,127 @@ import numpyro.distributions as dist
 
 from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
 
-diag = InfluenceDiagram()
-diag.add_node(
-    ChanceNode(
-        name="market",
-        states=("down", "up"),
-        dist=lambda: dist.Categorical(probs=jnp.array([0.4, 0.6])),
+DEMAND_MEANS = jnp.array([40.0, 120.0])
+ORDERS = jnp.arange(0, 201, 20)
+
+
+def profit(order, demand):
+    stocked = ORDERS[order]
+    return 10.0 * jnp.minimum(stocked, demand) - 1.0 * stocked
+```
+
+## Building in any order
+
+You don't need to fill the whole {py:class}`InfluenceDiagram` in one go. You can add a node before its parents exist, add arcs later, and fill in a node's details whenever you are ready. Nothing is checked until you ask for it, not even cycles: {py:meth}`~InfluenceDiagram.validate` reports every problem at once.
+
+For example, we can start with the decision and the profit, before describing the weather or the demand:
+
+```{code-cell} ipython3
+diagram = InfluenceDiagram()
+diagram.add_node(
+    DecisionNode(
+        name="order", parents=("weather",), states=tuple(str(n) for n in ORDERS)
     )
 )
-diag.add_node(DecisionNode(name="invest", parents=("market",), states=("no", "yes")))
-diag.add_node(
-    UtilityNode(
-        name="profit",
-        parents=("invest",),
-        values=lambda invest: jnp.where(invest == 1, 100.0, 0.0),
-    )
-)
-diag.validate()
+diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=profit))
 ```
 
-A node's parents need not exist yet — dangling references are tolerated while you build. `add_edge(parent, child)` is stricter: both endpoints must already be in the diagram, the edge is rejected eagerly if it would create a cycle, and a utility node may never become a parent (a payoff is terminal). Duplicate edges are a no-op, and `remove_node` scrubs the removed name from every survivor's parent set.
-
-The diagram keeps the derived adjacency up to date, so you can introspect it at any point:
+The diagram can be drawn at any point, even unfinished. In Jupyter, a diagram on the last line of a cell draws itself with [Graphviz](https://graphviz.org/download/), which needs the `dot` program installed on your system ({py:meth}`~InfluenceDiagram.to_svg` returns the same picture as SVG):
 
 ```{code-cell} ipython3
-diag.names, diag.parents_of("invest"), diag.children_of("market"), diag.topological_sort()
+diagram
 ```
 
-## Consistency, not enforcement
+```{admonition} Reading the drawing
+:class: note
 
-Each node tracks its own **consistency** with respect to its parents. Consistency is computed on demand from the live field values and has three states:
+Chance nodes are circles, decision nodes are rectangles, and utility nodes are diamonds. A parent that doesn't exist yet appears as a dashed node, a node that is missing its distribution, actions or utility function is grey, and a stale node is yellow.
+```
 
-- `UNCONFIGURED` — the configurable field is unset (`dist` for chance, `values` for utility, action `states` for decision).
-- `STALE` — the field is set, but its signature no longer accepts the current parents. This is what happens after you wire a new parent to an already-configured node.
-- `CONSISTENT` — the field accepts the parents; the node is ready.
-
-Field-level mistakes (an empty name, a duplicate parent, a non-callable `dist`) are rejected the instant you set them. Cross-field consistency is *not* enforced on assignment — an inconsistent node is a legitimate intermediate state while a script, a UI, or an LLM is still building the model.
+{py:meth}`~InfluenceDiagram.to_mermaid` returns the same diagram as [Mermaid](https://mermaid.js.org) text, which needs nothing installed and renders in GitHub comments and Markdown files. It is also "easier to read" for LLMs:
 
 ```{code-cell} ipython3
-workspace = InfluenceDiagram()
-workspace.add_node(
+print(diagram.to_mermaid())
+```
+
+
+Now we add the two chance nodes. The weather node is complete, but we leave the demand node's distribution out for now:
+
+```{code-cell} ipython3
+diagram.add_node(
     ChanceNode(
-        name="rain",
-        states=("no", "yes"),
-        dist=lambda: dist.Categorical(probs=jnp.array([0.8, 0.2])),
-    )
-)
-workspace.add_node(
-    ChanceNode(name="wet_grass", parents=("rain",), states=("dry", "wet"))
-)
-workspace.validate()
-```
-
-The problem tells you which node and what is wrong. Once we configure the distribution, the workspace is sound:
-
-```{code-cell} ipython3
-workspace["wet_grass"].dist = lambda rain: dist.Categorical(
-    probs=jnp.array([[0.9, 0.1], [0.2, 0.8]])[rain]
-)
-workspace.validate()
-```
-
-Now wire a new parent to the configured node. Its `dist` only names `rain`, so adding `sprinkler` makes it stale — the diagram does not silently guess what the extra parent means:
-
-```{code-cell} ipython3
-workspace.add_node(
-    ChanceNode(
-        name="sprinkler",
-        states=("off", "on"),
+        name="weather",
+        states=("cloudy", "sunny"),
         dist=lambda: dist.Categorical(probs=jnp.array([0.7, 0.3])),
     )
 )
-workspace.add_edge("sprinkler", "wet_grass")
-workspace.validate()
+diagram.add_node(ChanceNode(name="demand", parents=("weather",)))
 ```
 
-Reconfigure the callable to name both parents, and the node becomes consistent again:
+## Validating the diagram
+
+{py:meth}`~InfluenceDiagram.validate` checks the whole diagram and returns a list of {py:class}`DiagramProblem`. Each problem has a `kind`, the `node` it belongs to, and a readable `message`. 
 
 ```{code-cell} ipython3
-workspace["wet_grass"].dist = lambda rain, sprinkler: dist.Categorical(
-    probs=jnp.array(
-        [
-            [[0.95, 0.05], [0.10, 0.90]],  # rain = no
-            [[0.80, 0.20], [0.02, 0.98]],  # rain = yes
-        ]
-    )[rain, sprinkler]
+for problem in diagram.validate():
+    print(problem.kind.name, "-", problem.message)
+```
+
+`demand` is missing its distribution, so it is marked as `UNCONFIGURED`. To fix this, we can either use {py:meth}`~InfluenceDiagram.set_dist` or assign its distribution directly with `diagram["demand"].dist`.
+
+```{code-cell} ipython3
+diagram.set_dist(
+    "demand", lambda weather: dist.Gamma(4.0, 4.0 / DEMAND_MEANS[weather])
 )
-workspace.validate()
+diagram.validate()
 ```
 
-## Validate and snapshot
+An empty list means the diagram is complete and ready to be solved. You don't have to call `validate()` before solving: {py:func}`solve` and {py:func}`infer` check the diagram themselves and raise an error listing the problems if it isn't complete.
 
-`validate()` never raises on the first problem: it collects every issue as a `DiagramProblem` — a `kind`, the `node` it belongs to, and a human-readable `message`. An empty list means the diagram is sound. The kinds cover dangling parents, cycles, unconfigured and stale nodes, and utility nodes that acquired a child.
-
-Inference and solving do not read the live workspace directly. They read a `snapshot()`:
+Each node also reports its own state through {py:attr}`~Node.consistency`, which is one of `UNCONFIGURED`, `STALE` or `CONSISTENT`:
 
 ```{code-cell} ipython3
-snap = workspace.snapshot()
-snap.order
+diagram["demand"].consistency
 ```
 
-`snapshot()` validates and freezes a topologically ordered view of the nodes (`parents` first). It is a *logical* snapshot: it holds references to the still-mutable nodes, so editing the diagram afterwards invalidates it. Take a fresh snapshot after editing.
+## Changing the diagram
 
-```{admonition} Optional check: does a distribution use its parent?
-:class: tip
-`validate()` can only inspect the *signature* of a callable, so a table indexed with the wrong parent — the classic mistake where JAX clamps out-of-range indices and silently returns the last row — passes. `probe_discrete_parents()` runs the callables and varies each discrete parent across its states; if the output never changes, you get a `DIST_IGNORES_PARENT` warning. It is opt-in because it executes your code, and it is a warning because a deliberately independent node looks the same. See [](chance_nodes.md) for the details.
+Suppose the vendor notices that weekends are busier than weekdays and wants the model to take it into consideration. Thus, we add a `weekend` node and an arc from it to `demand`:
+
+```{code-cell} ipython3
+diagram.add_node(
+    ChanceNode(
+        name="weekend",
+        states=("no", "yes"),
+        dist=lambda: dist.Categorical(probs=jnp.array([5 / 7, 2 / 7])),
+    )
+)
+diagram.add_arc("weekend", "demand")
+
+for problem in diagram.validate():
+    print(problem.kind.name, "-", problem.message)
 ```
+
+`demand` is now `STALE`: its distribution is currently a function of `weather` only, so it can't use the new parent. The drawing highlights it in yellow:
+
+```{code-cell} ipython3
+diagram
+```
+
+To fix it, we give `demand` a distribution that considers both parents. As an example, let's say that weekends multiply the average demand by 1.5:
+
+```{code-cell} ipython3
+WEEKEND_BOOST = jnp.array([1.0, 1.5])
+
+diagram.set_dist(
+    "demand",
+    lambda weather, weekend: dist.Gamma(
+        4.0, 4.0 / (DEMAND_MEANS[weather] * WEEKEND_BOOST[weekend])
+    ),
+)
+diagram.validate()
+```
+
+PyLIMID matches a function to its parents by the names of its arguments, so `weather` and `weekend` must be spelled exactly like the parent nodes, in any order.
+
+To take things out of the diagram in running time, you can use {py:meth}`~InfluenceDiagram.remove_arc` and {py:meth}`~InfluenceDiagram.remove_node` (which removes a node along with its arcs). Removing doesn't update the children's functions, so they would become `STALE`.

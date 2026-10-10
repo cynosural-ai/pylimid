@@ -28,6 +28,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
     "sphinx_copybutton",
     "sphinx_design",
 ]
@@ -36,6 +37,17 @@ extensions = [
 # used across modules need a short missing-reference hook that resolves a
 # bare name when it is unique; that hook lands with the API reference.
 default_role = "py:obj"
+
+# Report every cross-reference that does not resolve, so the ``-W`` build
+# fails on a broken link instead of rendering it as plain code.
+nitpicky = True
+
+# Links to the libraries PyLIMID builds on, for type annotations and prose.
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "jax": ("https://docs.jax.dev/en/latest", None),
+    "numpyro": ("https://num.pyro.ai/en/stable", None),
+}
 
 autosummary_generate = True
 
@@ -60,7 +72,7 @@ nb_execution_timeout = 600
 
 # ``default_role = "py:obj"`` turns a bare ``Name`` in a docstring into a
 # cross-reference, but Sphinx resolves a bare name only in the current
-# module or class. Most of our references cross modules (``Snapshot``,
+# module or class. Most of our references cross modules (``DiagramSnapshot``,
 # ``Posterior``, ``InfluenceDiagram.validate``), so a missing-reference
 # hook links a name when exactly one documented object matches it.
 
@@ -107,5 +119,14 @@ html_title = "pylimid"
 templates_path = ["_templates"]
 
 # ``docs/README.md`` documents the build for contributors and ``docs/quickstart``
-# holds drafts for the quickstart; neither is part of the published site.
-exclude_patterns = ["_build", "README.md", "quickstart"]
+# holds drafts for the quickstart; neither is part of the published site. The
+# user guide drafts are kept out until they are rewritten or dropped.
+exclude_patterns = [
+    "_build",
+    "README.md",
+    "quickstart",
+    "user_guide/distributions_and_utilities.md",
+    "user_guide/decisions_and_information_sets.md",
+    "user_guide/inference.md",
+    "user_guide/scope_and_limitations.md",
+]

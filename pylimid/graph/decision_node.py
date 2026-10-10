@@ -13,7 +13,7 @@ The information set is structural, not causal
 A decision's ``parents`` are *not* a statistical dependency. They record what
 the agent observes before acting. This is the standard influence-diagram
 convention: the same ``parents`` tuple that drives topological ordering and
-cycle prevention for chance nodes is reused here, but its meaning is
+cycle detection for chance nodes is reused here, but its meaning is
 "information available at decision time." Keeping one field name means the
 container's shared bookkeeping (validation, ordering) is reused unchanged —
 see `pylimid.graph.node`.

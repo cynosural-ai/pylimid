@@ -10,13 +10,13 @@ A **Bayesian network** is an influence diagram with only chance nodes: no decisi
 
 This tutorial runs two networks end to end. The first is fully discrete and small enough to check against the arithmetic by hand: a diagnosis where two causes compete to explain one symptom. The second is mixed — a discrete cause, a hidden continuous state, and a noisy sensor — and shows what changes when the engine leaves enumeration behind, which is mostly that the answer becomes a Monte-Carlo estimate rather than an exact number.
 
-Both are queried with the same call, `infer(diagram, query, observed=...)`. The [inference guide](../user_guide/inference.md) covers the API in full, and [the quickstart](../getting_started/quickstart.md) shows what happens when a decision enters the diagram.
+Both are queried with the same call, `infer(diagram, query, observed=...)`. [The quickstart](../getting_started/quickstart.md) shows what happens when a decision enters the diagram.
 
 ## A discrete network
 
 ### The model
 
-Suppose smoking and air pollution both raise the risk of cancer, and an x-ray may reveal it. Four chance nodes, three edges: two independent causes, a shared effect with two parents, and one noisy observation of that effect.
+Suppose smoking and air pollution both raise the risk of cancer, and an x-ray may reveal it. Four chance nodes, three arcs: two independent causes, a shared effect with two parents, and one noisy observation of that effect.
 
 The conditional tables come first, one per node. `CANCER` is indexed by both parents — `CANCER[smoking, pollution]` — so it holds one probability row per combination:
 
@@ -232,5 +232,5 @@ The reading lifts P(rained) from the 0.4 prior to about 0.88, and pulls the true
 
 ```{admonition} Next
 :class: seealso
-The [inference guide](../user_guide/inference.md) covers the `Posterior` object, evidence under a bound policy, and the engine contract in full. To add a decision to a diagram like these — and call `solve()` instead of `infer()` — continue with [the quickstart](../getting_started/quickstart.md), [the oil field](oil_field.md), or [the newsvendor](newsvendor.md).
+To add a decision to a diagram like these — and call `solve()` instead of `infer()` — continue with [the quickstart](../getting_started/quickstart.md), [the oil field](oil_field.md), or [the newsvendor](newsvendor.md).
 ```

@@ -42,7 +42,7 @@ import jax.numpy as jnp
 
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
-from pylimid.graph.diagram import Snapshot
+from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
 from pylimid.inference.numpyro.solvers._policy import (
     Rule,
@@ -50,13 +50,13 @@ from pylimid.inference.numpyro.solvers._policy import (
     info_assignments,
     policy_space,
 )
-from pylimid.inference.result import Solution
+from pylimid.inference.solution import Solution
 
 __all__ = ["solve"]
 
 
 def solve(
-    snapshot: Snapshot,
+    snapshot: DiagramSnapshot,
     *,
     num_samples: int = 2000,
     rng_key: jax.Array | None = None,
@@ -67,7 +67,7 @@ def solve(
     Enumerates the discrete policy space, estimates expected utility for
     every policy in one vmapped forward pass, and keeps the best policy.
     With the same *rng_key* and *num_samples*, returns the same policy as
-    `intervention_scan.solve`; the expected utility matches to float
+    ``intervention_scan.solve``; the expected utility matches to float
     rounding.
 
     Args:
@@ -122,7 +122,7 @@ def solve(
 
 
 def _estimate_eu(
-    snapshot: Snapshot,
+    snapshot: DiagramSnapshot,
     policy_arrays: dict[str, jax.Array],
     num_samples: int,
     rng_key: jax.Array,
