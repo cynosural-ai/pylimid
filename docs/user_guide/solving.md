@@ -4,9 +4,13 @@ kernelspec:
   name: python3
 ---
 
-# Solving
+# Solving a diagram
 
-`solve(diagram, method=..., num_samples=..., rng_key=...)` returns the optimal policy and the expected utility it achieves. It is the front door to the solver family: two Monte-Carlo solvers with different guarantees, chosen automatically by default.
+Once we are happy with the way our influence diagram models the decision problem, finding the optimal solution to it can be done with {py:func}`solve`.
+
+This page shows how to read what it returns, how much to trust it, and how to use it to answer two questions that come up in almost every decision model: are the actions on offer the right ones, and what is a piece of information worth?
+
+We continue with the vendor problem from the [Building a diagram](building_a_diagram.md) page:
 
 ```{code-cell} ipython3
 import jax
@@ -14,95 +18,162 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 
 from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, solve
-from pylimid.inference.numpyro.solvers import is_solvable, solvability_order
-```
 
-## The Solution
+DEMAND_MEANS = jnp.array([40.0, 120.0])
+WEEKEND_BOOST = jnp.array([1.0, 1.5])
+ORDERS = jnp.arange(0, 201, 20)
 
-A `Solution` has three fields:
 
-- `policy` — one action per information-set assignment, per decision. Keys are tuples of parent-state indices, in parent order (see `Decisions and information sets`).
-- `expected_utility` — a Monte-Carlo estimate of the expected total utility under that policy.
-- `method` — the solver that produced it: `"backward_induction"` or `"scan"`, never `"auto"`. The two solvers carry different guarantees, so the result records which one ran.
+def profit(order, demand):
+    stocked = ORDERS[order]
+    return 10.0 * jnp.minimum(stocked, demand) - 1.0 * stocked
 
-```{code-cell} ipython3
-medical = InfluenceDiagram()
-medical.add_node(
+
+diagram = InfluenceDiagram()
+diagram.add_node(
     ChanceNode(
-        name="disease",
-        states=("healthy", "sick"),
-        dist=lambda: dist.Categorical(probs=jnp.array([0.6, 0.4])),
+        name="weather",
+        states=("cloudy", "sunny"),
+        dist=lambda: dist.Categorical(probs=jnp.array([0.7, 0.3])),
     )
 )
-medical.add_node(
-    DecisionNode(name="treat", parents=("disease",), states=("no", "yes"))
-)
-medical.add_node(
+diagram.add_node(
     ChanceNode(
-        name="recovery",
-        parents=("disease", "treat"),
+        name="weekend",
         states=("no", "yes"),
-        dist=lambda disease, treat: dist.Categorical(
-            probs=jnp.array(
-                [
-                    [[0.10, 0.90], [0.08, 0.92]],  # healthy
-                    [[0.60, 0.40], [0.20, 0.80]],  # sick
-                ]
-            )[disease, treat]
+        dist=lambda: dist.Categorical(probs=jnp.array([5 / 7, 2 / 7])),
+    )
+)
+diagram.add_node(
+    ChanceNode(
+        name="demand",
+        parents=("weather", "weekend"),
+        dist=lambda weather, weekend: dist.Gamma(
+            4.0, 4.0 / (DEMAND_MEANS[weather] * WEEKEND_BOOST[weekend])
         ),
     )
 )
-medical.add_node(
-    UtilityNode(
-        name="benefit", parents=("recovery",), values=lambda recovery: 100.0 * recovery
+diagram.add_node(
+    DecisionNode(
+        name="order", parents=("weather",), states=tuple(str(n) for n in ORDERS)
     )
 )
-medical.add_node(
-    UtilityNode(name="cost", parents=("treat",), values=lambda treat: -20.0 * treat)
-)
+diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=profit))
 ```
 
-## The solvability gate
+## Reading the solution
 
-A LIMID need not admit a clean solving order. The diagram is **solvable** when there is an ordering in which each decision can be finalized from its information set once the later decisions are resolved — the exact one-pass condition for backward induction. `is_solvable` answers that, and `solvability_order` returns an order when one exists:
+{py:func}`solve` returns a {py:class}`Solution` object:
 
 ```{code-cell} ipython3
-is_solvable(medical.snapshot()), solvability_order(medical.snapshot())
+solution = solve(diagram, num_samples=50_000)
+solution
 ```
 
-This model is solvable, so the default `method="auto"` picks backward induction:
+`policy` has one entry per decision. Each entry maps a situation the decision can face to the action to take in it. A situation is a tuple with the state index of each parent, in the order the decision lists its parents, and the action is an index into the decision's `states`. Here `order` has a single parent, so `(0,)` means cloudy and `(1,)` means sunny. The node labels turn the policy into something readable:
 
 ```{code-cell} ipython3
-solution = solve(medical, num_samples=20000)
-solution.method, solution.policy, round(solution.expected_utility, 1)
+for (weather,), action in solution.policy["order"].items():
+    print(f"{diagram['weather'].states[weather]}: stock {diagram['order'].states[action]}")
 ```
 
-Backward induction resolves one decision at a time, from the last to the first, estimating each action's continuation value per information-set cell by stratified forward sampling. Its cost is **additive in the decisions**, and on a solvable diagram it is optimal up to sampling noise.
+`expected_utility` is the expected profit when the vendor follows this policy, and `method` records which solver ran (more on this at the end of the page).
 
-The alternative is the scan, which enumerates every policy and estimates each one's expected utility by forward sampling, keeping the best:
+## How much to trust the numbers
+
+{py:func}`solve` estimates expected utilities by simulating the diagram `num_samples` times (2,000 by default). The simulation uses a fixed random key, so the same call always returns the same answer, but a different key gives a slightly different one. Solving with a few keys shows how much the answer depends on the simulation:
 
 ```{code-cell} ipython3
-scan = solve(medical, method="scan", num_samples=20000)
-scan.method, scan.policy, round(scan.expected_utility, 1)
+for num_samples in (2_000, 50_000):
+    for seed in range(4):
+        result = solve(diagram, num_samples=num_samples, rng_key=jax.random.PRNGKey(seed))
+        orders = [diagram["order"].states[a] for a in result.policy["order"].values()]
+        print(f"{num_samples:>6} samples, seed {seed}: stock {orders}, profit {result.expected_utility:.1f}")
 ```
 
-The scan handles any diagram — soluble or not — but its cost grows exponentially with the policy space, which itself is exponential in the number of information-set assignments. `"auto"` uses it exactly when backward induction cannot run, and `method="backward_induction"` on a non-solvable diagram raises `InferenceError` rather than guessing.
+The policy is the same in every run, but the expected profit is not: with 2,000 samples it moves by more than 20 between keys, and with 50,000 by about 3. This suggests a simple routine: before relying on a result, solve again with another `rng_key`. If the policy changes, two actions are nearly as good as each other, or `num_samples` is too small to tell them apart.
 
-## Monte-Carlo error
+More samples cost less than you might expect. Each call to {py:func}`solve` compiles the model before it simulates, and on a diagram this size the compilation takes most of the time, so 50,000 samples take about as long as 2,000.
 
-Both solvers produce estimates, not exact answers. `num_samples` is the number of forward trajectories per evaluation — per candidate policy for the scan, per action per information set for backward induction — and the run is deterministic for a fixed `rng_key` (the default is seed 0). The same model at 2000 samples:
+## Are the actions the right ones?
+
+On a sunny day the policy stocks 200 ice creams, which is the largest order on the menu. When the best action is at the edge of what is on offer, the real best may lie beyond it. To check, we widen the menu up to 400 and solve again. `profit` reads `ORDERS` when it runs, so redefining `ORDERS` and the decision's `states` is enough:
 
 ```{code-cell} ipython3
-for seed in (0, 1, 2):
-    estimate = solve(medical, rng_key=jax.random.PRNGKey(seed))
-    print(seed, round(estimate.expected_utility, 2))
+ORDERS = jnp.arange(0, 401, 20)
+diagram["order"].states = tuple(str(n) for n in ORDERS)
+
+solution = solve(diagram, num_samples=50_000)
+for (weather,), action in solution.policy["order"].items():
+    print(f"{diagram['weather'].states[weather]}: stock {diagram['order'].states[action]}")
+print(f"expected profit: {solution.expected_utility:.1f}")
 ```
 
-The spread is the honest cost of the estimator. Raise `num_samples` to shrink it; pass `rng_key` to reproduce or vary a run.
+The best sunny-day order is now 240, inside the menu, so the result is no longer limited by the actions we offered. The menu works the other way too: the solver only compares the actions you list, so a step of 20 can't find an optimum of 50.
 
-## Failure modes
+## What is a piece of information worth?
 
-- **No decisions.** `solve` requires at least one decision node; a Bayesian network is queried with `infer`.
-- **Continuous information sets.** Decisions and their information sets must be discrete — a continuous parent cannot be tabulated, and the solvers reject it.
-- **Unreachable information-set cells.** Backward induction needs a sampled continuation value for every cell of every decision's information set. A structurally impossible cell — often a deterministic "not applicable" state — leaves one unsampled and raises; drop the state or solve with `method="scan"` (the oil-field tutorial walks through this).
-- **Non-traceable utilities.** `values` callables run inside vectorized JAX passes, so pure `jnp` expressions only (see `Utilities`).
+A decision knows only its parents. `order` sees the forecast, but not whether it is a weekend, even though demand depends on it. Adding an arc from `weekend` to `order` lets the vendor use that information, and the gain in expected profit is what knowing it is worth.
+
+Because each estimate has some noise, compare the two diagrams with the same `rng_key`. Both are then simulated with the same random draws, so the noise largely cancels in the difference:
+
+```{code-cell} ipython3
+def expected_profit(seed):
+    key = jax.random.PRNGKey(seed)
+    return solve(diagram, num_samples=50_000, rng_key=key).expected_utility
+
+
+without_weekend = [expected_profit(seed) for seed in range(3)]
+diagram.add_arc("weekend", "order")
+with_weekend = [expected_profit(seed) for seed in range(3)]
+
+for seed, (before, after) in enumerate(zip(without_weekend, with_weekend)):
+    print(f"seed {seed}: {before:.1f} -> {after:.1f}, gain {after - before:.1f}")
+```
+
+Each estimate moves by a few dollars between keys, but the gain barely moves. With the new arc, the policy has one entry per combination of forecast and day, in the order of `order`'s parents:
+
+```{code-cell} ipython3
+solution = solve(diagram, num_samples=50_000)
+for (weather, weekend), action in solution.policy["order"].items():
+    print(
+        f"{diagram['weather'].states[weather]}, weekend {diagram['weekend'].states[weekend]}: "
+        f"stock {diagram['order'].states[action]}"
+    )
+```
+
+The same approach prices everything the vendor knows. Removing both arcs leaves the vendor deciding blind, with a single action for every day:
+
+```{code-cell} ipython3
+diagram.remove_arc("weather", "order")
+diagram.remove_arc("weekend", "order")
+
+blind = solve(diagram, num_samples=50_000)
+print(f"stock {diagram['order'].states[blind.policy['order'][()]]} every day")
+print(f"value of the forecast and the day: {with_weekend[0] - blind.expected_utility:.1f}")
+```
+
+The policy for a decision with no parents has a single entry, keyed by the empty tuple `()`. The difference is the most the vendor should pay, per day, to know the forecast and the day of the week before ordering.
+
+```{admonition} Decisions don't remember
+:class: note
+
+With several decisions, a later decision also knows only its parents. It doesn't automatically know what an earlier decision chose or what that decision saw; this is the "limited memory" in *limited-memory influence diagram*. If a later decision should know them, add the arcs. [The oil field](../tutorials/oil_field.md) tutorial has a diagram with two decisions where this matters.
+```
+
+## Which solver runs
+
+PyLIMID has two solvers, and `method="auto"`, the default, picks between them:
+
+- **Backward induction** resolves one decision at a time, starting with the last one. It is fast, but it only finds the best policy on diagrams where the decisions can be resolved one at a time; {py:func}`~pylimid.inference.numpyro.solvers.is_solvable` checks this, and `auto` uses backward induction whenever it holds. A diagram with a single decision always qualifies.
+- **The scan** tries every policy and keeps the best. It works on any diagram, but the number of policies grows very quickly: with 21 possible orders and 4 combinations of forecast and day, there are 21⁴ = 194,481 of them, each simulated `num_samples` times.
+
+{py:attr}`Solution.method` tells you which one ran. Passing `method="scan"` on a diagram that backward induction can solve is a way to cross-check a result on a small model; passing `method="backward_induction"` on a diagram it can't solve raises an error.
+
+## When solve() refuses
+
+{py:func}`solve` raises an {py:class}`~pylimid.inference.engine.InferenceError` in these cases:
+
+- **The diagram has no decisions.** Use {py:func}`infer` to compute posteriors instead.
+- **A decision has a continuous parent.** A policy is a table with one action per situation, so everything a decision observes must be discrete. To let a decision react to a continuous quantity, such as a temperature reading, add a discrete chance node that bins it and make that node the parent.
+- **A situation never comes up in the simulation.** Every combination of the parents' states needs at least one simulated sample. A rare combination can be missed with too few samples, and the error asks you to increase `num_samples`. An impossible one, such as a state that can never happen, needs to be removed from the model.

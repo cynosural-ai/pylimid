@@ -119,5 +119,14 @@ html_title = "pylimid"
 templates_path = ["_templates"]
 
 # ``docs/README.md`` documents the build for contributors and ``docs/quickstart``
-# holds drafts for the quickstart; neither is part of the published site.
-exclude_patterns = ["_build", "README.md", "quickstart"]
+# holds drafts for the quickstart; neither is part of the published site. The
+# user guide drafts are kept out until they are rewritten or dropped.
+exclude_patterns = [
+    "_build",
+    "README.md",
+    "quickstart",
+    "user_guide/distributions_and_utilities.md",
+    "user_guide/decisions_and_information_sets.md",
+    "user_guide/inference.md",
+    "user_guide/scope_and_limitations.md",
+]

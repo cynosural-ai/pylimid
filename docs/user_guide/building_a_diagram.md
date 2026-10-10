@@ -8,7 +8,7 @@ kernelspec:
 
 This page covers how to build and edit an influence diagram, check that it is complete, and draw it. What goes inside each node (distributions, decisions and utilities) has its own pages in the user guide.
 
-We use the ice-cream vendor example from the [quickstart](../getting_started/quickstart.md) page as a running example.
+We use the ice-cream vendor example from the [Quickstart](../getting_started/quickstart.md) page as a running example.
 
 ## Nodes and arcs
 
