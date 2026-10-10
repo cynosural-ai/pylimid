@@ -45,7 +45,7 @@ from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
 from pylimid.inference.numpyro.solvers._policy import info_assignments
 from pylimid.inference.numpyro.solvers.regularity import solvability_order
-from pylimid.inference.result import Policy, Solution
+from pylimid.inference.solution import Policy, Solution
 
 __all__ = ["solve"]
 

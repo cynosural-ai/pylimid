@@ -50,7 +50,7 @@ from pylimid.inference.numpyro.solvers._policy import (
     info_assignments,
     policy_space,
 )
-from pylimid.inference.result import Solution
+from pylimid.inference.solution import Solution
 
 __all__ = ["solve"]
 
