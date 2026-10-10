@@ -77,6 +77,12 @@ for (weather,), action in solution.policy["order"].items():
     print(f"{diagram['weather'].states[weather]}: stock {diagram['order'].states[action]}")
 ```
 
+`Solution.render` does this decoding for every decision at once, with one line per situation:
+
+```{code-cell} ipython3
+print(solution.render(diagram))
+```
+
 `expected_utility` is the expected profit when the vendor follows this policy, and `method` records which solver ran (more on this at the end of the page).
 
 ## How much to trust the numbers
@@ -104,9 +110,7 @@ ORDERS = jnp.arange(0, 401, 20)
 diagram["order"].states = tuple(str(n) for n in ORDERS)
 
 solution = solve(diagram, num_samples=50_000)
-for (weather,), action in solution.policy["order"].items():
-    print(f"{diagram['weather'].states[weather]}: stock {diagram['order'].states[action]}")
-print(f"expected profit: {solution.expected_utility:.1f}")
+print(solution.render(diagram))
 ```
 
 The best sunny-day order is now 240, inside the menu, so the result is no longer limited by the actions we offered. The menu works the other way too: the solver only compares the actions you list, so a step of 20 can't find an optimum of 50.
@@ -135,11 +139,7 @@ Each estimate moves by a few dollars between keys, but the gain barely moves. Wi
 
 ```{code-cell} ipython3
 solution = solve(diagram, num_samples=50_000)
-for (weather, weekend), action in solution.policy["order"].items():
-    print(
-        f"{diagram['weather'].states[weather]}, weekend {diagram['weekend'].states[weekend]}: "
-        f"stock {diagram['order'].states[action]}"
-    )
+print(solution.render(diagram))
 ```
 
 The same approach prices everything the vendor knows. Removing both arcs leaves the vendor deciding blind, with a single action for every day:
@@ -149,11 +149,11 @@ diagram.remove_arc("weather", "order")
 diagram.remove_arc("weekend", "order")
 
 blind = solve(diagram, num_samples=50_000)
-print(f"stock {diagram['order'].states[blind.policy['order'][()]]} every day")
+print(blind.render(diagram))
 print(f"value of the forecast and the day: {with_weekend[0] - blind.expected_utility:.1f}")
 ```
 
-The policy for a decision with no parents has a single entry, keyed by the empty tuple `()`. The difference is the most the vendor should pay, per day, to know the forecast and the day of the week before ordering.
+The policy for a decision with no parents has a single entry, keyed by the empty tuple `()`, which `render` shows as `always`. The difference is the most the vendor should pay, per day, to know the forecast and the day of the week before ordering.
 
 ```{admonition} Decisions don't remember
 :class: note

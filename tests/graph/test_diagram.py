@@ -76,6 +76,39 @@ def test_unknown_name_lookup_raises() -> None:
         _ = diag["ghost"]
 
 
+def test_states_of_reads_discrete_labels() -> None:
+    diag = InfluenceDiagram()
+    diag.add_node(ChanceNode(name="rain", states=("no", "yes"), dist=_dist_matching))
+    diag.add_node(DecisionNode(name="umbrella", states=("no", "yes")))
+
+    assert diag.states_of("rain") == ("no", "yes")
+    assert diag.states_of("umbrella") == ("no", "yes")
+
+
+def test_states_of_unknown_name_raises() -> None:
+    diag = InfluenceDiagram()
+
+    with pytest.raises(KeyError):
+        diag.states_of("ghost")
+
+
+@pytest.mark.parametrize(
+    "make",
+    [
+        lambda: ChanceNode(name="x", dist=_dist_matching),  # continuous
+        lambda: DecisionNode(name="d"),  # unconfigured
+        lambda: UtilityNode(name="u"),  # no action space at all
+    ],
+)
+def test_states_of_node_without_labels_raises(make: Any) -> None:
+    diag = InfluenceDiagram()
+    node = make()
+    diag.add_node(node)
+
+    with pytest.raises(ValueError, match="has no state labels"):
+        diag.states_of(node.name)
+
+
 def test_add_node_tolerates_dangling_parent() -> None:
     """A node may be added before its parents exist — caught at validate."""
     diag = InfluenceDiagram()

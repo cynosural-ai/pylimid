@@ -289,6 +289,29 @@ class InfluenceDiagram:
             if name in other.parents
         )
 
+    def states_of(self, name: str) -> tuple[str, ...]:
+        """
+        Return the state labels of a discrete chance or decision node.
+
+        Args:
+            name: Name of the node.
+
+        Returns:
+            The node's ``states`` labels.
+
+        Raises:
+            KeyError: If ``name`` is not in the diagram.
+            ValueError: If the node has no state labels — a continuous chance
+                node, an unconfigured decision, or a utility node.
+        """
+        node = self._nodes[name]
+        if not isinstance(node, (ChanceNode, DecisionNode)) or node.states is None:
+            raise ValueError(
+                f"Node {name!r} has no state labels; only discrete chance "
+                f"and decision nodes do."
+            )
+        return node.states
+
     # --- validation ---------------------------------------------------------
 
     def validate(self) -> list[DiagramProblem]:
