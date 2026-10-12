@@ -8,7 +8,7 @@ kernelspec:
 
 This page covers how to build and edit an influence diagram, check that it is complete, and draw it. What goes inside each node (distributions, decisions and utilities) has its own pages in the user guide.
 
-We use the ice-cream vendor example from the [Quickstart](../getting_started/quickstart.md) page as a running example.
+We use the ice cream shop example from the [Quickstart](../getting_started/quickstart.md) page as a running example.
 
 ## Nodes and arcs
 
@@ -16,7 +16,7 @@ There are three kinds of nodes, and every node has a `name` and a tuple of `pare
 
 - {py:class}`ChanceNode` represents a random variable, like the weather or the demand.
 - {py:class}`DecisionNode` is a choice, like how many ice creams to stock. Its parents are what is known when the choice is made (i.e., its *information set*).
-- {py:class}`UtilityNode` indicates the resulting payoff, like the vendor's profit. A utility node can't have children: nothing in the diagram depends on a payoff.
+- {py:class}`UtilityNode` indicates the resulting payoff, like the shop's profit. A utility node can't have children: nothing in the diagram depends on a payoff.
 
 We start with the numbers and the profit function from the quickstart:
 
@@ -111,7 +111,7 @@ diagram["demand"].consistency
 
 ## Changing the diagram
 
-Suppose the vendor notices that weekends are busier than weekdays and wants the model to take it into consideration. Thus, we add a `weekend` node and an arc from it to `demand`:
+Suppose the owner notices that weekends are busier than weekdays and wants the model to take it into consideration. Thus, we add a `weekend` node and an arc from it to `demand`:
 
 ```{code-cell} ipython3
 diagram.add_node(

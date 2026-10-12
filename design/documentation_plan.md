@@ -13,7 +13,7 @@ The docs are being reviewed by hand, top-down, one page at a time, because the f
 | `README.md` | Reviewed. Mirrors the index page and uses the quickstart's ice-cream example. |
 | Home (`docs/index.md`) | Reviewed. Intro, Features, Limitations. |
 | Installation | Reviewed. |
-| Quickstart | Reviewed. The ice-cream vendor (newsvendor) problem. |
+| Quickstart | Reviewed. The ice cream shop (newsvendor) problem. |
 | User guide | In progress, see [User guide](#user-guide). Building a diagram is reviewed. Distributions and utilities is drafted and awaiting review; it replaced `chance_nodes.md` and `utilities.md`. |
 | Tutorials | Not reviewed yet. |
 | API reference | Not reviewed yet. Generated from docstrings with autosummary. |

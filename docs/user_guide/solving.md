@@ -8,9 +8,9 @@ kernelspec:
 
 Once we are happy with the way our influence diagram models the decision problem, finding the optimal solution to it can be done with {py:func}`solve`.
 
-This page shows how to read what it returns, how much to trust it, and how to use it to answer two questions that come up in almost every decision model: are the actions on offer the right ones, and what is a piece of information worth?
+This page shows how to read what it returns, how many samples we need to trust it, and how to check that the actions we offered are the right ones. It also explains how {py:func}`solve` finds the policy and when it fails.
 
-We continue with the vendor problem from the [Building a diagram](building_a_diagram.md) page:
+We continue with the ice cream shop from the [Building a diagram](building_a_diagram.md) page:
 
 ```{code-cell} ipython3
 import jax
@@ -63,31 +63,31 @@ diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=
 
 ## Reading the solution
 
-{py:func}`solve` returns a {py:class}`Solution` object:
+{py:func}`solve` returns a {py:class}`Solution` object, which we can easily read with {py:meth}`~Solution.render`:
 
 ```{code-cell} ipython3
 solution = solve(diagram, num_samples=50_000)
-solution
+print(solution.render(diagram))
 ```
 
-`policy` has one entry per decision. Each entry maps a situation the decision can face to the action to take in it. A situation is a tuple with the state index of each parent, in the order the decision lists its parents, and the action is an index into the decision's `states`. Here `order` has a single parent, so `(0,)` means cloudy and `(1,)` means sunny. The node labels turn the policy into something readable:
+Each line tells us which action the decision maker (i.e., the owner) should take in one situation she can face. In this case, how many ice creams to order depending on the weather of the day.
+
+A {py:class}`Solution` has three attributes:
+
+- `policy` has one entry per decision. An entry maps a situation to the **optimal** action to take in it. 
+- `expected_utility` is the expected profit when the shop follows this policy.
+- `method` records which solver ran (more on this at the end of the page).
+
+`render` is just a friendly way of reading `policy`. Inside it, a situation is a tuple with the state index of each of the decision's parents, and the action is an index into the decision's `states`. Here `order` has a single parent, so `(0,)` means cloudy and `(1,)` means sunny. If we ever need to work with the policy directly, we can decode it ourselves with the nodes' `states`:
 
 ```{code-cell} ipython3
 for (weather,), action in solution.policy["order"].items():
     print(f"{diagram['weather'].states[weather]}: stock {diagram['order'].states[action]}")
 ```
 
-`Solution.render` does this decoding for every decision at once, with one line per situation:
+## How much can we trust the result?
 
-```{code-cell} ipython3
-print(solution.render(diagram))
-```
-
-`expected_utility` is the expected profit when the vendor follows this policy, and `method` records which solver ran (more on this at the end of the page).
-
-## How much to trust the numbers
-
-{py:func}`solve` estimates expected utilities by simulating the diagram `num_samples` times (2,000 by default). The simulation uses a fixed random key, so the same call always returns the same answer, but a different key gives a slightly different one. Solving with a few keys shows how much the answer depends on the simulation:
+PyLIMID uses sampling as its inference engine, so the result depends on how many random draws we take (`num_samples`) and the random key that generates them (`rng_key`). Solving it with a few different keys would show us how much the answer depends on the draws:
 
 ```{code-cell} ipython3
 for num_samples in (2_000, 50_000):
@@ -97,13 +97,17 @@ for num_samples in (2_000, 50_000):
         print(f"{num_samples:>6} samples, seed {seed}: stock {orders}, profit {result.expected_utility:.1f}")
 ```
 
-The policy is the same in every run, but the expected profit is not: with 2,000 samples it moves by more than 20 between keys, and with 50,000 by about 3. This suggests a simple routine: before relying on a result, solve again with another `rng_key`. If the policy changes, two actions are nearly as good as each other, or `num_samples` is too small to tell them apart.
+The policy is the same in every run, but the expected profit is not: with 2,000 samples it moves by more than 20 between keys, and with 50,000 by about 3. So if we want a precise expected utility, we need more samples.
 
-More samples cost less than you might expect. Each call to {py:func}`solve` compiles the model before it simulates, and on a diagram this size the compilation takes most of the time, so 50,000 samples take about as long as 2,000.
+A good habit before relying on a result is to solve it several times with different `rng_key` values. If the policy changes, either two actions are nearly as good as each other or `num_samples` is too small to tell them apart.
+
+Samples are cheaper than they look: each call compiles the model before simulating, and on a small diagram that takes most of the time, so 50,000 samples cost about as much as 2,000.
 
 ## Are the actions the right ones?
 
-On a sunny day the policy stocks 200 ice creams, which is the largest order on the menu. When the best action is at the edge of what is on offer, the real best may lie beyond it. To check, we widen the menu up to 400 and solve again. `profit` reads `ORDERS` when it runs, so redefining `ORDERS` and the decision's `states` is enough:
+Our model recommends that, on a sunny day, we stock 200 ice creams, which is the largest order on the menu. Now, when the best action sits at the edge of the action space like this, the true best may lie beyond it.
+
+To check, we widen the action space up to 400 and solve again. `profit` reads `ORDERS` when it runs, so redefining `ORDERS` and the decision's `states` is enough:
 
 ```{code-cell} ipython3
 ORDERS = jnp.arange(0, 401, 20)
@@ -113,67 +117,69 @@ solution = solve(diagram, num_samples=50_000)
 print(solution.render(diagram))
 ```
 
-The best sunny-day order is now 240, inside the menu, so the result is no longer limited by the actions we offered. The menu works the other way too: the solver only compares the actions you list, so a step of 20 can't find an optimum of 50.
+The best sunny-day order is now 240, so 200 was only the best option within the restricted action space we had defined. Unless the shop cannot stock more than 200, we should order 240 instead.
 
-## What is a piece of information worth?
+The action space also constrains us in the other direction. The solver only compares the options we list, so with a step of 20 it could never find an optimum of, let's say, 50.
 
-A decision knows only its parents. `order` sees the forecast, but not whether it is a weekend, even though demand depends on it. Adding an arc from `weekend` to `order` lets the vendor use that information, and the gain in expected profit is what knowing it is worth.
+## How does solve() find the policy?
 
-Because each estimate has some noise, compare the two diagrams with the same `rng_key`. Both are then simulated with the same random draws, so the noise largely cancels in the difference:
+So far we haven't had to think about how {py:func}`solve` finds the best policy, because the default, `method="auto"`, picks the solver method for us. There are two:
 
-```{code-cell} ipython3
-def expected_profit(seed):
-    key = jax.random.PRNGKey(seed)
-    return solve(diagram, num_samples=50_000, rng_key=key).expected_utility
+- `backward_induction` resolves one decision at a time, from the last to the first. It is fast, but it only finds the best policy when the decisions can be resolved one after the other. This is internally checked by {py:func}`~pylimid.inference.numpyro.solvers.is_solvable` when we select `auto`. Of course, a diagram with a single decision, like ours, always qualifies.
+- `scan` follows a brute-force approach. It simulates every possible policy in the action space and keeps the best one. It works on any diagram but, since the number of policies grows exponentially with the number of situations a decision can face, it quickly becomes impractical. In our problem, `order` has 21 actions and 2 situations (`cloudy` and `sunny`), so there are $21^2 = 441$ policies, each simulated `num_samples` times. If the owner also knew whether it is a weekend, there would be 4 situations and $21^4 = 194,481$ policies. If we add another two-state parent variable the scan is no longer an option, even though the diagram itself is still small.
 
+### Example: when we can't use backward induction
 
-without_weekend = [expected_profit(seed) for seed in range(3)]
-diagram.add_arc("weekend", "order")
-with_weekend = [expected_profit(seed) for seed in range(3)]
+The shop is doing well, so the owner buys two small carts to sell ice cream around town during the summer. The carts are going to be handled by the owner's children, Mia and Leo. Each of them is quite independent, so they decide where to set up, the beach or the park, without checking with the other:
 
-for seed, (before, after) in enumerate(zip(without_weekend, with_weekend)):
-    print(f"seed {seed}: {before:.1f} -> {after:.1f}, gain {after - before:.1f}")
-```
+- A day at the beach brings in \$300 and a day at the park \$200.
+- If both carts go to the same place, they split its customers, so together they only make that spot's sales.
+- Leo is too young to drive, so to get to the beach he has to pay \$20 for a van ride. The park is within walking distance for both.
 
-Each estimate moves by a few dollars between keys, but the gain barely moves. With the new arc, the policy has one entry per combination of forecast and day, in the order of `order`'s parents:
+This is a different decision from the ice cream shop problem, so we build a new diagram for it:
 
 ```{code-cell} ipython3
-solution = solve(diagram, num_samples=50_000)
-print(solution.render(diagram))
+SALES = jnp.array([300.0, 200.0])  # beach, park
+LEO_TRAVEL = jnp.array([20.0, 0.0])
+
+
+def carts_profit(mia_spot, leo_spot):
+    same_spot = mia_spot == leo_spot
+    sales = jnp.where(same_spot, SALES[mia_spot], SALES[mia_spot] + SALES[leo_spot])
+    return sales - LEO_TRAVEL[leo_spot]
+
+
+carts = InfluenceDiagram()
+carts.add_node(DecisionNode(name="mia_spot", states=("beach", "park")))
+carts.add_node(DecisionNode(name="leo_spot", states=("beach", "park")))
+carts.add_node(
+    UtilityNode(name="profit", parents=("mia_spot", "leo_spot"), values=carts_profit)
+)
+carts
 ```
 
-The same approach prices everything the vendor knows. Removing both arcs leaves the vendor deciding blind, with a single action for every day:
+Leo's best spot depends on where Mia decides to go, and the other way around: if Mia takes the beach, Leo does better at the park, and if Mia takes the park, Leo does better at the beach. But neither sees the other's choice, so neither decision can be resolved first. As a result, backward induction can't be used:
 
 ```{code-cell} ipython3
-diagram.remove_arc("weather", "order")
-diagram.remove_arc("weekend", "order")
+from pylimid.inference.numpyro.solvers import is_solvable
 
-blind = solve(diagram, num_samples=50_000)
-print(blind.render(diagram))
-print(f"value of the forecast and the day: {with_weekend[0] - blind.expected_utility:.1f}")
+is_solvable(carts.snapshot())
 ```
 
-The policy for a decision with no parents has a single entry, keyed by the empty tuple `()`, which `render` shows as `always`. The difference is the most the vendor should pay, per day, to know the forecast and the day of the week before ordering.
+The scan has no trouble here since each decision has two actions and there is a single situation, so there are only $2 \times 2 = 4$ policies to try:
 
-```{admonition} Decisions don't remember
-:class: note
-
-With several decisions, a later decision also knows only its parents. It doesn't automatically know what an earlier decision chose or what that decision saw; this is the "limited memory" in *limited-memory influence diagram*. If a later decision should know them, add the arcs. [The oil field](../tutorials/oil_field.md) tutorial has a diagram with two decisions where this matters.
+```{code-cell} ipython3
+print(solve(carts).render(carts))
 ```
 
-## Which solver runs
+Mia should take the beach and Leo the park. Note that the reason backward induction fails is that each decision's best option depends on a choice the other can't see, **which leaves no order in which to resolve them**.
 
-PyLIMID has two solvers, and `method="auto"`, the default, picks between them:
-
-- **Backward induction** resolves one decision at a time, starting with the last one. It is fast, but it only finds the best policy on diagrams where the decisions can be resolved one at a time; {py:func}`~pylimid.inference.numpyro.solvers.is_solvable` checks this, and `auto` uses backward induction whenever it holds. A diagram with a single decision always qualifies.
-- **The scan** tries every policy and keeps the best. It works on any diagram, but the number of policies grows very quickly: with 21 possible orders and 4 combinations of forecast and day, there are 21⁴ = 194,481 of them, each simulated `num_samples` times.
-
-{py:attr}`Solution.method` tells you which one ran. Passing `method="scan"` on a diagram that backward induction can solve is a way to cross-check a result on a small model; passing `method="backward_induction"` on a diagram it can't solve raises an error.
-
-## When solve() refuses
+## When does solve() fail?
 
 {py:func}`solve` raises an {py:class}`~pylimid.inference.engine.InferenceError` in these cases:
 
-- **The diagram has no decisions.** Use {py:func}`infer` to compute posteriors instead.
-- **A decision has a continuous parent.** A policy is a table with one action per situation, so everything a decision observes must be discrete. To let a decision react to a continuous quantity, such as a temperature reading, add a discrete chance node that bins it and make that node the parent.
-- **A situation never comes up in the simulation.** Every combination of the parents' states needs at least one simulated sample. A rare combination can be missed with too few samples, and the error asks you to increase `num_samples`. An impossible one, such as a state that can never happen, needs to be removed from the model.
+- **The diagram has no decisions.** In that case there is nothing to optimize, so there is no policy to return. 
+- **A decision observes a continuous variable.** A policy is a table with one action per 
+situation, so a decision node can only be the child chance nodes. If we want it to react to 
+something continuous, like a temperature reading, we add an intermediate discrete chance node that bins it (say, cold, mild and hot) as the parent.
+- **A situation never comes up in the simulation.** Backward induction picks the best action for each situation by averaging the samples that land in it, so every situation needs at least one. Thus, a very unlikely situation can raise an {py:class}`~pylimid.inference.engine.InferenceError`, which we can fix with a larger `num_samples`. However, if the situation is impossible (its probability is 0), we need to remove the state that causes it or use `method="scan"` instead. The scan doesn't look at one situation at a time. It simulates a whole policy `num_samples` times and averages its payoff. Then, it repeats this process for each policy and selects the one with the highest average. A policy with an impossible situation simply means that the action a policy assignes to it doesn't change the average payoff, making it harmless (but also wasteful to keep).

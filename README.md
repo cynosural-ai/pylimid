@@ -39,7 +39,7 @@ pip install "pylimid[cuda13]"  # CUDA 13, for newer drivers
 
 ## Example
 
-A street vendor sells ice cream. Every morning they check the weather forecast and decide how many ice creams to stock, from 0 to 200 in steps of 20. Each ice cream costs \$1 and sells for \$10, and anything not sold by the evening is thrown away. The forecast is cloudy with probability 0.7 and sunny with probability 0.3, and demand is uncertain either way: about 40 ice creams on an average cloudy day and 120 on an average sunny one. How many should the vendor stock?
+A small shop sells ice cream. Every morning the owner checks the weather forecast and decides how many ice creams to stock, from 0 to 200 in steps of 20. Each ice cream costs \$1 and sells for \$10, and anything not sold by the evening is thrown away. The forecast is cloudy with probability 0.7 and sunny with probability 0.3, and demand is uncertain either way: about 40 ice creams on an average cloudy day and 120 on an average sunny one. How many should the shop stock?
 
 ```python
 import jax.numpy as jnp
@@ -86,7 +86,7 @@ for info, action in solution.policy["order"].items():
 
 `weather` is a discrete chance node, `demand` is a continuous one, `order` is the decision, and `profit` is the utility. The decision's parents are what is known when it is made, so `order` sees the weather but not the demand. Note that `order` is the index of the chosen action, which is why `profit` looks the stock level up in `ORDERS`.
 
-The vendor should stock far more than the average demand: a missed sale loses \$9 of margin, while a leftover ice cream only costs \$1. The [quickstart](https://pylimid.readthedocs.io/en/latest/getting_started/quickstart.html) walks through this example step by step.
+The shop should stock far more than the average demand: a missed sale loses \$9 of margin, while a leftover ice cream only costs \$1. The [quickstart](https://pylimid.readthedocs.io/en/latest/getting_started/quickstart.html) walks through this example step by step.
 
 ## Documentation
 
