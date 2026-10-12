@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 import pytest
@@ -219,9 +220,48 @@ def test_hdi_invalid_coverage_raises():
 # --- errors ------------------------------------------------------------------
 
 
-def test_unbound_decision_raises():
-    with pytest.raises(InferenceError, match="unbound decision"):
-        infer(_decision_diagram(), ["rain"])
+def test_unbound_decision_upstream_of_query_raises():
+    with pytest.raises(InferenceError, match="unbound decision.*umbrella"):
+        infer(_umbrella_diagram(), ["wet"])
+
+
+def test_unbound_decision_upstream_of_evidence_raises():
+    with pytest.raises(InferenceError, match="unbound decision.*umbrella"):
+        infer(_umbrella_diagram(), ["rain"], observed={"wet": 1})
+
+
+def test_unknown_observed_name_raises():
+    with pytest.raises(KeyError, match="bogus"):
+        infer(_rain_wet_grass(), ["rain"], observed={"bogus": 1})
+
+
+# --- sampling options ---------------------------------------------------------
+
+
+def test_num_samples_sets_the_number_of_draws():
+    for diagram, query in ((_rain_wet_grass(), "rain"), (_continuous_diagram(), "x")):
+        result = infer(diagram, [query], num_samples=500)
+        assert len(result[query].values) == 500
+
+
+def test_num_samples_with_nuts():
+    diag = InfluenceDiagram()
+    diag.add_node(ChanceNode(name="x", dist=lambda: dist.Normal(0.0, 1.0)))
+    diag.add_node(
+        ChanceNode(name="y", parents=("x",), dist=lambda x: dist.Normal(x, 1.0))
+    )
+    result = infer(diag, ["x"], observed={"y": 2.0}, num_samples=300)
+    assert len(result["x"].values) == 300
+    assert result["x"].mean() == pytest.approx(1.0, abs=0.2)
+
+
+def test_rng_key_controls_the_draws():
+    diagram = _continuous_diagram()
+    default = infer(diagram, ["x"])["x"].values
+    same = infer(diagram, ["x"], rng_key=jax.random.PRNGKey(0))["x"].values
+    other = infer(diagram, ["x"], rng_key=jax.random.PRNGKey(1))["x"].values
+    assert default == same
+    assert default != other
 
 
 # --- policy binding -----------------------------------------------------------
@@ -292,12 +332,70 @@ def test_partially_bound_decisions_raise():
     diag.add_node(DecisionNode(name="d1", states=("no", "yes")))
     diag.add_node(DecisionNode(name="d2", states=("no", "yes")))
     diag.add_node(
-        UtilityNode(
-            name="u", parents=("d1", "d2"), values=lambda d1, d2: float(d1 + d2)
+        ChanceNode(
+            name="x",
+            parents=("d1", "d2"),
+            dist=lambda d1, d2: dist.Normal(loc=d1 + d2, scale=1.0),
         )
     )
     with pytest.raises(InferenceError, match="unbound decision.*d2"):
-        infer(diag, ["u"], policy={"d1": 0})
+        infer(diag, ["x"], policy={"d1": 0})
+
+
+def test_decision_off_the_query_path_needs_no_policy():
+    """``umbrella`` only feeds a utility, so it cannot change ``rain``."""
+    result = infer(_decision_diagram(), ["rain"])
+    assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
+
+
+def test_decision_downstream_of_query_needs_no_policy():
+    """``umbrella`` is a child of ``rain``; with ``wet`` unobserved it is irrelevant."""
+    result = infer(_umbrella_diagram(), ["rain"])
+    assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
+
+
+def test_policy_for_an_irrelevant_decision_is_ignored():
+    result = infer(_decision_diagram(), ["rain"], policy={"umbrella": 1})
+    assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
+
+
+def test_irrelevant_unobserved_chance_node_is_ignored():
+    """
+    A continuous node off the query path does not force NUTS.
+
+    ``noise`` is a ``Delta``, which NUTS rejects; it only runs if the node
+    takes part in inference.
+    """
+    diag = _rain_wet_grass()
+    diag.add_node(
+        ChanceNode(
+            name="noise", parents=("rain",), dist=lambda rain: dist.Delta(1.0 * rain)
+        )
+    )
+    result = infer(diag, ["rain"], observed={"wet_grass": 1})
+    assert result["rain"].marginal() == pytest.approx([0.457, 0.543], abs=0.04)
+
+
+def test_policy_without_evidence_samples_forward():
+    """
+    Bound decisions alone are not evidence: the draws come from forward sampling.
+
+    ``gain`` is a deterministic function of the decision and a continuous
+    chance node, so NUTS would reject it.
+    """
+    diag = InfluenceDiagram()
+    diag.add_node(DecisionNode(name="d", states=("low", "high")))
+    diag.add_node(ChanceNode(name="x", dist=lambda: dist.Normal(10.0, 2.0)))
+    diag.add_node(
+        ChanceNode(
+            name="gain",
+            parents=("d", "x"),
+            dist=lambda d, x: dist.Delta(jnp.where(d == 1, 2.0, 1.0) * x),
+        )
+    )
+    result = infer(diag, ["gain"], policy={"d": 1})
+    assert result["gain"].mean() == pytest.approx(20.0, abs=0.4)
+    assert result["gain"].std() == pytest.approx(4.0, abs=0.3)
 
 
 def test_policy_unknown_name_raises():

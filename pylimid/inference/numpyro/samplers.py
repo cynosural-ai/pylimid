@@ -45,9 +45,10 @@ def samples(
     """
     Draw samples from a validated snapshot.
 
-    With ``observed`` empty or ``None`` the draws come directly from the
-    prior joint (independent, one pass). With observations they come from
-    the posterior: exact discrete enumeration when every latent node is
+    When ``observed`` holds no chance node (it is empty or only binds
+    decisions) the draws come directly from the prior joint (independent,
+    one pass). With observed chance nodes they come from the posterior:
+    exact discrete enumeration when every latent node is
     discrete, NUTS otherwise (``num_warmup`` warmup steps, then
     ``num_samples`` draws; discrete latents are enumerated out of NUTS and
     resampled conditioned on the continuous posterior).
@@ -56,7 +57,8 @@ def samples(
         snapshot: A validated, topologically-ordered view of an influence
             diagram. Every decision must be bound in *observed*; utility
             nodes are ignored.
-        observed: Node-name to observed-value map. Empty or ``None`` means
+        observed: Node-name to observed-value map, holding the observed
+            chance nodes and the bound decisions. Empty or ``None`` means
             forward (prior) sampling of a chance-node-only diagram.
         query: Names of the nodes to return. ``None`` (the default) returns
             every node; observed nodes appear as their clamped value
@@ -90,7 +92,7 @@ def _draw(
     rng_key: Any,
 ) -> dict[str, jax.Array]:
     """Run the sampling machinery for ``model`` and return all site draws."""
-    if not observed:
+    if not _has_chance_evidence(snapshot, observed):
         return Predictive(model, num_samples=num_samples)(rng_key)
     if _has_continuous_latent(snapshot, observed):
         mcmc = MCMC(
@@ -110,6 +112,14 @@ def _draw(
         )(rng_key)
         return {**posterior, **conditional}
     return Predictive(model, num_samples=num_samples, infer_discrete=True)(rng_key)
+
+
+def _has_chance_evidence(snapshot: DiagramSnapshot, observed: dict[str, Any]) -> bool:
+    """Whether any chance node is observed (bound decisions don't count)."""
+    return any(
+        name in observed and node.kind is NodeKind.CHANCE
+        for name, node in snapshot.nodes
+    )
 
 
 def _has_continuous_latent(snapshot: DiagramSnapshot, observed: dict[str, Any]) -> bool:

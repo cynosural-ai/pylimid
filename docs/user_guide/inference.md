@@ -6,7 +6,7 @@ kernelspec:
 
 # Inference
 
-`infer(diagram, query, observed=..., policy=...)` computes posterior draws for the query variables given evidence. A Bayesian network infers directly. An influence diagram can be inferred once **every** decision is bound by a policy: each bound decision is clamped to its chosen action and behaves like observed evidence, utilities are ignored, and the diagram collapses to a Bayesian network.
+`infer(diagram, query, observed=..., policy=...)` computes posterior draws for the query variables given evidence. A Bayesian network infers directly. In an influence diagram, every decision that can affect the query or the evidence must be bound by a policy: each bound decision is clamped to its chosen action and behaves like observed evidence, utilities are ignored, and the diagram collapses to a Bayesian network.
 
 ## Bayesian networks
 
@@ -51,7 +51,7 @@ A query may name chance variables only, and observed values name chance nodes. A
 
 ## Influence diagrams need a policy
 
-With decisions in the diagram, inference is only defined once every decision is bound. Binding is all-or-nothing: a partially bound diagram is still ambiguous, and `infer` raises `InferenceError` listing the unbound decisions. Here the treatment is clamped to `yes` (index `1`), and we ask for the recovery posterior under that fixed action:
+With decisions in the diagram, a query is only defined once every decision that can affect it is bound. Only the query and observed nodes and their ancestors take part in inference, so a decision is needed when it is one of those ancestors, and `infer` raises `InferenceError` listing the ones left unbound. A decision elsewhere in the diagram needs no policy. Here the treatment is a parent of the recovery, so it must be bound. We clamp it to `yes` (index `1`) and ask for the recovery posterior under that fixed action:
 
 ```{code-cell} ipython3
 medical = InfluenceDiagram()
@@ -122,4 +122,4 @@ There is one engine, and it chooses how to draw:
 - **All-discrete diagrams** use exact discrete enumeration: the joint is enumerated in parallel and the draws are bincounted. The distribution is exact; the returned *draws* are a finite sample.
 - **Anything with a continuous latent** uses NUTS on the continuous variables, with the discrete sites enumerated out and resampled conditional on the continuous posterior.
 
-Either way, the result is a Monte-Carlo estimate delivered as draws — there is no exactness flag and no closed-form result type. If you need a smoother estimate, ask for more draws (`infer` does not expose `num_samples`; the underlying `pylimid.inference.numpyro.samples` does).
+Either way, the result is a Monte-Carlo estimate delivered as draws — there is no exactness flag and no closed-form result type. If you need a smoother estimate, ask for more draws with `num_samples` (2,000 by default), and pass a different `rng_key` to check how much the answer depends on the draws.
