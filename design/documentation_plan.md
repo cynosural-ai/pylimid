@@ -95,7 +95,7 @@ These conventions came out of reviewing the home, installation and quickstart pa
 - Decisions choose among a finite set of actions, and they can only observe discrete parents. State this wherever decisions are introduced.
 - Inference: discrete variables are handled by exact enumeration and continuous ones by MCMC (NUTS). In a mixed diagram the discrete posterior is still an estimate, so tie "exact" to the method, not to the result.
 - Results of `infer` and `solve` are Monte Carlo estimates. A run is reproducible for a fixed `rng_key` (default seed 0).
-- `infer(..., policy=...)` clamps each decision to one action in every case; it is for "what if we always did X" questions. Do not tell readers to pass `solve()`'s policy to `infer()`: that policy is state-dependent and `infer` does not evaluate it.
+- `infer(..., policy=...)` accepts fixed actions for "what if we always did X" questions and the state-dependent policy returned by `solve()`.
 - Performance claims stay modest: "efficiently on CPU and GPU", not "fast". For pyAgrum, "may be a better choice" or "is the better choice for purely discrete diagrams", without disparaging it.
 
 **Numbers and examples**

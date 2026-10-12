@@ -6,7 +6,7 @@ kernelspec:
 
 # Inference
 
-`infer(diagram, query, observed=..., policy=...)` computes posterior draws for the query variables given evidence. A Bayesian network infers directly. In an influence diagram, every decision that can affect the query or the evidence must be bound by a policy: each bound decision is clamped to its chosen action and behaves like observed evidence, utilities are ignored, and the diagram collapses to a Bayesian network.
+`infer(diagram, query, observed=..., policy=...)` computes posterior draws for the query variables given evidence. A Bayesian network infers directly. In an influence diagram, every decision that can affect the query or the evidence must be bound by a policy. A fixed action such as `{"treat": 1}` clamps a decision to the same action in every situation. A state-dependent policy such as `solution.policy` chooses its action from the decision's parent values, so evidence downstream of the decision can still update the information variables. Utilities are computed when queried and do not affect the posterior of other variables.
 
 ## Bayesian networks
 
@@ -89,7 +89,7 @@ medical.add_node(
 infer(medical, ["recovery"], policy={"treat": 1})["recovery"].marginal()
 ```
 
-`policy` clamps each decision to a single action — the same action in every realization. It is an interface for *interventions* ("what if everyone were treated?"), not for evaluating the state-dependent rule that `solve` returns. To compare a few fixed policies, call `infer` once per policy; for the conditional rule, the solvers are the tool.
+A fixed action in `policy` asks an intervention question such as "what if everyone were treated?". To evaluate a situation-dependent strategy, pass `solution.policy` from `solve` to `infer`. Each decision then chooses its action from its parents' values in every draw. For example, `infer(medical, ["benefit"], policy=solution.policy)` gives the benefit distribution under the solved strategy, once `solution = solve(medical)` has been computed. A policy can also mix fixed actions and action tables. Each table must cover every combination of its parents' states, in the order listed in the decision's `parents`.
 
 ## The Posterior object
 

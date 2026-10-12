@@ -58,7 +58,6 @@ A situation is one combination of a decision's parent states. When no sample lan
 
 ### Missing features
 
-- **`infer()` can't evaluate the policy that `solve()` returns.** `policy=` fixes each decision to one action in every situation, so the profit distribution under the optimal, situation-dependent policy (its risk profile) has no direct answer. pyAgrum reports the mean and variance of the utility under the optimal policy; with draws, PyLIMID could give the whole distribution. Possible API: `infer(diagram, ["profit"], policy=solution.policy)`, where each decision's value is looked up from its parents.
 - **Every `solve()` and `infer()` call compiles again**, because the jitted functions are defined inside each call. That costs about 0.3–0.6 s even on the quickstart model, independent of `num_samples`. Caching the compiled functions would help anyone who calls them in a loop.
 
 

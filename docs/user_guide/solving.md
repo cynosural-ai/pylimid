@@ -176,10 +176,10 @@ Mia should take the beach and Leo the park. Note that the reason backward induct
 
 ## When does solve() fail?
 
-{py:func}`solve` raises an {py:class}`~pylimid.inference.engine.InferenceError` in these cases:
+{py:func}`solve` raises an {py:class}`~pylimid.InferenceError` in these cases:
 
 - **The diagram has no decisions.** In that case there is nothing to optimize, so there is no policy to return. 
 - **A decision observes a continuous variable.** A policy is a table with one action per 
 situation, so a decision node can only be the child chance nodes. If we want it to react to 
 something continuous, like a temperature reading, we add an intermediate discrete chance node that bins it (say, cold, mild and hot) as the parent.
-- **A situation never comes up in the simulation.** Backward induction picks the best action for each situation by averaging the samples that land in it, so every situation needs at least one. Thus, a very unlikely situation can raise an {py:class}`~pylimid.inference.engine.InferenceError`, which we can fix with a larger `num_samples`. However, if the situation is impossible (its probability is 0), we need to remove the state that causes it or use `method="scan"` instead. The scan doesn't look at one situation at a time. It simulates a whole policy `num_samples` times and averages its payoff. Then, it repeats this process for each policy and selects the one with the highest average. A policy with an impossible situation simply means that the action a policy assignes to it doesn't change the average payoff, making it harmless (but also wasteful to keep).
+- **A situation never comes up in the simulation.** Backward induction picks the best action for each situation by averaging the samples that land in it, so every situation needs at least one. Thus, a very unlikely situation can raise an {py:class}`~pylimid.InferenceError`, which we can fix with a larger `num_samples`. However, if the situation is impossible (its probability is 0), we need to remove the state that causes it or use `method="scan"` instead. The scan doesn't look at one situation at a time. It simulates a whole policy `num_samples` times and averages its payoff. Then, it repeats this process for each policy and selects the one with the highest average. A policy with an impossible situation simply means that the action a policy assignes to it doesn't change the average payoff, making it harmless (but also wasteful to keep).
