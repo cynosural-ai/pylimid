@@ -47,7 +47,7 @@ Evidence is a name-to-value map, where the value is the **state index** for a di
 infer(diagnosis, ["disease"], observed={"test": 1})["disease"].marginal()
 ```
 
-A query may name chance variables only, and observed values name chance nodes. Asking for a decision node's posterior is an error — a decision is an action, not a random variable.
+A query may name chance and utility nodes, and observed values name chance nodes only. Asking for a decision node's posterior is an error — a decision is an action, not a random variable. A utility in the query is computed from its parents in every draw, which gives the distribution of the payoff under the chosen actions.
 
 ## Influence diagrams need a policy
 

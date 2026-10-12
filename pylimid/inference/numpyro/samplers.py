@@ -24,10 +24,12 @@ from collections.abc import Callable
 from typing import Any
 
 import jax
+import jax.numpy as jnp
 from numpyro.infer import MCMC, NUTS, Predictive
 
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.node import NodeKind
+from pylimid.graph.utility_node import UtilityNode
 from pylimid.inference.numpyro.model import to_model
 
 __all__ = ["samples", "to_model"]
@@ -55,14 +57,15 @@ def samples(
 
     Args:
         snapshot: A validated, topologically-ordered view of an influence
-            diagram. Every decision must be bound in *observed*; utility
-            nodes are ignored.
+            diagram. Every decision must be bound in *observed*. Utility
+            nodes never affect the draws.
         observed: Node-name to observed-value map, holding the observed
             chance nodes and the bound decisions. Empty or ``None`` means
             forward (prior) sampling of a chance-node-only diagram.
         query: Names of the nodes to return. ``None`` (the default) returns
-            every node; observed nodes appear as their clamped value
-            broadcast over the draws.
+            every chance and decision node; observed nodes appear as their
+            clamped value broadcast over the draws. A utility node in
+            *query* is evaluated on its parents' values in every draw.
         num_samples: Number of draws.
         num_warmup: NUTS warmup steps; ignored on the forward and
             enumeration paths.
@@ -80,7 +83,24 @@ def samples(
 
     if query is None:
         return draws
+    nodes = dict(snapshot.nodes)
+    for name in query:
+        node = nodes[name]
+        if isinstance(node, UtilityNode):
+            draws[name] = _evaluate_utility(node, draws, num_samples)
     return {name: draws[name] for name in query}
+
+
+def _evaluate_utility(
+    node: UtilityNode, draws: dict[str, jax.Array], num_samples: int
+) -> jax.Array:
+    """The utility's value in every draw, computed from its parents' draws."""
+    values = node.values
+    assert values is not None
+    if not node.parents:
+        return jnp.broadcast_to(values(), (num_samples,))
+    parent_draws = {parent: draws[parent] for parent in node.parents}
+    return jax.vmap(lambda parents: values(**parents))(parent_draws)
 
 
 def _draw(

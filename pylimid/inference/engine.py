@@ -64,10 +64,14 @@ def infer(
 
     Only the query and observed nodes and their ancestors take part in
     inference: any other node cannot change the posterior, so it is left out.
-    Utilities are always ignored. A decision among those ancestors must be
-    bound by *policy*: it is clamped to its chosen action and behaves like
-    observed evidence, so the diagram collapses to a Bayesian network. A
-    decision outside them needs no policy, and is ignored if it has one.
+    A decision among those ancestors must be bound by *policy*: it is clamped
+    to its chosen action and behaves like observed evidence, so the diagram
+    collapses to a Bayesian network. A decision outside them needs no policy,
+    and is ignored if it has one.
+
+    A utility in *query* is computed from its parents in every draw, which
+    gives the distribution of the payoff under the bound actions and the
+    evidence. Utilities never affect the posterior of other variables.
 
     The NumPyro engine is the only engine. With no observed chance node the
     draws come from forward sampling; otherwise from exact discrete
@@ -76,10 +80,11 @@ def infer(
 
     Args:
         diagram: A validated influence diagram.
-        query: Names of chance variables whose posteriors are requested.
-        observed: Map from node name to its observed value — an integer
-            state for a discrete variable, a real value for a continuous
-            one.
+        query: Names of the chance and utility nodes whose posteriors are
+            requested.
+        observed: Map from chance node name to its observed value — an
+            integer state for a discrete variable, a real value for a
+            continuous one.
         policy: Map from decision name to its chosen integer action. Every
             decision that is an ancestor of a query or observed node must
             appear.
@@ -91,9 +96,9 @@ def infer(
     Returns:
         ``{var_name: result}`` — one `Posterior` per query variable: raw
         posterior draws plus the variable's states (``None`` for
-        continuous). Each summary method is valid for exactly one kind:
-        `Posterior.marginal` bincounts a discrete posterior into its
-        probability vector, and `Posterior.mean` / `Posterior.std` /
+        continuous variables and utilities). Each summary method is valid
+        for exactly one kind: `Posterior.marginal` bincounts a discrete
+        posterior into its probability vector, and `Posterior.mean` / `Posterior.std` /
         `Posterior.hdi` summarize the draws of a continuous one —
         calling the wrong kind raises. Everything is a Monte-Carlo
         estimate.
@@ -101,7 +106,8 @@ def infer(
     Raises:
         InferenceError: If a decision that influences the query or the
             evidence is unbound, if *policy* names a node that is not a
-            decision, or if *query* names a non-chance node.
+            decision, if *query* names a decision, or if *observed* names a
+            node that is not a chance node.
         KeyError: If *query* or *observed* names a node that is not in the
             diagram.
     """
@@ -119,6 +125,7 @@ def infer(
         )
 
     _validate_query(snapshot, query)
+    _validate_observed(snapshot, observed)
 
     relevant = _ancestors(snapshot, [*query, *observed])
     unbound = [name for name in decisions if name in relevant and name not in policy]
@@ -218,11 +225,21 @@ def solve(
 def _validate_query(snapshot, query: list[str]) -> None:
     for name in query:
         node = _find_node(snapshot, name)
+        if node.kind is NodeKind.DECISION:
+            raise InferenceError(
+                f"query= names chance and utility nodes only; {name!r} is a "
+                "decision node. Decisions are clamped by policy=, not inferred."
+            )
+
+
+def _validate_observed(snapshot, observed: dict[str, int | float]) -> None:
+    for name in observed:
+        node = _find_node(snapshot, name)
         if node.kind is not NodeKind.CHANCE:
             raise InferenceError(
-                f"query= names chance variables only; {name!r} is a "
-                f"{node.kind.value} node. Decisions are clamped by policy= "
-                f"and utilities are not random variables."
+                f"observed= names chance nodes only; {name!r} is a "
+                f"{node.kind.value} node. Bind decisions with policy=; "
+                "utilities are computed, not observed."
             )
 
 
@@ -258,9 +275,8 @@ def _infer_numpyro(
     result: InferenceResult = {}
     for name in query:
         node = _find_node(snapshot, name)
-        result[name] = Posterior(
-            values=[float(x) for x in draws[name]], states=node.states
-        )
+        states = node.states if node.kind is NodeKind.CHANCE else None
+        result[name] = Posterior(values=[float(x) for x in draws[name]], states=states)
     return result
 
 

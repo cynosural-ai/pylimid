@@ -11,8 +11,10 @@ Expected runtime: ~5-10 seconds (pyAgrum import + policy scans).
 
 from __future__ import annotations
 
+import pyagrum as gum
 import pytest
 
+from pylimid.inference import infer
 from pylimid.inference.numpyro.solvers.intervention_scan import (
     solve as numpyro_solve,
 )
@@ -64,6 +66,35 @@ def test_irrelevant_info_decision():
 
 def test_three_state_climate():
     _check(ThreeStateClimate)
+
+
+@pytest.mark.parametrize("treat", [0, 1])
+@pytest.mark.parametrize("evidence", [{}, {"disease": 1}, {"recovery": 0}])
+def test_utility_under_a_forced_decision(treat, evidence):
+    """
+    ``infer`` on a utility matches pyAgrum's mean and variance.
+
+    pyAgrum forces an action through evidence on the decision node, which is
+    what ``policy=`` does.
+    """
+    ie = gum.ShaferShenoyLIMIDInference(  # ty: ignore[possibly-missing-attribute]
+        SingleDecisionTreat.pyagrum()
+    )
+    ie.addEvidence("treat", treat)
+    for name, value in evidence.items():
+        ie.addEvidence(name, value)
+    ie.makeInference()
+    expected = ie.MEU()
+
+    utility = infer(
+        SingleDecisionTreat.pylimid(),
+        ["utility"],
+        observed=evidence,
+        policy={"treat": treat},
+        num_samples=20_000,
+    )["utility"]
+    assert utility.mean() == pytest.approx(expected["mean"], abs=1.5)
+    assert utility.std() ** 2 == pytest.approx(expected["variance"], rel=0.05, abs=1.0)
 
 
 def test_nested_two_decisions():

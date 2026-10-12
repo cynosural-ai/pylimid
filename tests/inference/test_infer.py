@@ -409,10 +409,142 @@ def test_policy_on_bayesian_network_raises():
 
 
 def test_querying_a_decision_raises():
-    with pytest.raises(InferenceError, match="chance variables only"):
+    with pytest.raises(InferenceError, match="chance and utility nodes only"):
         infer(_umbrella_diagram(), ["umbrella"], policy={"umbrella": 1})
 
 
-def test_querying_a_utility_raises():
-    with pytest.raises(InferenceError, match="chance variables only"):
-        infer(_umbrella_diagram(), ["dryness"], policy={"umbrella": 1})
+def test_observing_a_decision_raises():
+    with pytest.raises(InferenceError, match="observed= names chance nodes only"):
+        infer(_umbrella_diagram(), ["wet"], observed={"umbrella": 1})
+
+
+def test_observing_a_utility_raises():
+    with pytest.raises(InferenceError, match="observed= names chance nodes only"):
+        infer(_umbrella_diagram(), ["rain"], observed={"dryness": 1.0})
+
+
+# --- utility queries ----------------------------------------------------------
+
+
+STOCK_LEVELS = jnp.array([80.0, 120.0])
+
+
+def _shop_diagram() -> InfluenceDiagram:
+    """
+    ``demand ~ Normal(100, 20)``, a stock decision, and ``profit``.
+
+    A noisy ``report`` of the demand can be observed, which puts a
+    continuous latent under NUTS.
+    """
+    diag = InfluenceDiagram()
+    diag.add_node(ChanceNode(name="demand", dist=lambda: dist.Normal(100.0, 20.0)))
+    diag.add_node(
+        ChanceNode(
+            name="report",
+            parents=("demand",),
+            dist=lambda demand: dist.Normal(demand, 5.0),
+        )
+    )
+    diag.add_node(DecisionNode(name="stock", states=("80", "120")))
+    diag.add_node(
+        UtilityNode(
+            name="profit",
+            parents=("stock", "demand"),
+            values=lambda stock, demand: (
+                10.0 * jnp.minimum(STOCK_LEVELS[stock], demand)
+                - 2.0 * STOCK_LEVELS[stock]
+            ),
+        )
+    )
+    return diag
+
+
+def _guess_diagram() -> InfluenceDiagram:
+    """``rain -> wet``, a guess, and ``hit`` = 1 when the guess matches the rain."""
+    diag = _rain_wet_grass()
+    diag.add_node(DecisionNode(name="guess", states=("no", "yes")))
+    diag.add_node(
+        UtilityNode(
+            name="hit",
+            parents=("rain", "guess"),
+            values=lambda rain, guess: jnp.where(rain == guess, 1.0, 0.0),
+        )
+    )
+    return diag
+
+
+def test_utility_query_returns_a_continuous_posterior():
+    result = infer(_shop_diagram(), ["profit"], policy={"stock": 0})
+    assert result["profit"].states is None
+    assert len(result["profit"].values) == 2000
+
+
+def test_utility_query_under_a_policy():
+    """
+    Stocking 80 sells out unless demand drops below 80, which is P ≈ 0.16.
+
+    With ``demand ~ N(100, 20)`` and ``profit = 10·min(80, demand) − 160``,
+    profit is capped at 640.
+    """
+    profit = infer(_shop_diagram(), ["profit"], policy={"stock": 0})["profit"]
+    assert max(profit.values) == pytest.approx(640.0)
+    capped = sum(v == pytest.approx(640.0) for v in profit.values) / len(profit.values)
+    assert capped == pytest.approx(0.84, abs=0.03)
+
+
+def test_utility_query_with_a_continuous_latent():
+    """A high report pins demand above both stock levels, so profit is capped."""
+    profit = infer(
+        _shop_diagram(), ["profit"], policy={"stock": 1}, observed={"report": 200.0}
+    )["profit"]
+    assert profit.mean() == pytest.approx(10.0 * 120 - 2.0 * 120, abs=1.0)
+
+
+def test_utility_query_with_discrete_enumeration():
+    """``hit`` is 1 exactly when it rains, so its mean is P(rain=yes | wet) ≈ 0.543."""
+    result = infer(
+        _guess_diagram(),
+        ["hit", "rain"],
+        observed={"wet_grass": 1},
+        policy={"guess": 1},
+    )
+    assert result["hit"].mean() == pytest.approx(0.543, abs=0.04)
+
+
+def test_utility_draws_line_up_with_chance_draws():
+    result = infer(
+        _guess_diagram(),
+        ["hit", "rain"],
+        observed={"wet_grass": 1},
+        policy={"guess": 1},
+    )
+    assert result["hit"].values == result["rain"].values
+
+
+def test_utility_with_an_observed_parent():
+    diag = _rain_wet_grass()
+    diag.add_node(
+        UtilityNode(
+            name="cleanup",
+            parents=("wet_grass",),
+            values=lambda wet_grass: -5.0 * wet_grass,
+        )
+    )
+    result = infer(diag, ["cleanup"], observed={"wet_grass": 1})
+    assert set(result["cleanup"].values) == {-5.0}
+
+
+def test_utility_query_needs_its_upstream_decisions_bound():
+    with pytest.raises(InferenceError, match="unbound decision.*stock"):
+        infer(_shop_diagram(), ["profit"])
+
+
+def test_utilities_do_not_change_other_posteriors():
+    with_utility = infer(
+        _guess_diagram(),
+        ["rain", "hit"],
+        observed={"wet_grass": 1},
+        policy={"guess": 0},
+    )
+    without = infer(_guess_diagram(), ["rain"], observed={"wet_grass": 1})
+    assert with_utility["rain"].values == without["rain"].values
