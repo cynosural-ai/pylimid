@@ -11,7 +11,9 @@ import numpyro.distributions as dist
 import pytest
 
 from pylimid.graph.chance_node import ChanceNode
+from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import InfluenceDiagram
+from pylimid.inference import InferenceError
 from pylimid.inference.numpyro import samples
 from pylimid.inference.numpyro.model import to_model
 
@@ -327,6 +329,27 @@ def test_samples_posterior_mcmc_resamples_discrete() -> None:
     assert draws["bias"].shape == (500,)
     assert bool(jnp.all(draws["height"] == 175.0))
     assert float(jnp.mean(draws["rain"] == 1)) < 0.5
+
+
+@pytest.mark.parametrize("backend", [samples, to_model])
+@pytest.mark.parametrize(
+    "rule, message",
+    [
+        ({(0,): 0}, "every information-set assignment"),
+        ({(0,): 0, (1,): 1, (2,): 0}, "every information-set assignment"),
+        ({(0,): -1, (1,): 1}, "invalid action"),
+        ({(0,): 0, (1,): 2}, "invalid action"),
+        ({(0,): 0, (1,): 0.5}, "invalid action"),
+    ],
+)
+def test_backend_rejects_invalid_contingent_policy(backend, rule, message):
+    diagram = InfluenceDiagram()
+    diagram.add_node(_rain_node())
+    diagram.add_node(
+        DecisionNode(name="action", parents=("rain",), states=("no", "yes"))
+    )
+    with pytest.raises(InferenceError, match=message):
+        backend(diagram.snapshot(), policy={"action": rule})
 
 
 # --- small driver helpers ---------------------------------------------------

@@ -30,7 +30,8 @@ from numpyro.infer import MCMC, NUTS, Predictive
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.node import NodeKind
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.inference.numpyro.model import to_model
+from pylimid.inference.numpyro.model import _policy_tables, _to_model, to_model
+from pylimid.inference.solution import Policy
 
 __all__ = ["samples", "to_model"]
 
@@ -43,6 +44,7 @@ def samples(
     num_samples: int = 2000,
     num_warmup: int = 500,
     rng_key: Any = None,
+    policy: Policy | None = None,
 ) -> dict[str, jax.Array]:
     """
     Draw samples from a validated snapshot.
@@ -57,10 +59,9 @@ def samples(
 
     Args:
         snapshot: A validated, topologically-ordered view of an influence
-            diagram. Every decision must be bound in *observed*. Utility
-            nodes never affect the draws.
+            diagram. Utility nodes never affect the draws.
         observed: Node-name to observed-value map, holding the observed
-            chance nodes and the bound decisions. Empty or ``None`` means
+            chance nodes and fixed decisions. Empty or ``None`` means
             forward (prior) sampling of a chance-node-only diagram.
         query: Names of the nodes to return. ``None`` (the default) returns
             every chance and decision node; observed nodes appear as their
@@ -70,16 +71,35 @@ def samples(
         num_warmup: NUTS warmup steps; ignored on the forward and
             enumeration paths.
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``.
+        policy: State-dependent decision rules mapping information-set
+            assignments to action indices.
 
     Returns:
         Dict mapping node name to a 1-D JAX array of ``num_samples`` draws.
+
+    Raises:
+        InferenceError: If a policy names a non-decision node, omits an
+            information-set assignment, or contains an invalid action.
+        KeyError: If a policy names a node that is not in the snapshot.
+        ValueError: If a policy has a continuous information-set parent.
     """
     observed = observed or {}
     if rng_key is None:
         rng_key = jax.random.PRNGKey(0)
 
-    model = to_model(snapshot, observed=observed)
+    policy_tables = _policy_tables(snapshot, policy or {})
+    model = _to_model(snapshot, observed, policy_tables)
     draws = _draw(model, snapshot, observed, num_samples, num_warmup, rng_key)
+    # Enumerated deterministic sites may be absent or still carry enumeration
+    # dimensions. Resolve them from joint posterior draws, parents before children.
+    for name, node in snapshot.nodes:
+        if name not in policy_tables:
+            continue
+        table = policy_tables[name]
+        if node.parents:
+            draws[name] = table[tuple(draws[parent] for parent in node.parents)]
+        else:
+            draws[name] = jnp.broadcast_to(table, (num_samples,))
 
     if query is None:
         return draws

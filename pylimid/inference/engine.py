@@ -15,12 +15,14 @@ Unified inference entry-point.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Literal
 
 import jax
 
 from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.node import NodeKind
+from pylimid.inference._errors import InferenceError
 from pylimid.inference.numpyro import samples as numpyro_samples
 from pylimid.inference.numpyro.solvers import (
     backward_induction_solve,
@@ -46,16 +48,12 @@ __all__ = [
 SolveMethod = Literal["auto", "backward_induction", "scan"]
 
 
-class InferenceError(Exception):
-    """Asked for an inference method that cannot handle the given diagram."""
-
-
 def infer(
     diagram: InfluenceDiagram,
     query: list[str],
     *,
     observed: dict[str, int | float] | None = None,
-    policy: dict[str, int] | None = None,
+    policy: Mapping[str, int | dict[tuple[int, ...], int]] | None = None,
     num_samples: int = 2000,
     rng_key: jax.Array | None = None,
 ) -> InferenceResult:
@@ -64,10 +62,9 @@ def infer(
 
     Only the query and observed nodes and their ancestors take part in
     inference: any other node cannot change the posterior, so it is left out.
-    A decision among those ancestors must be bound by *policy*: it is clamped
-    to its chosen action and behaves like observed evidence, so the diagram
-    collapses to a Bayesian network. A decision outside them needs no policy,
-    and is ignored if it has one.
+    A decision among those ancestors must be bound by *policy*. A fixed
+    integer action clamps it, while a table policy selects an action from its
+    information-set assignment. A decision outside them needs no policy.
 
     A utility in *query* is computed from its parents in every draw, which
     gives the distribution of the payoff under the bound actions and the
@@ -85,9 +82,10 @@ def infer(
         observed: Map from chance node name to its observed value — an
             integer state for a discrete variable, a real value for a
             continuous one.
-        policy: Map from decision name to its chosen integer action. Every
-            decision that is an ancestor of a query or observed node must
-            appear.
+        policy: Map from decision names to fixed integer actions or contingent
+            action tables in the format returned by `solve`. A table maps each
+            tuple of parent-state indices to an action index. Every decision
+            that is an ancestor of a query or observed node must appear.
         num_samples: Number of posterior draws per query variable. NUTS
             runs 500 warmup steps before them.
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``, so
@@ -106,10 +104,12 @@ def infer(
     Raises:
         InferenceError: If a decision that influences the query or the
             evidence is unbound, if *policy* names a node that is not a
-            decision, if *query* names a decision, or if *observed* names a
-            node that is not a chance node.
+            decision or contains an incomplete or invalid action table, if
+            *query* names a decision, or if *observed* names a node that is
+            not a chance node.
         KeyError: If *query* or *observed* names a node that is not in the
             diagram.
+        ValueError: If a table policy has a continuous information-set parent.
     """
     observed = observed or {}
     policy = policy or {}
@@ -138,9 +138,22 @@ def infer(
     pruned = DiagramSnapshot(
         nodes=tuple((name, node) for name, node in snapshot.nodes if name in relevant)
     )
-    bound = {name: action for name, action in policy.items() if name in relevant}
+    table_policy: Policy = {}
+    bound: dict[str, int] = {}
+    for name, rule in policy.items():
+        if name not in relevant:
+            continue
+        if isinstance(rule, dict):
+            table_policy[name] = rule
+        else:
+            bound[name] = rule
     return _infer_numpyro(
-        pruned, query, {**observed, **bound}, num_samples=num_samples, rng_key=rng_key
+        pruned,
+        query,
+        {**observed, **bound},
+        num_samples=num_samples,
+        rng_key=rng_key,
+        policy=table_policy,
     )
 
 
@@ -260,7 +273,13 @@ def _ancestors(snapshot: DiagramSnapshot, names: list[str]) -> set[str]:
 
 
 def _infer_numpyro(
-    snapshot, query, observed, *, num_samples: int, rng_key: jax.Array | None
+    snapshot,
+    query,
+    observed,
+    *,
+    num_samples: int,
+    rng_key: jax.Array | None,
+    policy: Policy,
 ) -> InferenceResult:
     # ``samples()`` returns raw draws; ``infer()`` wraps them in a
     # Posterior, keeping the draws and the variable's states together.
@@ -271,6 +290,7 @@ def _infer_numpyro(
         query=query,
         num_samples=num_samples,
         rng_key=rng_key,
+        policy=policy,
     )
     result: InferenceResult = {}
     for name in query:

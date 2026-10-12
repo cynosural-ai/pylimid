@@ -14,7 +14,7 @@ from __future__ import annotations
 import pyagrum as gum
 import pytest
 
-from pylimid.inference import infer
+from pylimid.inference import infer, solve
 from pylimid.inference.numpyro.solvers.intervention_scan import (
     solve as numpyro_solve,
 )
@@ -105,3 +105,22 @@ def test_nested_two_decisions():
     assert solution.policy["D1"] == policy["D1"]
     for assignment in ((0, 1), (1, 0)):
         assert solution.policy["D2"][assignment] == policy["D2"][assignment]
+
+
+@pytest.mark.parametrize(
+    "fixture, utility", [(SingleDecisionTreat, "utility"), (NestedTwoDecisions, "U")]
+)
+def test_infer_utility_under_solved_policy_matches_pyagrum(fixture, utility):
+    solution = solve(fixture.pylimid(), num_samples=1500)
+    pyagrum = gum.ShaferShenoyLIMIDInference(  # ty: ignore[possibly-missing-attribute]
+        fixture.pyagrum()
+    )
+    pyagrum.makeInference()
+    expected = pyagrum.MEU()
+    posterior = infer(
+        fixture.pylimid(), [utility], policy=solution.policy, num_samples=20_000
+    )[utility]
+    assert posterior.mean() == pytest.approx(expected["mean"], abs=1.5)
+    assert posterior.std() ** 2 == pytest.approx(
+        expected["variance"], rel=0.05, abs=1.0
+    )

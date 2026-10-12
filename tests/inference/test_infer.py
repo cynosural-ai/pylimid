@@ -11,7 +11,7 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import InfluenceDiagram
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.inference import InferenceError, Posterior, infer
+from pylimid.inference import InferenceError, Posterior, infer, solve
 
 # --- helpers -----------------------------------------------------------------
 
@@ -228,6 +228,142 @@ def test_unbound_decision_upstream_of_query_raises():
 def test_unbound_decision_upstream_of_evidence_raises():
     with pytest.raises(InferenceError, match="unbound decision.*umbrella"):
         infer(_umbrella_diagram(), ["rain"], observed={"wet": 1})
+
+
+def _contingent_policy_diagram() -> InfluenceDiagram:
+    diag = InfluenceDiagram()
+    diag.add_node(
+        ChanceNode(
+            name="state",
+            states=("low", "high"),
+            dist=lambda: dist.Categorical(probs=jnp.array([0.5, 0.5])),
+        )
+    )
+    diag.add_node(DecisionNode(name="first", parents=("state",), states=("a", "b")))
+    diag.add_node(DecisionNode(name="second", parents=("first",), states=("a", "b")))
+    diag.add_node(
+        ChanceNode(
+            name="evidence",
+            parents=("first",),
+            states=("no", "yes"),
+            dist=lambda first: dist.Categorical(
+                probs=jnp.array([[0.9, 0.1], [0.1, 0.9]])[first]
+            ),
+        )
+    )
+    diag.add_node(
+        UtilityNode(
+            name="payoff",
+            parents=("first", "second"),
+            values=lambda first, second: first + second,
+        )
+    )
+    return diag
+
+
+@pytest.mark.parametrize("reverse_policy", [False, True])
+def test_contingent_policy_is_evaluated_in_forward_sampling(reverse_policy):
+    diagram = _contingent_policy_diagram()
+    policy = {"first": {(0,): 0, (1,): 1}, "second": {(0,): 1, (1,): 0}}
+    if reverse_policy:
+        policy = dict(reversed(list(policy.items())))
+    payoff = infer(diagram, ["payoff"], policy=policy, num_samples=5000)["payoff"]
+    assert set(payoff.values) == {1.0}
+
+
+@pytest.mark.parametrize("reverse_policy", [False, True])
+@pytest.mark.parametrize("invert_first", [False, True])
+def test_contingent_policy_keeps_latent_information_parent_conditionable(
+    reverse_policy, invert_first
+):
+    diagram = _contingent_policy_diagram()
+    policy = {"first": {(0,): 0, (1,): 1}, "second": {(0,): 1, (1,): 0}}
+    if invert_first:
+        policy["first"] = {(0,): 1, (1,): 0}
+    if reverse_policy:
+        policy = dict(reversed(list(policy.items())))
+    result = infer(
+        diagram, ["state", "payoff"], policy=policy, observed={"evidence": 1}
+    )
+    expected = [0.9, 0.1] if invert_first else [0.1, 0.9]
+    assert result["state"].marginal() == pytest.approx(expected, abs=0.04)
+    assert set(result["payoff"].values) == {1.0}
+
+
+@pytest.mark.parametrize("observed", [{}, {"evidence": 1}])
+def test_contingent_policy_accepts_solve_result(observed):
+    diagram = _contingent_policy_diagram()
+    solution = solve(diagram, num_samples=500)
+    assert solution.method == "backward_induction"
+    payoff = infer(
+        diagram, ["payoff"], policy=solution.policy, observed=observed, num_samples=1000
+    )
+    assert set(payoff["payoff"].values) == {2.0}
+
+
+@pytest.mark.parametrize("reverse_policy", [False, True])
+def test_contingent_policy_with_mixed_nuts_posterior(reverse_policy):
+    diagram = InfluenceDiagram()
+    diagram.add_node(
+        ChanceNode(
+            name="state",
+            states=("low", "high"),
+            dist=lambda: dist.Categorical(probs=jnp.array([0.5, 0.5])),
+        )
+    )
+    diagram.add_node(ChanceNode(name="x", dist=lambda: dist.Normal(0.0, 1.0)))
+    diagram.add_node(DecisionNode(name="action", parents=("state",), states=("a", "b")))
+    diagram.add_node(
+        DecisionNode(name="second", parents=("action",), states=("a", "b"))
+    )
+    diagram.add_node(
+        ChanceNode(
+            name="measurement",
+            parents=("state", "action", "x"),
+            dist=lambda state, action, x: dist.Normal(x + state + action, 1.0),
+        )
+    )
+    diagram.add_node(
+        UtilityNode(name="payoff", parents=("second",), values=lambda second: second)
+    )
+    policy = {"action": {(0,): 0, (1,): 1}, "second": {(0,): 1, (1,): 0}}
+    if reverse_policy:
+        policy = dict(reversed(list(policy.items())))
+    result = infer(
+        diagram,
+        ["state", "x", "payoff"],
+        policy=policy,
+        observed={"measurement": 2.0},
+        num_samples=500,
+    )
+    # The two likelihoods are Normal(0, sqrt(2)) and Normal(2, sqrt(2)).
+    # At measurement=2, P(state=high) = 1 / (1 + exp(-1)).
+    assert len(result["x"].values) == 500
+    assert result["state"].marginal()[1] == pytest.approx(0.731, abs=0.06)
+    assert result["x"].mean() == pytest.approx(0.269, abs=0.15)
+    assert result["payoff"].values == [1.0 - state for state in result["state"].values]
+
+
+def test_contingent_policy_can_follow_a_fixed_decision():
+    result = infer(
+        _contingent_policy_diagram(),
+        ["payoff"],
+        policy={"first": 1, "second": {(0,): 1, (1,): 0}},
+        observed={"evidence": 1},
+    )
+    assert set(result["payoff"].values) == {1.0}
+
+
+def test_contingent_policy_table_must_be_complete_and_valid():
+    diagram = _contingent_policy_diagram()
+    with pytest.raises(InferenceError, match="every information-set assignment"):
+        infer(diagram, ["payoff"], policy={"first": {(0,): 0}, "second": {(0,): 0}})
+    with pytest.raises(InferenceError, match="invalid action"):
+        infer(
+            diagram,
+            ["payoff"],
+            policy={"first": {(0,): 3, (1,): 0}, "second": {(0,): 0, (1,): 0}},
+        )
 
 
 def test_unknown_observed_name_raises():
