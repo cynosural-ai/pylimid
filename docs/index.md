@@ -73,6 +73,7 @@ getting_started/quickstart
 
 user_guide/building_a_diagram
 user_guide/solving
+user_guide/inference
 ```
 
 ```{toctree}

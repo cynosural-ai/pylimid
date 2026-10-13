@@ -10,7 +10,7 @@ Once we are happy with the way our influence diagram models the decision problem
 
 This page shows how to read what it returns, how many samples we need to trust it, and how to check that the actions we offered are the right ones. It also explains how {py:func}`solve` finds the policy and when it fails.
 
-We continue with the ice cream shop from the [Building a diagram](building_a_diagram.md) page:
+We continue with the ice cream shop from the [Building a diagram](building_a_diagram.md) page. Demand depends on the weather and bookings at nearby hotels:
 
 ```{code-cell} ipython3
 import jax
@@ -20,7 +20,7 @@ import numpyro.distributions as dist
 from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, solve
 
 DEMAND_MEANS = jnp.array([40.0, 120.0])
-WEEKEND_BOOST = jnp.array([1.0, 1.5])
+BOOKINGS_BOOST = jnp.array([1.0, 1.5])
 ORDERS = jnp.arange(0, 201, 20)
 
 
@@ -39,17 +39,17 @@ diagram.add_node(
 )
 diagram.add_node(
     ChanceNode(
-        name="weekend",
-        states=("no", "yes"),
+        name="bookings",
+        states=("normal", "high"),
         dist=lambda: dist.Categorical(probs=jnp.array([5 / 7, 2 / 7])),
     )
 )
 diagram.add_node(
     ChanceNode(
         name="demand",
-        parents=("weather", "weekend"),
-        dist=lambda weather, weekend: dist.Gamma(
-            4.0, 4.0 / (DEMAND_MEANS[weather] * WEEKEND_BOOST[weekend])
+        parents=("weather", "bookings"),
+        dist=lambda weather, bookings: dist.Gamma(
+            4.0, 4.0 / (DEMAND_MEANS[weather] * BOOKINGS_BOOST[bookings])
         ),
     )
 )
@@ -70,7 +70,7 @@ solution = solve(diagram, num_samples=50_000)
 print(solution.render(diagram))
 ```
 
-Each line tells us which action the decision maker (i.e., the owner) should take in one situation she can face. In this case, how many ice creams to order depending on the weather of the day.
+Each line tells us which action the decision maker (i.e., the owner) should take in each possible situation. In this case, how many ice creams to order depending on the weather of the day.
 
 A {py:class}`Solution` has three attributes:
 
@@ -126,7 +126,7 @@ The action space also constrains us in the other direction. The solver only comp
 So far we haven't had to think about how {py:func}`solve` finds the best policy, because the default, `method="auto"`, picks the solver method for us. There are two:
 
 - `backward_induction` resolves one decision at a time, from the last to the first. It is fast, but it only finds the best policy when the decisions can be resolved one after the other. This is internally checked by {py:func}`~pylimid.inference.numpyro.solvers.is_solvable` when we select `auto`. Of course, a diagram with a single decision, like ours, always qualifies.
-- `scan` follows a brute-force approach. It simulates every possible policy in the action space and keeps the best one. It works on any diagram but, since the number of policies grows exponentially with the number of situations a decision can face, it quickly becomes impractical. In our problem, `order` has 21 actions and 2 situations (`cloudy` and `sunny`), so there are $21^2 = 441$ policies, each simulated `num_samples` times. If the owner also knew whether it is a weekend, there would be 4 situations and $21^4 = 194,481$ policies. If we add another two-state parent variable the scan is no longer an option, even though the diagram itself is still small.
+- `scan` follows a brute-force approach. It simulates every possible policy in the action space and keeps the best one. It works on any diagram but, since the number of policies grows exponentially with the number of situations a decision can face, it quickly becomes impractical. In our problem, `order` has 21 actions and 2 situations (`cloudy` and `sunny`), so there are $21^2 = 441$ policies, each simulated `num_samples` times. If the owner also had a report showing whether hotel bookings are normal or high for that day, there would be 4 situations and $21^4 = 194,481$ policies. If we add another two-state parent variable the scan is no longer an option, even though the diagram itself is still small.
 
 ### Example: when we can't use backward induction
 
