@@ -127,6 +127,5 @@ exclude_patterns = [
     "quickstart",
     "user_guide/distributions_and_utilities.md",
     "user_guide/decisions_and_information_sets.md",
-    "user_guide/inference.md",
     "user_guide/scope_and_limitations.md",
 ]

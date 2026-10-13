@@ -6,9 +6,10 @@ Forward plan. The engine work is done (numpyro-only, scan + batched scan + backw
 
 - **More worked examples in the docs.** Cover the decision classes the library is meant to demonstrate, so the guides and the API have something concrete to point at. The two planned problem benchmarks — the mixed continuous/discrete logistics center (buildable now) and the future continuous-decision ride-hailing problem — are scoped in `design/problems/`.
 - **Proper documentation.** Turn the current living notes into reader-facing documentation: concepts, the solving strategies, and the result contract.
+- **Finish and publish the inference guide.** The ice cream shop draft is now in `docs/user_guide/inference.md` and included in the documentation build for review. Its opening section shows the daily-profit distribution behind the recommended policy's expected utility. Continue in this order: calculate loss probability from those profit draws, compare distributions, expected utilities, and loss probabilities under alternative policies, then ask about another model variable using observed sunny weather and the probability of demand exceeding 150 available ice creams after a delivery shortfall. Finish with a short sampling-accuracy section. Keep the same model throughout; learning uncertain parameters belongs on a future page. Replace the remaining draft notes with prose before publication. These examples do not require dataset fitting or vector-valued queries.
 - **Bayesian priors as a feature.** A parameter of a distribution can itself be a chance node with a prior, which lets a model encode personal experience, such as the ice cream shop owner's belief about tomorrow's weather or their insight on demand. List it under Features in `docs/index.md` and `README.md`, and show it in the docs, for example as an extension of the quickstart. Things to know first:
   - Scalar priors already work in `solve` and `infer`: a `Beta` prior on the chance of sun, or a `LogNormal` scale on the demand mean, solves and updates correctly after an observation.
-  - Vector-valued priors do not: a `Dirichlet` node over the weather probabilities solves, but `infer` crashes when it builds the `Posterior`, because `_infer_numpyro` in `pylimid/inference/engine.py` converts every draw with `float()`. Fix that before advertising Dirichlet priors (see Known issues).
+  - Vector-valued priors can participate in `solve` and in `infer` when querying downstream scalar nodes. Querying the vector node itself, such as a `Dirichlet` node over the weather probabilities, crashes when `infer` builds its `Posterior`. Fix vector-valued results before advertising queries of Dirichlet priors (see Known issues).
   - Pick the example carefully. A prior on the weather probabilities alone leaves the quickstart's policy unchanged, since only its mean matters for a single forecast. A prior on demand does change it (a cloudy-day stock of 80 instead of 60), so it is the more convincing demonstration.
 - **Reorganize the code.** Settle the module layout now, with discrete decisions as the scope, so later work lands on a stable surface.
 
@@ -36,7 +37,7 @@ Found while writing the user guide. Ordered by how badly they can mislead a user
 
 ### Crashes with unhelpful messages
 
-- **Vector-valued nodes crash `infer()`.** A `Dirichlet` node, or any node whose draws are arrays, fails because `_infer_numpyro` in `pylimid/inference/engine.py` converts every draw with `float()`.
+- **Querying vector-valued nodes crashes `infer()`.** Querying a `Dirichlet` node, or another node whose draws are arrays, fails because `_infer_numpyro` in `pylimid/inference/engine.py` converts every draw with `float()`. Such nodes can already participate in inference when querying downstream scalar nodes. Supporting vector queries requires preserving draw shapes and defining componentwise `Posterior.mean`, `Posterior.std`, and `Posterior.hdi` summaries, while preserving scalar behaviour.
 - **`IndexError: list index out of range` from `infer()`** when a discrete node samples beyond its states (the `Poisson` case above, with no observations). The message does not name the cause. Fixing the states check above mostly covers this.
 
 ### Situations that never come up in the simulation
@@ -54,11 +55,14 @@ A situation is one combination of a decision's parent states. When no sample lan
 
 ### Documentation
 
+- **Learning from data (future guide).** Introduce uncertainty about model parameters and updating those beliefs from observations separately from the inference guide. A scalar prior such as `busyness` and one observation work already. Repeated datasets and decisions under learned uncertainty can extend the page once those capabilities are available.
 - **Remake the oil field tutorial.** Its note on the result when the test isn't run says that with a `no_results` state "`solve()` would fall back to the scan". It doesn't: `auto` picks the solver from the structure alone (`is_solvable`), the diagram is solvable, so backward induction runs and raises, and there is no fallback after an error. The tutorial avoids the case with a 50/50 filler for `result`; once backward induction warns instead of raising, the `no_results` idiom would work as it is.
 
 ### Missing features
 
-- **`infer()` has no `num_samples` or `rng_key`.** It always draws 2,000 samples (with 500 warmup steps under NUTS) from `PRNGKey(0)`, while `solve()` accepts both.
+- **Sampler diagnostics and controls.** Expose configurable NUTS warmup through `infer` and return diagnostics that help users assess sampling reliability, including divergences and effective sample sizes. Support multiple chains for convergence checks and report R-hat only when applicable. Forward sampling and discrete enumeration should distinguish diagnostics that do not apply.
+- **Dataset fitting (later).** Define how repeated observations share model parameters, rather than relying on broadcasting alone. A fitting tutorial should cover learning shared parameters and predicting new observations; keep this out of the inference-guide rewrite.
+- **Decisions under learned uncertainty (later).** Provide a way to carry posterior uncertainty from `infer` into future simulations used by `solve`, preserving dependencies between learned parameters. This is separate from accepting datasets; plugging in posterior means alone would discard that uncertainty.
 - **Every `solve()` and `infer()` call compiles again**, because the jitted functions are defined inside each call. That costs about 0.3–0.6 s even on the quickstart model, independent of `num_samples`. Caching the compiled functions would help anyone who calls them in a loop.
 
 
@@ -67,5 +71,4 @@ A situation is one combination of a decision's parent states. When no sample lan
 ### Comments from Fer
 
 - Should we have a 3rd guide about "Fitting a model"?
-- Should we have a user guide about infer? (i would say so)
 - After we have defined all of the main pages, reviewed the API, have good tutorials, etc. we would take a look into LLM-based integration, most probably with a different repo. And we would decide then how to document it

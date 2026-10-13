@@ -18,7 +18,7 @@ There are three kinds of nodes, and every node has a `name` and a tuple of `pare
 - {py:class}`DecisionNode` is a choice, like how many ice creams to stock. Its parents are what is known when the choice is made (i.e., its *information set*).
 - {py:class}`UtilityNode` indicates the resulting payoff, like the shop's profit. A utility node can't have children: nothing in the diagram depends on a payoff.
 
-We start with the numbers and the profit function from the quickstart:
+We start with the numbers and the `profit` function from the quickstart:
 
 ```{code-cell} ipython3
 import jax.numpy as jnp
@@ -39,7 +39,7 @@ def profit(order, demand):
 
 You don't need to fill the whole {py:class}`InfluenceDiagram` in one go. You can add a node before its parents exist, add arcs later, and fill in a node's details whenever you are ready. Nothing is checked until you ask for it, not even cycles: {py:meth}`~InfluenceDiagram.validate` reports every problem at once.
 
-For example, we can start with the decision and the profit, before describing the weather or the demand:
+For example, we can start with the `order` and `profit` nodes, before adding the `weather` or `demand` nodes:
 
 ```{code-cell} ipython3
 diagram = InfluenceDiagram()
@@ -70,7 +70,7 @@ print(diagram.to_mermaid())
 ```
 
 
-Now we add the two chance nodes. The weather node is complete, but we leave the demand node's distribution out for now:
+Now we add the two chance nodes. The `weather` node is complete, but we leave the `demand` node's distribution out for now:
 
 ```{code-cell} ipython3
 diagram.add_node(
@@ -111,17 +111,17 @@ diagram["demand"].consistency
 
 ## Changing the diagram
 
-Suppose the owner notices that weekends are busier than weekdays and wants the model to take it into consideration. Thus, we add a `weekend` node and an arc from it to `demand`:
+Suppose the owner notices that demand is higher when bookings at nearby hotels are high and wants the model to take it into consideration. However, the owner does not currently have access to the hotels' booking figures, only an estimate based on past records: bookings are normal on roughly five out of seven days and high on the other two. Thus, we add a `bookings` node and an arc from it to `demand` but not to `order`:
 
 ```{code-cell} ipython3
 diagram.add_node(
     ChanceNode(
-        name="weekend",
-        states=("no", "yes"),
+        name="bookings",
+        states=("normal", "high"),
         dist=lambda: dist.Categorical(probs=jnp.array([5 / 7, 2 / 7])),
     )
 )
-diagram.add_arc("weekend", "demand")
+diagram.add_arc("bookings", "demand")
 
 for problem in diagram.validate():
     print(problem.kind.name, "-", problem.message)
@@ -133,20 +133,20 @@ for problem in diagram.validate():
 diagram
 ```
 
-To fix it, we give `demand` a distribution that considers both parents. As an example, let's say that weekends multiply the average demand by 1.5:
+To fix it, we give `demand` a distribution that considers both parents. As an example, let's say that high hotel bookings multiply the average demand by 1.5:
 
 ```{code-cell} ipython3
-WEEKEND_BOOST = jnp.array([1.0, 1.5])
+BOOKINGS_BOOST = jnp.array([1.0, 1.5])
 
 diagram.set_dist(
     "demand",
-    lambda weather, weekend: dist.Gamma(
-        4.0, 4.0 / (DEMAND_MEANS[weather] * WEEKEND_BOOST[weekend])
+    lambda weather, bookings: dist.Gamma(
+        4.0, 4.0 / (DEMAND_MEANS[weather] * BOOKINGS_BOOST[bookings])
     ),
 )
 diagram.validate()
 ```
 
-PyLIMID matches a function to its parents by the names of its arguments, so `weather` and `weekend` must be spelled exactly like the parent nodes, in any order.
+PyLIMID matches a function to its parents by the names of its arguments, so `weather` and `bookings` must be spelled exactly like the parent nodes, in any order.
 
 To take things out of the diagram in running time, you can use {py:meth}`~InfluenceDiagram.remove_arc` and {py:meth}`~InfluenceDiagram.remove_node` (which removes a node along with its arcs). Removing doesn't update the children's functions, so they would become `STALE`.

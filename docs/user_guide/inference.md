@@ -6,120 +6,197 @@ kernelspec:
 
 # Inference
 
-`infer(diagram, query, observed=..., policy=...)` computes posterior draws for the query variables given evidence. A Bayesian network infers directly. An influence diagram can be inferred once **every** decision is bound by a policy: each bound decision is clamped to its chosen action and behaves like observed evidence, utilities are ignored, and the diagram collapses to a Bayesian network.
+Finding the optimal solution to a decision problem is great, but PyLIMID's capabilities do not stop there. Following the ice cream shop example, the owner may have questions beyond how much to order. For instance:
 
-## Bayesian networks
+- What is the distribution of profits when following the recommended policy?
+- What happens if the owner follows a different policy?
+- Could the shop run out of stock on a sunny day?
+
+{py:func}`infer` lets us explore these and other questions by taking any observations we have into account and then drawing values from the model.
+
+We use [the same influence diagram as before](solving.md), with an order menu up to 400:
 
 ```{code-cell} ipython3
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
-from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, infer
-```
+from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, infer, solve
 
-A two-node diagnosis: the disease is `healthy` or `sick`, and a test lights up more often when the patient is sick. The prior comes straight from the model:
+DEMAND_MEANS = jnp.array([40.0, 120.0])
+BOOKINGS_BOOST = jnp.array([1.0, 1.5])
+ORDERS = jnp.arange(0, 401, 20)
 
-```{code-cell} ipython3
-diagnosis = InfluenceDiagram()
-diagnosis.add_node(
+
+def profit(order, demand):
+    stocked = ORDERS[order]
+    return 10.0 * jnp.minimum(stocked, demand) - 1.0 * stocked
+
+
+diagram = InfluenceDiagram()
+diagram.add_node(
     ChanceNode(
-        name="disease",
-        states=("healthy", "sick"),
-        dist=lambda: dist.Categorical(probs=jnp.array([0.6, 0.4])),
+        name="weather",
+        states=("cloudy", "sunny"),
+        dist=lambda: dist.Categorical(probs=jnp.array([0.7, 0.3])),
     )
 )
-diagnosis.add_node(
+diagram.add_node(
     ChanceNode(
-        name="test",
-        parents=("disease",),
-        states=("negative", "positive"),
-        dist=lambda disease: dist.Categorical(
-            probs=jnp.array([[0.9, 0.1], [0.1, 0.9]])[disease]
+        name="bookings",
+        states=("normal", "high"),
+        dist=lambda: dist.Categorical(probs=jnp.array([5 / 7, 2 / 7])),
+    )
+)
+diagram.add_node(
+    ChanceNode(
+        name="demand",
+        parents=("weather", "bookings"),
+        dist=lambda weather, bookings: dist.Gamma(
+            4.0, 4.0 / (DEMAND_MEANS[weather] * BOOKINGS_BOOST[bookings])
         ),
     )
 )
-infer(diagnosis, ["disease"])["disease"].marginal()
+diagram.add_node(
+    DecisionNode(
+        name="order", parents=("weather",), states=tuple(str(n) for n in ORDERS)
+    )
+)
+diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=profit))
+
+diagram
 ```
 
-Evidence is a name-to-value map, where the value is the **state index** for a discrete variable (or a real number for a continuous one). A positive test moves the posterior toward `sick`:
+## What is the distribution of profits when following the recommended policy?
+
+To see the range and shape of the outcomes under the recommended policy, we first solve the diagram:
 
 ```{code-cell} ipython3
-infer(diagnosis, ["disease"], observed={"test": 1})["disease"].marginal()
+solution = solve(diagram, num_samples=50_000)
+print(solution.render(diagram))
 ```
 
-A query may name chance variables only, and observed values name chance nodes. Asking for a decision node's posterior is an error — a decision is an action, not a random variable.
-
-## Influence diagrams need a policy
-
-With decisions in the diagram, inference is only defined once every decision is bound. Binding is all-or-nothing: a partially bound diagram is still ambiguous, and `infer` raises `InferenceError` listing the unbound decisions. Here the treatment is clamped to `yes` (index `1`), and we ask for the recovery posterior under that fixed action:
+And then we ask {py:func}`infer` for the distribution of the `profit` node, passing the policy from the solution:
 
 ```{code-cell} ipython3
-medical = InfluenceDiagram()
-medical.add_node(
-    ChanceNode(
-        name="disease",
-        states=("healthy", "sick"),
-        dist=lambda: dist.Categorical(probs=jnp.array([0.6, 0.4])),
-    )
-)
-medical.add_node(
-    DecisionNode(name="treat", parents=("disease",), states=("no", "yes"))
-)
-medical.add_node(
-    ChanceNode(
-        name="recovery",
-        parents=("disease", "treat"),
-        states=("no", "yes"),
-        dist=lambda disease, treat: dist.Categorical(
-            probs=jnp.array(
-                [
-                    [[0.10, 0.90], [0.08, 0.92]],  # healthy
-                    [[0.60, 0.40], [0.20, 0.80]],  # sick
-                ]
-            )[disease, treat]
-        ),
-    )
-)
-medical.add_node(
-    UtilityNode(
-        name="benefit", parents=("recovery",), values=lambda recovery: 100.0 * recovery
-    )
-)
-
-infer(medical, ["recovery"], policy={"treat": 1})["recovery"].marginal()
+recommended_profit = infer(
+    diagram,
+    query=["profit"],
+    policy=solution.policy,
+    num_samples=50_000,
+)["profit"]
+round(recommended_profit.mean(), 1)
 ```
 
-`policy` clamps each decision to a single action — the same action in every realization. It is an interface for *interventions* ("what if everyone were treated?"), not for evaluating the state-dependent rule that `solve` returns. To compare a few fixed policies, call `infer` once per policy; for the conditional rule, the solvers are the tool.
+The result is a {py:class}`Posterior` object whose `values` contain the profit draws. Each draw represents the profit on one possible day (i.e., the model draws values for weather, hotel bookings and demand, and the policy chooses the corresponding order value).
 
-## The Posterior object
+```{admonition} Why the estimates differ
+:class: info
 
-Every query returns a `Posterior`: the raw `values` (one draw per entry) plus the variable's `states` (`None` for a continuous variable). The summary methods derive from the draws, and each is valid for exactly one kind of variable:
+Here {py:func}`solve` estimates an expected profit of \$569, while {py:func}`infer` estimates \$571, both under the same policy. This small mismatch comes from using different simulated days.
+```
 
-- `marginal()` — the discrete probability vector, bincounted from the draws.
-- `mean()` / `std()` / `hdi()` — continuous summaries. `hdi()` defaults to 95% coverage and takes a `prob` argument.
+If we plot the resulting draws, we get the following long-tailed distribution:
 
-Calling the wrong kind raises rather than computing something encoding-dependent:
+```{figure} /_static/figures/inference/recommended_policy_profit.png
+:alt: Histogram of daily profit under the recommended policy, with a line marking its mean.
+:width: 90%
+```
+
+The spikes at \$720 and \$2,160 correspond to selling all 80 ice creams on a cloudy day or all 240 ice creams on a sunny day. However, once the shop sells out, higher demand cannot increase that day's profit.
+
+### What if today is sunny and hotel bookings are high?
+
+The distribution above includes all kinds of days because we have not provided any observations. Suppose today is sunny and the owner obtains a report showing that bookings at nearby hotels are high. For simplicity, we assume that the report is free and accurately identifies the booking state.
+
+Current `solution.policy` does not take into account that the owner has information about hotel bookings. To represent this, we add `bookings` as a parent of `order`:
 
 ```{code-cell} ipython3
-continuous = InfluenceDiagram()
-continuous.add_node(ChanceNode(name="x1", dist=lambda: dist.Normal(0.0, 1.0)))
-continuous.add_node(
-    ChanceNode(
-        name="x2",
-        parents=("x1",),
-        dist=lambda x1: dist.Normal(loc=2.0 + 1.5 * x1, scale=0.5),
-    )
-)
-posterior = infer(continuous, ["x1"], observed={"x2": 3.5})
-x1 = posterior["x1"]
-(round(x1.mean(), 2), tuple(round(v, 2) for v in x1.hdi()))
+from copy import deepcopy
+
+report_diagram = deepcopy(diagram)
+report_diagram.add_arc("bookings", "order")
+
+report_diagram
 ```
 
-## The engine and the Monte-Carlo contract
+If we run {py:func}`solve` again, we can see the new policy recommends an order for each combination of weather and hotel bookings:
 
-There is one engine, and it chooses how to draw:
+```{code-cell} ipython3
+report_solution = solve(report_diagram, num_samples=50_000)
+print(report_solution.render(report_diagram))
+```
 
-- **All-discrete diagrams** use exact discrete enumeration: the joint is enumerated in parallel and the draws are bincounted. The distribution is exact; the returned *draws* are a finite sample.
-- **Anything with a continuous latent** uses NUTS on the continuous variables, with the discrete sites enumerated out and resampled conditional on the continuous posterior.
+We can now use {py:func}`infer` to see the distribution of profits for a sunny day with high bookings under that policy. Demand remains unobserved:
 
-Either way, the result is a Monte-Carlo estimate delivered as draws — there is no exactness flag and no closed-form result type. If you need a smoother estimate, ask for more draws (`infer` does not expose `num_samples`; the underlying `pylimid.inference.numpyro.samples` does).
+```{code-cell} ipython3
+sunny_profit = infer(
+    report_diagram,
+    query=["profit"],
+    policy=report_solution.policy,
+    observed={"weather": 1, "bookings": 1},
+    num_samples=50_000,
+)["profit"]
+round(sunny_profit.mean(), 1)
+```
+
+The new policy recommends ordering 300 ice creams, with an estimated average profit of about \$1,436. We can also see the distribution of profits for that day:
+
+```{figure} /_static/figures/inference/sunny_policy_profit.png
+:alt: Histogram of profit on a sunny day with high hotel bookings under the policy that uses both variables, with a line marking its mean.
+:width: 90%
+```
+
+## What happens if the owner follows a different policy?
+
+Suppose the owner wants to know what would happen if the shop ordered 160 ice creams every day, regardless of the weather. We can ask {py:func}`infer` the same question about the `profit` node, but pass this fixed order (which corresponds to index `8`) as the policy:
+
+```{code-cell} ipython3
+alternative_profit = infer(
+    diagram,
+    query=["profit"],
+    policy={"order": 8},
+    num_samples=50_000,
+)["profit"]
+round(alternative_profit.mean(), 1)
+```
+
+The mean of these draws gives an estimated expected profit of about \$508, compared with \$571 under the recommended policy. We can also compare both distributions, using no observations in either case:
+
+```{figure} /_static/figures/inference/policy_comparison.png
+:alt: Histograms comparing profit under the recommended weather-based policy and a fixed order of 160 ice creams, with lines marking their means.
+:width: 90%
+```
+
+This policy orders more than the recommended 80 ice creams on cloudy days and fewer than the recommended 240 on sunny days. Its spike at \$1,440 corresponds to selling all 160 ice creams, which is the highest profit it can make in a day.
+
+## Could the shop run out of stock on a sunny day?
+
+So far, we have used {py:func}`infer` to explore profit under different policies, but we can also ask questions about other variables in the model. Suppose today is sunny and only 150 ice creams arrive from the supplier. How likely is it that demand exceeds the available stock?
+
+To answer this question, we ask for the distribution of `demand` given sunny weather. In this example, the owner has no hotel report, so bookings remain unknown:
+
+```{code-cell} ipython3
+sunny_demand = infer(
+    diagram,
+    query=["demand"],
+    observed={"weather": 1},
+    num_samples=50_000,
+)["demand"]
+round(sunny_demand.mean(), 1)
+```
+
+We do not pass a policy because, in this model, demand is not affected by what the owner orders. The estimated average demand is about 138 ice creams. Below we show the posterior distribution of `demand` given sunny weather:
+
+```{figure} /_static/figures/inference/sunny_demand.png
+:alt: Histogram of demand given sunny weather, with a line marking the available stock of 150 ice creams.
+:width: 90%
+```
+
+To estimate the probability of running out, we count how many demand draws exceed 150 and divide by the total:
+
+```{code-cell} ipython3
+stockout_probability = sum(value > 150 for value in sunny_demand.values) / len(
+    sunny_demand.values
+)
+f"{stockout_probability:.1%}"
+```

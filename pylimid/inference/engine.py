@@ -15,12 +15,14 @@ Unified inference entry-point.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Literal
 
 import jax
 
-from pylimid.graph.diagram import InfluenceDiagram
+from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.node import NodeKind
+from pylimid.inference._errors import InferenceError
 from pylimid.inference.numpyro import samples as numpyro_samples
 from pylimid.inference.numpyro.solvers import (
     backward_induction_solve,
@@ -46,52 +48,68 @@ __all__ = [
 SolveMethod = Literal["auto", "backward_induction", "scan"]
 
 
-class InferenceError(Exception):
-    """Asked for an inference method that cannot handle the given diagram."""
-
-
 def infer(
     diagram: InfluenceDiagram,
     query: list[str],
     *,
     observed: dict[str, int | float] | None = None,
-    policy: dict[str, int] | None = None,
+    policy: Mapping[str, int | dict[tuple[int, ...], int]] | None = None,
+    num_samples: int = 2000,
+    rng_key: jax.Array | None = None,
 ) -> InferenceResult:
     """
     Compute posterior marginals for *query* variables given *observed* evidence.
 
-    Bayesian networks infer directly. An influence diagram can be inferred
-    once every decision is bound by *policy*: each bound decision is clamped
-    to its chosen action and behaves like observed evidence, utilities are
-    ignored, and the diagram collapses to a Bayesian network. Binding is
-    all-or-nothing — partially bound is still ambiguous.
+    Only the query and observed nodes and their ancestors take part in
+    inference: any other node cannot change the posterior, so it is left out.
+    A decision among those ancestors must be bound by *policy*. A fixed
+    integer action clamps it, while a table policy selects an action from its
+    information-set assignment. A decision outside them needs no policy.
 
-    The NumPyro engine is the only engine: posterior draws via exact
-    discrete enumeration for all-discrete diagrams and NUTS otherwise, so
-    every result is a Monte-Carlo estimate.
+    A utility in *query* is computed from its parents in every draw, which
+    gives the distribution of the payoff under the bound actions and the
+    evidence. Utilities never affect the posterior of other variables.
+
+    The NumPyro engine is the only engine. With no observed chance node the
+    draws come from forward sampling; otherwise from exact discrete
+    enumeration when every latent variable is discrete, and NUTS when some
+    latent variable is continuous. Every result is a Monte-Carlo estimate.
 
     Args:
         diagram: A validated influence diagram.
-        query: Names of chance variables whose posteriors are requested.
-        observed: Map from node name to its observed value — an integer
-            state for a discrete variable, a real value for a continuous
-            one.
-        policy: Map from decision name to its chosen integer action. Every
-            decision in *diagram* must appear.
+        query: Names of the chance and utility nodes whose posteriors are
+            requested.
+        observed: Map from chance node name to its observed value — an
+            integer state for a discrete variable, a real value for a
+            continuous one.
+        policy: Map from decision names to fixed integer actions or contingent
+            action tables in the format returned by `solve`. A table maps each
+            tuple of parent-state indices to an action index. Every decision
+            that is an ancestor of a query or observed node must appear.
+        num_samples: Number of posterior draws per query variable. NUTS
+            runs 500 warmup steps before them.
+        rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``, so
+            repeated calls return the same estimate.
 
     Returns:
         ``{var_name: result}`` — one `Posterior` per query variable: raw
         posterior draws plus the variable's states (``None`` for
-        continuous). Each summary method is valid for exactly one kind:
-        `Posterior.marginal` bincounts a discrete posterior into its
-        probability vector, and `Posterior.mean` / `Posterior.std` /
+        continuous variables and utilities). Each summary method is valid
+        for exactly one kind: `Posterior.marginal` bincounts a discrete
+        posterior into its probability vector, and `Posterior.mean` / `Posterior.std` /
         `Posterior.hdi` summarize the draws of a continuous one —
         calling the wrong kind raises. Everything is a Monte-Carlo
         estimate.
 
     Raises:
-        InferenceError: If a decision is unbound, if *policy* names a node
-            that is not a decision, or if *query* names a non-chance node.
+        InferenceError: If a decision that influences the query or the
+            evidence is unbound, if *policy* names a node that is not a
+            decision or contains an incomplete or invalid action table, if
+            *query* names a decision, or if *observed* names a node that is
+            not a chance node.
+        KeyError: If *query* or *observed* names a node that is not in the
+            diagram.
+        ValueError: If a table policy has a continuous information-set parent.
     """
     observed = observed or {}
     policy = policy or {}
@@ -105,23 +123,38 @@ def infer(
         raise InferenceError(
             f"policy= binds decision nodes only; unknown names: {unknown}."
         )
-    unbound = [name for name in decisions if name not in policy]
-    if unbound:
-        message = (
-            f"Diagram has unbound decision nodes: {unbound}. "
-            "Specify policy={...} or call solve() first."
-        )
-        bound = [name for name in decisions if name in policy]
-        if bound:
-            message += (
-                " Currently bound: "
-                f"{', '.join(f'{name}={policy[name]}' for name in bound)}."
-            )
-        raise InferenceError(message)
 
     _validate_query(snapshot, query)
+    _validate_observed(snapshot, observed)
 
-    return _infer_numpyro(snapshot, query, {**observed, **policy})
+    relevant = _ancestors(snapshot, [*query, *observed])
+    unbound = [name for name in decisions if name in relevant and name not in policy]
+    if unbound:
+        raise InferenceError(
+            f"Diagram has unbound decision nodes: {unbound}. They influence "
+            "the query or the observed nodes, so specify policy={...} for them."
+        )
+
+    pruned = DiagramSnapshot(
+        nodes=tuple((name, node) for name, node in snapshot.nodes if name in relevant)
+    )
+    table_policy: Policy = {}
+    bound: dict[str, int] = {}
+    for name, rule in policy.items():
+        if name not in relevant:
+            continue
+        if isinstance(rule, dict):
+            table_policy[name] = rule
+        else:
+            bound[name] = rule
+    return _infer_numpyro(
+        pruned,
+        query,
+        {**observed, **bound},
+        num_samples=num_samples,
+        rng_key=rng_key,
+        policy=table_policy,
+    )
 
 
 def solve(
@@ -205,28 +238,65 @@ def solve(
 def _validate_query(snapshot, query: list[str]) -> None:
     for name in query:
         node = _find_node(snapshot, name)
+        if node.kind is NodeKind.DECISION:
+            raise InferenceError(
+                f"query= names chance and utility nodes only; {name!r} is a "
+                "decision node. Decisions are clamped by policy=, not inferred."
+            )
+
+
+def _validate_observed(snapshot, observed: dict[str, int | float]) -> None:
+    for name in observed:
+        node = _find_node(snapshot, name)
         if node.kind is not NodeKind.CHANCE:
             raise InferenceError(
-                f"query= names chance variables only; {name!r} is a "
-                f"{node.kind.value} node. Decisions are clamped by policy= "
-                f"and utilities are not random variables."
+                f"observed= names chance nodes only; {name!r} is a "
+                f"{node.kind.value} node. Bind decisions with policy=; "
+                "utilities are computed, not observed."
             )
 
 
 # -- backend ------------------------------------------------------------------
 
 
-def _infer_numpyro(snapshot, query, observed) -> InferenceResult:
+def _ancestors(snapshot: DiagramSnapshot, names: list[str]) -> set[str]:
+    """*names* together with every node upstream of them."""
+    parents = {name: node.parents for name, node in snapshot.nodes}
+    found: set[str] = set()
+    pending = list(names)
+    while pending:
+        name = pending.pop()
+        if name not in found:
+            found.add(name)
+            pending.extend(parents[name])
+    return found
+
+
+def _infer_numpyro(
+    snapshot,
+    query,
+    observed,
+    *,
+    num_samples: int,
+    rng_key: jax.Array | None,
+    policy: Policy,
+) -> InferenceResult:
     # ``samples()`` returns raw draws; ``infer()`` wraps them in a
     # Posterior, keeping the draws and the variable's states together.
     # Everything is a Monte-Carlo estimate.
-    draws = numpyro_samples(snapshot, observed=observed, query=query)
+    draws = numpyro_samples(
+        snapshot,
+        observed=observed,
+        query=query,
+        num_samples=num_samples,
+        rng_key=rng_key,
+        policy=policy,
+    )
     result: InferenceResult = {}
     for name in query:
         node = _find_node(snapshot, name)
-        result[name] = Posterior(
-            values=[float(x) for x in draws[name]], states=node.states
-        )
+        states = node.states if node.kind is NodeKind.CHANCE else None
+        result[name] = Posterior(values=[float(x) for x in draws[name]], states=states)
     return result
 
 
