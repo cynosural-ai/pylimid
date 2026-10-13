@@ -18,7 +18,7 @@ There are three kinds of nodes, and every node has a `name` and a tuple of `pare
 - {py:class}`DecisionNode` is a choice, like how many ice creams to stock. Its parents are what is known when the choice is made (i.e., its *information set*).
 - {py:class}`UtilityNode` indicates the resulting payoff, like the shop's profit. A utility node can't have children: nothing in the diagram depends on a payoff.
 
-We start with the numbers and the profit function from the quickstart:
+We start with the numbers and the `profit` function from the quickstart:
 
 ```{code-cell} ipython3
 import jax.numpy as jnp
@@ -39,7 +39,7 @@ def profit(order, demand):
 
 You don't need to fill the whole {py:class}`InfluenceDiagram` in one go. You can add a node before its parents exist, add arcs later, and fill in a node's details whenever you are ready. Nothing is checked until you ask for it, not even cycles: {py:meth}`~InfluenceDiagram.validate` reports every problem at once.
 
-For example, we can start with the decision and the profit, before describing the weather or the demand:
+For example, we can start with the `order` and `profit` nodes, before adding the `weather` or `demand` nodes:
 
 ```{code-cell} ipython3
 diagram = InfluenceDiagram()
@@ -70,7 +70,7 @@ print(diagram.to_mermaid())
 ```
 
 
-Now we add the two chance nodes. The weather node is complete, but we leave the demand node's distribution out for now:
+Now we add the two chance nodes. The `weather` node is complete, but we leave the `demand` node's distribution out for now:
 
 ```{code-cell} ipython3
 diagram.add_node(

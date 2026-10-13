@@ -78,7 +78,7 @@ A {py:class}`Solution` has three attributes:
 - `expected_utility` is the expected profit when the shop follows this policy.
 - `method` records which solver ran (more on this at the end of the page).
 
-`render` is just a friendly way of reading `policy`. Inside it, a situation is a tuple with the state index of each of the decision's parents, and the action is an index into the decision's `states`. Here `order` has a single parent, so `(0,)` means cloudy and `(1,)` means sunny. If we ever need to work with the policy directly, we can decode it ourselves with the nodes' `states`:
+`render` is just a friendly way of reading `policy`. Inside it, a situation is a tuple with the state index of each of the decision's parents, and the action is an index into the decision's `states`. Here `order` has a single parent, so `(0,)` means `"cloudy"` and `(1,)` means `"sunny"`. If we ever need to work with the policy directly, we can decode it ourselves with the nodes' `states`:
 
 ```{code-cell} ipython3
 for (weather,), action in solution.policy["order"].items():
@@ -105,9 +105,9 @@ Samples are cheaper than they look: each call compiles the model before simulati
 
 ## Are the actions the right ones?
 
-Our model recommends that, on a sunny day, we stock 200 ice creams, which is the largest order on the menu. Now, when the best action sits at the edge of the action space like this, the true best may lie beyond it.
+The model recommends an order of 200 ice creams on a sunny day, which is the largest order on the menu. Now, when the best action sits at the edge of the action space like this, the true best may lie beyond it.
 
-To check, we widen the action space up to 400 and solve again. `profit` reads `ORDERS` when it runs, so redefining `ORDERS` and the decision's `states` is enough:
+To check, we widen the action space up to 400 and solve again. The `profit` function reads `ORDERS` when it runs, so redefining `ORDERS` and the decision's `states` is enough:
 
 ```{code-cell} ipython3
 ORDERS = jnp.arange(0, 401, 20)
@@ -117,7 +117,7 @@ solution = solve(diagram, num_samples=50_000)
 print(solution.render(diagram))
 ```
 
-The best sunny-day order is now 240, so 200 was only the best option within the restricted action space we had defined. Unless the shop cannot stock more than 200, we should order 240 instead.
+The best sunny-day order is now 240, so 200 was only the best option within the restricted action space we had defined. Unless the shop cannot stock more than 200, the owner should order 240 instead.
 
 The action space also constrains us in the other direction. The solver only compares the options we list, so with a step of 20 it could never find an optimum of, let's say, 50.
 
