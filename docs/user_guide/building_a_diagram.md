@@ -18,6 +18,16 @@ There are three kinds of nodes, and every node has a `name` and a tuple of `pare
 - {py:class}`DecisionNode` is a choice, like how many ice creams to stock. Its parents are what is known when the choice is made (i.e., its *information set*).
 - {py:class}`UtilityNode` indicates the resulting payoff, like the shop's profit. A utility node can't have children: nothing in the diagram depends on a payoff.
 
+```{admonition} What a decision knows
+:class: info
+
+A decision observes exactly its declared parents. In the shop model, `weather` is a parent of `order`, so the owner knows the weather before ordering. Demand is still unknown, so `demand` is not a parent of `order`.
+
+PyLIMID does not automatically make earlier choices or observations available to later decisions. Anything a later decision should remember must also be one of its parents.
+
+Decisions choose from a finite set of actions and can only observe discrete variables.
+```
+
 We start with the numbers and the `profit` function from the quickstart:
 
 ```{code-cell} ipython3

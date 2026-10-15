@@ -94,7 +94,10 @@ The full documentation is at **<https://pylimid.readthedocs.io>**:
 
 - The [quickstart](https://pylimid.readthedocs.io/en/latest/getting_started/quickstart.html) builds and solves the example above.
 - The [user guide](https://pylimid.readthedocs.io/en/latest/user_guide/building_a_diagram.html) explains each piece in depth: chance nodes, decisions, utilities, inference, and solving.
+
+<!--
 - The [tutorials](https://pylimid.readthedocs.io/en/latest/tutorials/oil_field.html) build complete models step by step.
+-->
 
 ## Contributing
 

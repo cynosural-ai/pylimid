@@ -10,7 +10,7 @@ Once we are happy with the way our influence diagram models the decision problem
 
 This page shows how to read what it returns, how many samples we need to trust it, and how to check that the actions we offered are the right ones. It also explains how {py:func}`solve` finds the policy and when it fails.
 
-We continue with the ice cream shop from the [Building a diagram](building_a_diagram.md) page. Demand depends on the weather and bookings at nearby hotels:
+We continue with the ice cream shop from the [Building a diagram](building_a_diagram.md) page:
 
 ```{code-cell} ipython3
 import jax
@@ -59,6 +59,8 @@ diagram.add_node(
     )
 )
 diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=profit))
+
+diagram
 ```
 
 ## Reading the solution

@@ -123,5 +123,8 @@ Both the policy and the expected profit are Monte Carlo estimates, computed by s
 ## Next steps
 
 - The [user guide](../user_guide/building_a_diagram.md) explains how to build a diagram and how to solve it.
+
+<!--
 - The [tutorials](../tutorials/newsvendor.md) build complete models step by step, including a longer version of this one.
 - To compute posteriors rather than decisions, see the [Bayesian networks tutorial](../tutorials/bayesian_networks.md).
+-->

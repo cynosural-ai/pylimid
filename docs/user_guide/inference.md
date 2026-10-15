@@ -4,6 +4,17 @@ kernelspec:
   name: python3
 ---
 
+<!--
+Possible future additions to this guide:
+
+- Updating beliefs about an unknown cause from an observed outcome. For example, given sunny weather and unusually high observed demand, how likely are high hotel bookings? This would complement the current examples, which condition on known inputs and explore downstream outcomes.
+- Querying a discrete variable and reading its posterior probabilities with Posterior.marginal(), paired with the state's labels. The bookings question above could introduce this without adding another model.
+- Interpreting continuous summaries such as Posterior.std() and Posterior.hdi(). Explain that an interval describes the variability of the queried quantity, rather than the sampling error in its estimated mean, and distinguish outcome uncertainty from Monte Carlo estimation uncertainty.
+- Briefly explaining how infer() obtains its draws: forward sampling when no chance node is observed; discrete enumeration when evidence is present and all relevant latent variables are discrete; NUTS when evidence is present and a relevant latent variable is continuous. Explain num_samples and rng_key alongside the examples, and link to NumPyro for MCMC background. The current infer() result does not expose sampler diagnostics.
+
+A small scalar-prior example could also show how an observation updates an uncertain model parameter. A full learning-from-data guide can wait for supported workflows for repeated observations and carrying posterior uncertainty into solve().
+-->
+
 # Inference
 
 Finding the optimal solution to a decision problem is great, but PyLIMID's capabilities do not stop there. Following the ice cream shop example, the owner may have questions beyond how much to order. For instance:
