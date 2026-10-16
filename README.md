@@ -1,4 +1,6 @@
-# PyLIMID
+<p align="center">
+  <img src="docs/_static/branding/pylimid-readme.svg" alt="PyLIMID" width="560">
+</p>
 
 [![PyPI](https://img.shields.io/pypi/v/pylimid.svg)](https://pypi.org/project/pylimid/)
 [![Documentation](https://readthedocs.org/projects/pylimid/badge/?version=latest)](https://pylimid.readthedocs.io/en/latest/)

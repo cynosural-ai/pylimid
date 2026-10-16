@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="240" viewBox="0 0 840 240" role="img" aria-labelledby="title desc">
+  <title id="title">PyLIMID</title>
+  <desc id="desc">A pale blue rounded square with a circular opening and a white diamond aligned to its right edge, beside the PyLIMID name.</desc>
+  <rect width="840" height="240" fill="#0A1F3D" />
+  <g transform="translate(120.000000 -9.230769) scale(1.538462)">
+    <g transform="translate(4 20)">
+      <defs>
+        <mask id="flush-wordmark-dark-opening" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128">
+          <rect width="128" height="128" fill="white" />
+          <circle cx="64" cy="64" r="30" fill="black" />
+        </mask>
+      </defs>
+      <rect x="12" y="12" width="104" height="104" rx="18" fill="#A9C6E2" mask="url(#flush-wordmark-dark-opening)" />
+      <path d="M92 40L116 64L92 88L68 64Z" fill="#FFFFFF" />
+    </g>
+    <g role="img" aria-label="PyLIMID" fill="#FFFFFF">
+      <path transform="translate(147.000 101.000) scale(0.065000 -0.065000)" d="M78.75 700V0H180.625V700ZM137.625 608.125H279.375Q344 608.125 383.8125 577.5625Q423.625 547 423.625 486.25Q423.625 426.375 383.8125 395.375Q344 364.375 279.375 364.375H137.625V272.5H279.375Q351.75 272.5 406.625 298.4375Q461.5 324.375 492.875 372.6875Q524.25 421 524.25 486.25Q524.25 552.5 492.875 600.3125Q461.5 648.125 406.625 674.0625Q351.75 700 279.375 700H137.625Z" />
+      <path transform="translate(183.695 101.000) scale(0.065000 -0.065000)" d="M458.125 460H355L212 101.625L254 98.125L107.5 460H-1.875L178.75 59.375L55.625 -220H158.125Z" />
+      <path transform="translate(213.435 101.000) scale(0.065000 -0.065000)" d="M78.75 700V0H456.875V93.125H180.625V700Z" />
+      <path transform="translate(243.825 101.000) scale(0.065000 -0.065000)" d="M78.75 700V0H181.25V700Z" />
+      <path transform="translate(260.825 101.000) scale(0.065000 -0.065000)" d="M192.5 449.625 413.125 65 633.75 449.625 683.75 0H787.5L696.875 735L413.125 244.125L129.375 735L38.75 0H142.5Z" />
+      <path transform="translate(314.615 101.000) scale(0.065000 -0.065000)" d="M78.75 700V0H181.25V700Z" />
+      <path transform="translate(331.615 101.000) scale(0.065000 -0.065000)" d="M78.75 700V0H181.75V700ZM296.875 0Q401.375 0 481.4375 43.75Q561.5 87.5 606.6875 166.0Q651.875 244.5 651.875 350Q651.875 455.625 606.6875 534.0625Q561.5 612.5 481.4375 656.25Q401.375 700 296.875 700H138.875V601.875H295.625Q350.875 601.875 397.5 585.0625Q444.125 568.25 477.875 536.0625Q511.625 503.875 530.1875 457.0Q548.75 410.125 548.75 350Q548.75 289.875 530.1875 243.0Q511.625 196.125 477.875 163.9375Q444.125 131.75 397.5 114.9375Q350.875 98.125 295.625 98.125H138.875V0Z" />
+    </g>
+  </g>
+</svg>

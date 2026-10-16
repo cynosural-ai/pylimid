@@ -105,7 +105,10 @@ html_theme = "sphinx_rtd_theme"
 html_theme_options = {
     "collapse_navigation": False,
     "navigation_depth": 3,
+    "logo_only": True,
+    "style_nav_header_background": "#0A1F3D",
 }
+html_logo = "_static/branding/pylimid-readthedocs.svg"
 html_static_path = ["_static"]
 # Center the figure directive's images (docutils' default is left-aligned) and
 # the images embedded in executed notebook outputs.
