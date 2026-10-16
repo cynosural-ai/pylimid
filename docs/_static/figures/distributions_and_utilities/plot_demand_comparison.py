@@ -1,7 +1,7 @@
-"""Plot the demand assumptions from the Distributions and utilities guide.
+"""
+Plot the demand assumptions from the Distributions and utilities guide.
 
-Run from the repository root with
-``uv run python docs/_static/figures/distributions_and_utilities/plot_demand_comparison.py``.
+Run with ``uv run python plot_demand_comparison.py`` from this directory.
 The parameters must match ``docs/user_guide/distributions_and_utilities.md``.
 """
 
