@@ -64,15 +64,19 @@ def solve(
     """
     Solve *snapshot* by the batched intervention scan.
 
-    Enumerates the discrete policy space, estimates expected utility for
-    every policy in one vmapped forward pass, and keeps the best policy.
-    With the same *rng_key* and *num_samples*, returns the same policy as
-    ``intervention_scan.solve``; the expected utility matches to float
-    rounding.
+    Enumerates every policy, estimates its expected total utility by forward sampling,
+    and selects the highest estimate. All policies are evaluated together with JAX. This
+    is the scan used by ``pylimid.solve(method="scan")``; `scan_solve` evaluates the
+    same policies individually. Their estimates agree up to floating-point rounding for
+    the same ``rng_key`` and ``num_samples``.
+
+    For most uses, call `pylimid.solve`, which validates the diagram and selects a
+    solver. Chance distributions and utility functions must be JAX-traceable. The number
+    of policies grows exponentially with the number of action-table entries.
 
     Args:
-        snapshot: A validated influence-diagram snapshot with at least one
-            decision.
+        snapshot: A validated snapshot from `InfluenceDiagram.snapshot`, with discrete
+            decisions and information sets.
         num_samples: Forward samples per candidate policy.
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``.
 

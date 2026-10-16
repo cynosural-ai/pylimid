@@ -15,7 +15,7 @@ from pylimid.graph.diagram import InfluenceDiagram
 __all__ = ["Policy", "Solution", "SolverName"]
 
 
-#: Optimal policy: decision name -> {information-set assignment: chosen action}.
+#: Policy tables: decision name -> {parent-state indices: action index}.
 Policy: TypeAlias = dict[str, dict[tuple[int, ...], int]]
 
 #: The solver that produced a `Solution`.
@@ -28,8 +28,10 @@ class Solution:
     Result of solving an influence diagram.
 
     Attributes:
-        policy: Per-decision optimal action for every instantiation of the
-            decision's information set.
+        policy: One action table per decision. Keys are tuples of parent-state indices
+            in the decision's ``parents`` order; values are action indices in its
+            ``states``. A decision with no parents uses the key ``()``. Actions maximise
+            estimated expected utility.
         expected_utility: Monte-Carlo estimate of the expected total
             utility under *policy*.
         method: The solver that produced the solution. ``"scan"`` evaluated
@@ -47,7 +49,8 @@ class Solution:
         """
         Render the policy with state labels instead of indices.
 
-        One block per decision: a header naming the decision and its parents
+        The first line shows the estimated expected utility and the solver used. It is
+        followed by one block per decision: a header naming the decision and its parents
         in information-set order, then one line per situation reading the
         chosen action's label. A decision with no parents has the single
         situation ``always``.

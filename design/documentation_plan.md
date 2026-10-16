@@ -16,8 +16,8 @@ The docs are being reviewed by hand, top-down, one page at a time, because the f
 | Quickstart | Reviewed. The ice cream shop (newsvendor) problem. |
 | User guide | The five core guides are relatively stable and included in the build, in the order below. Reviewed together for information flow, voice and verb tenses; remaining content decisions are listed under Open items. |
 | Tutorials | Not reviewed yet. Navigation and entry-point links are commented out, and `docs/tutorials/` is excluded from the build until review. |
-| Resources | Common pitfalls is included in the build for review, with table-indexing and parent-effect examples. |
-| API reference | Not reviewed yet. Generated from docstrings with autosummary. |
+| Resources | Common pitfalls reviewed for flow and accuracy, with standalone table-indexing and parent-effect examples. |
+| API reference | Reviewed against the implementation. Generated from docstrings with autosummary; clarifies validation limits, state and policy encoding, result summaries and solver selection. |
 
 ## Site structure
 

@@ -31,8 +31,8 @@ class DiagramProblemKind(Enum):
             parents.
         UTILITY_NOT_SINK: A utility node has acquired a child — a payoff must
             be terminal.
-        DIST_IGNORES_PARENT: A node's callable returns the same output for
-            every value of a discrete parent — found by
+        DIST_IGNORES_PARENT: A node's callable returns the same output for every state
+            of a discrete parent, with other parents fixed at zero. Found by
             `InfluenceDiagram.probe_discrete_parents`, a warning rather than
             an error.
     """
@@ -50,8 +50,9 @@ class DiagramProblem:
     """
     A single issue found by a diagram check.
 
-    Carries enough structure for a UI or LLM to render or act on the problem
-    without parsing prose.
+    Returned by `InfluenceDiagram.validate` or
+    `InfluenceDiagram.probe_discrete_parents`. The latter returns warnings about parent
+    effects, which do not block inference.
 
     Attributes:
         kind: The category of the problem.

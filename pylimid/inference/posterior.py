@@ -18,22 +18,21 @@ __all__ = ["InferenceResult", "Posterior"]
 @dataclass(frozen=True)
 class Posterior:
     """
-    Posterior over a query variable: raw draws plus its state labels.
+    Posterior draws and state labels for one query variable.
 
-    A Monte-Carlo estimate: one posterior draw per entry, produced by the
-    NumPyro engine (discrete enumeration or NUTS). Draws are the universal
-    representation — a discrete variable's draws are state indices, a
-    continuous variable's are real values. Summary methods derive from the
-    draws, and every method is valid for exactly one variable kind: a
-    discrete posterior's `marginal` bincounts the states into a
-    probability vector, and a continuous posterior's `mean` / `std` /
-    `hdi` summarize the draws. Each method raises on the other kind rather than
-    silently computing something encoding-dependent.
+    Returned by `infer`. For a discrete variable, the draws are state indices stored as
+    floats; for a continuous variable or a utility, they are numerical values. All
+    summaries are Monte Carlo estimates.
+
+    Use `marginal` for discrete probabilities, and `mean`, `std` or `hdi` for continuous
+    variables and utilities. Each method raises ``ValueError`` when used with the other
+    kind.
 
     Attributes:
-        values: One posterior draw per entry.
-        states: State labels for a discrete variable; ``None`` for a
-            continuous one.
+        values: One scalar posterior draw per entry. Posteriors returned by the same
+            `infer` call share the same draw order.
+        states: State labels for a discrete variable; ``None`` for a continuous variable
+            or a utility.
     """
 
     values: list[float]
@@ -46,10 +45,10 @@ class Posterior:
 
     def marginal(self) -> list[float]:
         """
-        The discrete probability vector over the states (bincounted draws).
+        Estimate the discrete probability of each state from the draws.
 
         Returns:
-            ``[P(0), P(1), ...]`` — sums to 1.
+            Probabilities in ``states`` order, summing to 1.
 
         Raises:
             ValueError: If the variable is continuous (``states`` is ``None``):
@@ -66,6 +65,9 @@ class Posterior:
         """
         The mean of the posterior draws.
 
+        Returns:
+            The estimated mean of the continuous variable or utility.
+
         Raises:
             ValueError: If the variable is discrete (``states`` set): the
                 mean of state indices depends on their encoding; use
@@ -77,6 +79,9 @@ class Posterior:
     def std(self) -> float:
         """
         The population standard deviation of the posterior draws.
+
+        Returns:
+            The estimated spread of the continuous variable or utility.
 
         Raises:
             ValueError: If the variable is discrete (``states`` set).

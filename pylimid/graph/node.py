@@ -51,12 +51,7 @@ from typing import Any
 
 class NodeKind(Enum):
     """
-    Category of a node — the structural tag inference / solve dispatch reads.
-
-    A diagram's node kinds decide what can be asked of it. A pure
-    chance-node diagram is a Bayesian network, queried with `infer`; the
-    moment a decision or utility node appears, it becomes an influence
-    diagram, solved with `solve`.
+    Category of a node in an influence diagram.
 
     Attributes:
         CHANCE: A random variable — ``P(name | parents)``.
@@ -80,9 +75,9 @@ class Consistency(Enum):
         STALE: The configurable field is set but its signature does not match
             ``parents`` — typically because a parent was added or removed since
             it was last configured.
-        CONSISTENT: The configurable field is set and accepts ``parents`` as
-            keyword arguments — the node is ready to be translated / inferred /
-            solved.
+        CONSISTENT: The required field is set. For chance and utility nodes, its
+            callable accepts the declared parents as named keyword arguments. This does
+            not check numerical behaviour or the rest of the diagram.
     """
 
     UNCONFIGURED = "unconfigured"
@@ -95,20 +90,19 @@ class Node:
     """
     Base class for every node in an influence diagram.
 
-    Owns the shared mutable-node contract: a ``name`` and a ``parents`` tuple,
-    field-level validation on every assignment, and the UNCONFIGURED / STALE /
-    CONSISTENT consistency gate that inference consumes.
+    Construct a `ChanceNode`, `DecisionNode` or `UtilityNode` to add to a diagram. This
+    base class supplies the shared fields and checks, and is available for type hints
+    and ``isinstance`` checks.
 
-    This class is **internal**: users construct one of its subclasses
-    (`ChanceNode`, `DecisionNode`, `UtilityNode`) rather than a bare
-    `Node`. It is exported only so it can be referenced in type hints and
-    ``isinstance`` checks.
+    Basic field checks run when fields are set. The relationship between parents and the
+    node's distribution or utility function is checked separately through `consistency`
+    or `validate`.
 
     Attributes:
         name: Identifier for the node.
         parents: Names of the nodes this one relates to. Empty for a root
-            node. May be edited after construction. Semantics depend on the
-            node kind — see the module docstring.
+            node. May be edited after construction. These are dependencies for chance
+            and utility nodes, and observations available to a decision node.
     """
 
     name: str
@@ -139,15 +133,23 @@ class Node:
         """
         Append ``name`` to parents if it is not already present.
 
-        Going through the ``parents`` setter ensures the same validation runs
-        as on construction.
+        Args:
+            name: Name of the parent to add.
+
+        Raises:
+            ValueError: If ``name`` is empty or names the node itself.
         """
         if name in self.parents:
             return
         self.parents = (*self.parents, name)
 
     def remove_parent(self, name: str) -> None:
-        """Remove ``name`` from parents; no-op if absent."""
+        """
+        Remove ``name`` from parents; no-op if absent.
+
+        Args:
+            name: Name of the parent to remove.
+        """
         self.parents = tuple(p for p in self.parents if p != name)
 
     # --- kind / structure ---------------------------------------------------
@@ -171,8 +173,7 @@ class Node:
 
         ``False`` for chance and decision nodes. Utility nodes override to
         ``True`` — a payoff is terminal in an influence diagram.
-        `InfluenceDiagram.validate` reads this to report a sink with a
-        child, rather than branching on node type.
+        `InfluenceDiagram.validate` reports a problem if a utility has children.
         """
         return False
 
@@ -194,10 +195,8 @@ class Node:
         """
         The current ``parents`` / configurable-field consistency state.
 
-        Computed on demand from the live field values, never stored, so it
-        always reflects the latest edits. Delegates to
-        ``_compute_consistency``, which each subclass implements against
-        its own configurable field.
+        Computed from the current fields, so it reflects the latest edits. See
+        `Consistency` for the possible states.
         """
         return self._compute_consistency()
 
@@ -209,11 +208,13 @@ class Node:
 
     def consistency_message(self, state: Consistency) -> str:
         """
-        Human-facing explanation of a non-CONSISTENT ``state``.
+        Describe a node's configuration problem.
 
-        Returned for `DiagramProblem` messages and `validate` errors. Keeping
-        the wording on the node (rather than the diagram) means each node type
-        owns the description of its own configurable field.
+        Args:
+            state: A non-consistent state supported by the node type.
+
+        Returns:
+            A message used by `DiagramProblem` and `Node.validate`.
         """
         raise NotImplementedError(
             f"{type(self).__name__} must declare `consistency_message`."
@@ -221,11 +222,14 @@ class Node:
 
     def validate(self) -> None:
         """
-        Raise ``ValueError`` unless the node is CONSISTENT.
+        Check that the node's required fields and callable signature are configured.
 
-        This is the gate inference consumes. Editing never calls it
-        automatically — an inconsistent node is a legitimate intermediate
-        state while a UI or LLM is building the diagram.
+        This checks the node alone. Use `InfluenceDiagram.validate` to check missing
+        parents, cycles and utility nodes with children. Neither check evaluates
+        distribution or utility functions.
+
+        Raises:
+            ValueError: If the node is ``UNCONFIGURED`` or ``STALE``.
         """
         state = self.consistency
         if state is Consistency.CONSISTENT:

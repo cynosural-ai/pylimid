@@ -87,11 +87,11 @@ def _freeze(value):
 @dataclass(frozen=True)
 class DiagramSnapshot:
     """
-    A point-in-time, validated view of a diagram — what inference consumes.
+    A diagram's nodes in topological order, as used by inference and solvers.
 
-    Produced by `InfluenceDiagram.snapshot` only after validation passes.
-    It holds references to the (still mutable) nodes, so it is a *logical*
-    snapshot: editing the diagram after taking a snapshot invalidates it.
+    Obtain a validated snapshot with `InfluenceDiagram.snapshot`. The snapshot holds
+    references to the original nodes, rather than copies. Take a new snapshot after
+    editing the diagram or its nodes.
 
     Attributes:
         nodes: ``(name, node)`` pairs in topological order.
@@ -107,16 +107,16 @@ class DiagramSnapshot:
 
 class InfluenceDiagram:
     """
-    A mutable directed acyclic graph of nodes representing an influence diagram.
+    A mutable workspace for building an influence diagram.
 
     Currently supports chance, decision, and utility nodes. A Bayesian network
     is simply an `InfluenceDiagram` containing only chance nodes; the
     moment a decision or utility node is added it becomes an influence diagram.
 
-    Nodes are registered by name. Unlike a build-once container, a node may be
-    added before its parents exist, arcs may be wired and unwired freely, and
-    distributions may be set at any time. `validate` is the checkpoint
-    that decides whether the current state is sound enough to infer on.
+    Nodes are registered by name. A node may be added before its parents exist, and
+    distributions and utility functions may be configured later. `validate` checks the
+    diagram's structure and configuration. `infer` and `solve` run this check
+    automatically before using the diagram.
     """
 
     def __init__(self) -> None:
@@ -145,11 +145,15 @@ class InfluenceDiagram:
 
     def remove_node(self, name: str) -> Node:
         """
-        Remove ``name`` from the diagram and scrub it from every survivor's parents.
+        Remove a node and its references from the remaining nodes' parents.
 
-        Removing a node that other nodes still reference as a parent cleans
-        those references up (via each survivor's ``remove_parent``), so no
-        dangling reference to the removed name is left behind.
+        Functions on the affected nodes may need updating to match their new parents.
+
+        Args:
+            name: Name of the node to remove.
+
+        Returns:
+            The removed node.
 
         Raises:
             KeyError: If ``name`` is not in the diagram.
@@ -166,16 +170,17 @@ class InfluenceDiagram:
         """
         Wire an arc ``parent -> child``.
 
-        The child must be in the diagram, since the arc is stored on it. The
-        parent need not be: like a parent declared in `add_node`, it is a
-        dangling reference until that node is added. The child's parent set is
-        updated through its own ``add_parent``, so the child's field
-        validation runs, and its ``dist`` / ``values`` may become stale as a
-        result, which is expected.
+        The child must already be in the diagram. The parent may be added later. Adding
+        a parent may require updating the child's distribution or utility function to
+        accept it.
 
         Structural problems (a cycle, a utility node with a child) are not
         rejected here; `validate` reports them, as it does for arcs declared
-        in `add_node`. Idempotent: a duplicate arc is a no-op.
+        in `add_node`. Adding an existing arc has no effect.
+
+        Args:
+            parent: Name of the parent node.
+            child: Name of the child node.
 
         Raises:
             KeyError: If the child is not in the diagram.
@@ -189,8 +194,12 @@ class InfluenceDiagram:
         """
         Remove the arc ``parent -> child`` if present; no-op otherwise.
 
-        Going through the child's ``remove_parent`` keeps its parent set and
-        the (derived) adjacency consistent.
+        Removing a parent may require updating the child's distribution or utility
+        function. A missing child or arc has no effect.
+
+        Args:
+            parent: Name of the parent node.
+            child: Name of the child node.
         """
         if child in self._nodes and parent in self._nodes[child].parents:
             self._nodes[child].remove_parent(parent)
@@ -199,12 +208,18 @@ class InfluenceDiagram:
 
     def set_dist(self, name: str, dist: DistFactory | None) -> None:
         """
-        Set the distribution factory on chance node ``name`` (field-validated).
+        Set the distribution function on a chance node.
+
+        Args:
+            name: Name of the chance node.
+            dist: Callable returning a NumPyro distribution from parent values, or
+                ``None`` to leave the node unconfigured.
 
         Raises:
-            TypeError: If ``name`` is not a chance node. Decision nodes carry
-                an action ``states`` instead, and utility nodes a ``values``
-                function — set those directly on the node.
+            KeyError: If ``name`` is not in the diagram.
+            TypeError: If the node is not a chance node, or ``dist`` is neither callable
+                nor ``None``. Set a decision's ``states`` or a utility's ``values``
+                directly on that node.
         """
         node = self._nodes[name]
         if not isinstance(node, ChanceNode):
@@ -220,8 +235,11 @@ class InfluenceDiagram:
         """
         Return node names in a topological order (parents before children).
 
-        Uses Kahn's algorithm over arcs between *existing* nodes; dangling
-        parent references are ignored for ordering.
+        Missing parent references are ignored for ordering; `validate` reports them
+        separately.
+
+        Returns:
+            Node names with parents before children.
 
         Raises:
             ValueError: If the diagram contains a cycle.
@@ -278,11 +296,31 @@ class InfluenceDiagram:
         return tuple(reversed(path[position[current] :]))
 
     def parents_of(self, name: str) -> tuple[str, ...]:
-        """Return the declared parents of ``name``."""
+        """
+        Return the declared parents of a node.
+
+        Args:
+            name: Name of the node.
+
+        Returns:
+            Parent names in their declared order, including any missing from the
+            diagram.
+
+        Raises:
+            KeyError: If ``name`` is not in the diagram.
+        """
         return self._nodes[name].parents
 
     def children_of(self, name: str) -> tuple[str, ...]:
-        """Return names of nodes that list ``name`` as a parent."""
+        """
+        Return the nodes that list a name as a parent.
+
+        Args:
+            name: Parent name to look up. It need not be in the diagram.
+
+        Returns:
+            Child names in insertion order, or an empty tuple if none refer to ``name``.
+        """
         return tuple(
             other_name
             for other_name, other in self._nodes.items()
@@ -316,12 +354,18 @@ class InfluenceDiagram:
 
     def validate(self) -> list[DiagramProblem]:
         """
-        Collect every problem that would block inference.
+        Check the diagram's structure and node configuration.
 
-        Returns an empty list for a diagram that is sound to infer on:
-        no dangling parent references, no cycles, and every node
-        `Consistency.CONSISTENT`. The list is preferred over raising
-        on the first problem so a UI or LLM can surface all issues at once.
+        Checks for missing parents, cycles, unconfigured nodes, callable signatures that
+        do not match their parents, and utility nodes with children. It does not
+        evaluate distribution or utility functions, check their numerical outputs or
+        test whether the diagram is solvable by backward induction.
+
+        `infer` and `solve` run this check automatically. Use `probe_discrete_parents`
+        separately to look for parents whose effects may be missing.
+
+        Returns:
+            The detected problems, or an empty list if these checks pass.
         """
         problems: list[DiagramProblem] = []
 
@@ -392,29 +436,25 @@ class InfluenceDiagram:
 
     def probe_discrete_parents(self) -> list[DiagramProblem]:
         """
-        Check that every node's callable actually uses each discrete parent.
+        Look for discrete parents that have no effect at the tested inputs.
 
-        For every chance or utility node, each discrete parent is varied
-        across its states (the other parents held fixed) and the node's
-        callable is evaluated per value. When the returned distribution
-        never changes as a parent changes, the callable does not use that
-        parent — the classic silent mistake, e.g. a probability table with
-        fewer rows than the parent has states, where JAX indexing silently
-        clamps out-of-range values back to the last row.
+        For each configured chance or utility function, vary each discrete parent across
+        its state indices while setting all other parents to zero, including continuous
+        parents. Compare the returned distribution parameters or scalar utility values.
+        This can expose mistakes such as a lookup table with only one row for a parent
+        with several states.
 
-        Unlike `validate`, this executes the node callables (arbitrary
-        user code), so it is an explicit, opt-in check — never run
-        automatically by `snapshot`. Continuous parents (no declared
-        ``states``) are skipped: there is nothing to enumerate.
+        The check executes the functions and propagates any errors they raise. It runs
+        only when called, never automatically through `validate` or `snapshot`.
+        Continuous parents are not varied.
 
-        A finding is a warning, not an error: a deliberately independent
-        node (its callable genuinely ignores a parent) looks identical and
-        is a legitimate model. The check cannot detect callables that use
-        the parent but map it to wrong values.
+        Findings are warnings for inspection and do not block inference. A parent may be
+        intentionally ignored or have an effect only at other inputs. The check does not
+        establish that the model's numerical values are correct.
 
         Returns:
-            One `DiagramProblem` per (node, discrete parent) pair
-            whose callable output is insensitive to the parent.
+            One `DiagramProblem` per node and discrete parent whose output is unchanged
+            at the tested inputs. Unconfigured functions are skipped.
         """
         problems: list[DiagramProblem] = []
         for name, node in self._nodes.items():
@@ -457,6 +497,10 @@ class InfluenceDiagram:
     def snapshot(self) -> DiagramSnapshot:
         """
         Return a validated, point-in-time `DiagramSnapshot` of the diagram.
+
+        Returns:
+            A topologically ordered view that shares the diagram's node objects. Take a
+            new snapshot after editing the diagram or its nodes.
 
         Raises:
             ValueError: If `validate` reports any problem, with the
@@ -503,11 +547,9 @@ class InfluenceDiagram:
         """
         Render the diagram as a Mermaid ``flowchart`` source string.
 
-        Deterministic (topological node order, declared parent order for
-        arcs) and usable on the live workspace: no validation required, so
-        an incomplete diagram renders with dangling parents as dashed ghost
-        nodes and non-consistent nodes tinted via ``classDef``. See
-        ``pylimid.graph.render.mermaid``.
+        No validation is required. Missing parents appear as dashed placeholders, and
+        unconfigured or stale nodes are highlighted. Nodes appear in topological order,
+        falling back to insertion order if the diagram contains a cycle.
 
         Returns:
             Mermaid flowchart source; paste into a Mermaid renderer to view.
@@ -518,9 +560,9 @@ class InfluenceDiagram:
         """
         Render the diagram as an SVG string with Graphviz.
 
-        Shells out to the Graphviz ``dot`` binary, which must be on ``PATH``.
-        In Jupyter the diagram renders itself through this method; see
-        ``pylimid.graph.render.graphviz``.
+        Requires the Graphviz ``dot`` program on ``PATH``. No validation is required, so
+        incomplete diagrams can also be drawn. In Jupyter, displaying the diagram uses
+        this rendering automatically when ``dot`` is available.
 
         Returns:
             SVG source.

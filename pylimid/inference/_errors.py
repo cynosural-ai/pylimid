@@ -2,4 +2,4 @@
 
 
 class InferenceError(Exception):
-    """An inference request cannot be handled by the given diagram or policy."""
+    """An inference or solving request fails for the given diagram or policy."""

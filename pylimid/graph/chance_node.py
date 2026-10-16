@@ -30,11 +30,14 @@ class ChanceNode(Node):
     """
     A random variable in an influence diagram: ``P(name | parents)``.
 
-    The node is mutable. Field-level validation runs on every assignment
-    (including during construction), so a bad value is rejected at the moment
-    it is set rather than later. Cross-field consistency (``dist`` signature
-    vs ``parents``) is *not* enforced on assignment — it is queryable via
-    `consistency` and gated via `validate`.
+    The node is mutable. Basic field checks, such as whether ``dist`` is callable and
+    ``states`` contains unique labels, run when fields are set. The relationship between
+    ``dist`` and ``parents`` is checked separately through `Node.consistency` or
+    `InfluenceDiagram.validate`.
+
+    The distribution function receives parent values as keyword arguments. Discrete
+    parents pass integer state indices; continuous parents pass their numerical values.
+    The function must be JAX-traceable and return a NumPyro distribution.
 
     Attributes:
         name: Identifier for the node.
@@ -43,9 +46,9 @@ class ChanceNode(Node):
         dist: Callable invoked as ``dist(**parent_values)`` returning the
             node's distribution. ``None`` (the default) marks the node as
             not-yet-configured.
-        states: Human-facing labels for a discrete node's outcomes. ``None``
-            marks the node as continuous. Values flowing through the graph are
-            integer indices into this tuple.
+        states: Unique, non-empty labels for a discrete node's outcomes. The
+            distribution must produce integer indices into this tuple. ``None`` marks
+            the node as continuous.
     """
 
     dist: DistFactory | None = field(default=None, kw_only=True)
@@ -81,7 +84,15 @@ class ChanceNode(Node):
         return Consistency.STALE
 
     def consistency_message(self, state: Consistency) -> str:
-        """Chance-node wording for a non-CONSISTENT state (see base)."""
+        """
+        Describe a missing distribution or a mismatch with the parents.
+
+        Args:
+            state: The node's ``UNCONFIGURED`` or ``STALE`` consistency state.
+
+        Returns:
+            A description of the configuration problem.
+        """
         if state is Consistency.UNCONFIGURED:
             return f"Node {self.name!r} has no `dist` configured yet."
         # STALE is the only remaining non-CONSISTENT state.
