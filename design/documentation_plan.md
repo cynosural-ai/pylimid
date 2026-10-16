@@ -138,6 +138,12 @@ These conventions came out of reviewing the home, installation and quickstart pa
 - `docs/conf.py` sets `JAX_PLATFORMS=cpu` and a `PYTHONWARNINGS` filter for tqdm's "IProgress not found" warning, so executed cells stay free of environment noise.
 - Build with `uv run sphinx-build -W docs docs/_build/html`. `nb_execution_mode = "cache"` re-runs only pages whose code changed; a clean build re-runs every included page. Tutorials remain excluded until reviewed.
 
+## Visual identity
+
+The logo uses the approved Flush mark: a pale blue rounded square, a centered circular opening and a white utility diamond whose right tip aligns with the square's edge. The wordmark is **PyLIMID**, set in Jost. The palette follows Cynosural: midnight blue ``#0A1F3D``, pale blue ``#A9C6E2`` and white. Lettering is converted to paths, so the SVGs do not need an installed font or an external resource.
+
+The assets live in `docs/_static/branding/`. `pylimid-readthedocs.svg` is a compact transparent horizontal logo for the sidebar above the navigation; `docs/conf.py` sets `html_logo`, hides the duplicate project text with `logo_only` and uses the matching navy header background. `pylimid-readme.svg` is a wider logo on a navy background, so the README displays the same colors in GitHub's light and dark themes. SVGs are the display sources.
+
 ## Publishing
 
 - Read the Docs builds the `latest` version from `main` on every push, and the site's root redirects to `latest`. Docs-only changes therefore need no release.
