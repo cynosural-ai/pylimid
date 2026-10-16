@@ -137,7 +137,7 @@ report_solution = solve(report_diagram, num_samples=50_000)
 print(report_solution.render(report_diagram))
 ```
 
-We can now use {py:func}`infer` to see the distribution of profits for a sunny day with high bookings under that policy. Demand remains unobserved:
+We can now use {py:func}`infer` to see the distribution of profits for a sunny day with high bookings under that policy. The `observed` argument records these observations using state indices: `1` for sunny weather and `1` for high bookings. Demand remains unobserved:
 
 ```{code-cell} ipython3
 sunny_profit = infer(
@@ -159,7 +159,7 @@ The new policy recommends ordering 300 ice creams, with an estimated average pro
 
 ## What happens if the owner follows a different policy?
 
-Suppose the owner wants to know what would happen if the shop ordered 160 ice creams every day, regardless of the weather. We can ask {py:func}`infer` the same question about the `profit` node, but pass this fixed order (which corresponds to index `8`) as the policy:
+We return to the original diagram. Suppose the owner wants to know what would happen if the shop ordered 160 ice creams every day, regardless of the weather. We can ask {py:func}`infer` the same question about the `profit` node, but pass this fixed order (which corresponds to index `8`) as the policy:
 
 ```{code-cell} ipython3
 alternative_profit = infer(

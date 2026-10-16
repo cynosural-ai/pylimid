@@ -8,7 +8,7 @@ kernelspec:
 
 So far, the shop's owner has faced a single choice: how many ice creams to order. Now, suppose the owner is considering a daily promotion that costs \$80 but is expected to increase average demand by 20%. However, it must be announced the evening before, when the next day's weather is still uncertain.
 
-There are now two decisions. First, the owner must choose whether to run the promotion or not. Then, in the morning (when the weather forecast is known), the owner must decide how much stock to order.
+There are now two decisions. First, the owner must choose whether to run the promotion or not. Then, in the morning (when the weather is known), the owner must decide how much stock to order.
 
 This page shows how to represent those choices, read their policies and explore the resulting profits. We keep the weather, bookings and Gamma demand from the previous pages, with the wider order menu from the [Solving](solving.md) guide. Bookings remain unknown at both decisions.
 
@@ -110,7 +110,7 @@ The order policy also contains rows for a skipped promotion because backward ind
 
 ## Why memory must be explicit
 
-Suppose we remove `promotion` from `order` parents:
+Suppose we remove `promotion` from the parents of `order`:
 
 ```{code-cell} ipython3
 forgetful_diagram = deepcopy(diagram)

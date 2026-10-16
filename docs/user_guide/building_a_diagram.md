@@ -47,7 +47,12 @@ def profit(order, demand):
 
 ## Building in any order
 
-You don't need to fill the whole {py:class}`InfluenceDiagram` in one go. You can add a node before its parents exist, add arcs later, and fill in a node's details whenever you are ready. Nothing is checked until you ask for it, not even cycles: {py:meth}`~InfluenceDiagram.validate` reports every problem at once.
+We don't need to fill the whole {py:class}`InfluenceDiagram` in one go. We can add a node before its parents exist, add arcs later, and fill in a node's details as we go.
+
+However, some invalid values still raise an error immediately. PyLIMID checks different kinds of problems at different times:
+
+- When we create or edit a node, PyLIMID rejects invalid values such as an empty name or repeated state labels.
+- When we call {py:meth}`~InfluenceDiagram.validate`, PyLIMID checks the whole diagram for missing parents, cycles, unconfigured nodes and functions whose arguments don't match their parents.
 
 For example, we can start with the `order` and `profit` nodes, before adding the `weather` or `demand` nodes:
 
@@ -61,7 +66,7 @@ diagram.add_node(
 diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=profit))
 ```
 
-The diagram can be drawn at any point, even unfinished. In Jupyter, a diagram on the last line of a cell draws itself with [Graphviz](https://graphviz.org/download/), which needs the `dot` program installed on your system ({py:meth}`~InfluenceDiagram.to_svg` returns the same picture as SVG):
+We can draw the diagram at any point, even unfinished. In Jupyter, a diagram on the last line of a cell draws itself with [Graphviz](https://graphviz.org/download/), which needs the `dot` program installed on the system ({py:meth}`~InfluenceDiagram.to_svg` returns the same picture as SVG):
 
 ```{code-cell} ipython3
 diagram
@@ -79,7 +84,6 @@ Chance nodes are circles, decision nodes are rectangles, and utility nodes are d
 print(diagram.to_mermaid())
 ```
 
-
 Now we add the two chance nodes. The `weather` node is complete, but we leave the `demand` node's distribution out for now:
 
 ```{code-cell} ipython3
@@ -95,7 +99,7 @@ diagram.add_node(ChanceNode(name="demand", parents=("weather",)))
 
 ## Validating the diagram
 
-{py:meth}`~InfluenceDiagram.validate` checks the whole diagram and returns a list of {py:class}`DiagramProblem`. Each problem has a `kind`, the `node` it belongs to, and a readable `message`. 
+{py:meth}`~InfluenceDiagram.validate` checks the whole diagram and returns a list of {py:class}`DiagramProblem`. Each problem has a `kind`, the `node` it belongs to, and a readable `message`.
 
 ```{code-cell} ipython3
 for problem in diagram.validate():
@@ -111,7 +115,7 @@ diagram.set_dist(
 diagram.validate()
 ```
 
-An empty list means the diagram is complete and ready to be solved. You don't have to call `validate()` before solving: {py:func}`solve` and {py:func}`infer` check the diagram themselves and raise an error listing the problems if it isn't complete.
+An empty list means PyLIMID found no problems with the diagram's structure or node configuration. **This check does not evaluate the distributions or utility functions**. Also, we don't have to call `validate()` before solving: {py:func}`solve` and {py:func}`infer` check the diagram themselves and raise an error listing any problems.
 
 Each node also reports its own state through {py:attr}`~Node.consistency`, which is one of `UNCONFIGURED`, `STALE` or `CONSISTENT`:
 
@@ -159,4 +163,4 @@ diagram.validate()
 
 PyLIMID matches a function to its parents by the names of its arguments, so `weather` and `bookings` must be spelled exactly like the parent nodes, in any order.
 
-To take things out of the diagram in running time, you can use {py:meth}`~InfluenceDiagram.remove_arc` and {py:meth}`~InfluenceDiagram.remove_node` (which removes a node along with its arcs). Removing doesn't update the children's functions, so they would become `STALE`.
+To remove an arc or node, we can use {py:meth}`~InfluenceDiagram.remove_arc` and {py:meth}`~InfluenceDiagram.remove_node` (which removes a node along with its arcs). These methods do not update the children's functions, so a chance or utility node becomes `STALE` if its function no longer matches its parents.

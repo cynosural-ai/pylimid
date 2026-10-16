@@ -14,7 +14,7 @@ The docs are being reviewed by hand, top-down, one page at a time, because the f
 | Home (`docs/index.md`) | Reviewed. Intro, Features, Limitations. |
 | Installation | Reviewed. |
 | Quickstart | Reviewed. The ice cream shop (newsvendor) problem. |
-| User guide | Five pages are included in the build, in the order below. Building a diagram is reviewed. Distributions and utilities has been rewritten, and Multiple decisions has been added, for review. Solving and Inference remain included. |
+| User guide | The five core guides are relatively stable and included in the build, in the order below. Reviewed together for information flow, voice and verb tenses; remaining content decisions are listed under Open items. |
 | Tutorials | Not reviewed yet. Navigation and entry-point links are commented out, and `docs/tutorials/` is excluded from the build until review. |
 | Resources | Common pitfalls is included in the build for review, with table-indexing and parent-effect examples. |
 | API reference | Not reviewed yet. Generated from docstrings with autosummary. |
@@ -90,6 +90,8 @@ These conventions came out of reviewing the home, installation and quickstart pa
 - Write for a reader who is new to the library: complete sentences, a story or concrete problem before the code, and every term explained the first time it appears.
 - Avoid pronouns for the ice cream shop owner, including singular "they". Rephrase sentences naturally or use "the owner" where needed, without specifying gender.
 - Use "we" for the author and reader working with PyLIMID: building the model, calling functions and interpreting results. Use "the owner" or "the shop" for decisions and information in the example. Introduce scenarios directly ("Suppose today is sunny") rather than putting the reader in the owner's role.
+- Use present tense for walkthrough steps and API behaviour. Past and present perfect refer to earlier steps; conditionals describe hypothetical alternatives.
+- Prefer active voice when the actor helps explain the action: "we add", "PyLIMID checks", "the owner chooses". Keep passive voice when the actor is unimportant, such as when describing what is known or how a distribution is parameterised.
 - Prefer plain words over jargon ("draws values from each distribution" rather than "traces the sites"). No arrow chains, no undefined shorthand.
 - Keep pages short by choosing what to include, not by compressing sentences.
 - Keep explanations and output only when they help the reader understand the example. Put reusable debugging examples on the Common pitfalls page and link to them where relevant.
@@ -154,7 +156,7 @@ The assets live in `docs/_static/branding/`. `pylimid-readthedocs.svg` is a comp
 
 - **Resources**: review the new Common pitfalls page. Background and references remain future additions; do not create empty pages for them.
 
-- **User guide**: review the rewritten Distributions and utilities and the new Multiple decisions page. Both are included in the build, alongside Building, Solving and Inference. Keep the same shop as the guide's backbone; larger alternative problems belong in tutorials. Further reading and parameter learning remain optional future additions.
+- **User guide**: the five core guides have been reviewed together for flow and voice. Keep the same shop as the guide's backbone; larger alternative problems belong in tutorials. Further reading and parameter learning remain optional future additions.
 - **Newsvendor tutorial**: the quickstart now covers this problem, so `docs/tutorials/newsvendor.md` (still about umbrellas) will probably be removed. When it is, update the quickstart's Next steps (the tutorials link and "including a longer version of this one"), the Tutorials toctree in `docs/index.md`, and this plan. Anything worth keeping from it (the critical-fractile explanation) can move into the quickstart or a user guide page.
 - **Tutorials order and review**: review the tutorial pages before restoring them to the published site. Revisit their order, then remove `tutorials` from `exclude_patterns` and uncomment the home-page card, tutorial toctree, quickstart links and README link. The saved card and README link currently point to `oil_field`.
 - **Bayesian priors**: planned as a Features bullet and a quickstart extension; see `docs/quickstart/bayesian_priors.md` and the matching item in `TODO.md`. Dirichlet (vector-valued) priors crash in `infer` until `_infer_numpyro` in `pylimid/inference/engine.py` stops converting every draw with `float()`.

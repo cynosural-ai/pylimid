@@ -60,7 +60,7 @@ def bookings_dist():
 
 The probabilities follow the same order as the state labels: `"cloudy"` and `"sunny"` for weather, `"normal"` and `"high"` for bookings. Neither node has parents, so these functions take no arguments.
 
-Conversely, a chance node without `states` is continuous. We chose a {py:class}`Gamma distribution <numpyro.distributions.continuous.Gamma>` to model `demand` because it is strictly positive and can naturally model quiet days alongside some unusually busy ones. Even though ice creams are counted in whole numbers, we use a continuous distribution to approximate demand because it works well and makes things easier. We use `concentration=4.0`, so its standard deviation is half its mean.
+Conversely, a chance node with `states=None` is continuous. We chose a {py:class}`Gamma distribution <numpyro.distributions.continuous.Gamma>` to model `demand` because it is strictly positive and can naturally model quiet days alongside some unusually busy ones. Even though ice creams are counted in whole numbers, we use a continuous distribution to approximate demand. We use `concentration=4.0`, so its standard deviation is half its mean.
 
 ### What if demand were Gaussian?
 
@@ -143,7 +143,7 @@ print(f"combined expected profit: {combined_solution.expected_utility:.1f}")
 print(f"split expected profit: {split_solution.expected_utility:.1f}")
 ```
 
-The recommended orders are the same, as is the estimated expected profit. We use the same random key, the default, for both calls. To get more information about {py:func}`solve` and the returned `expected_utility`, read the [Solving](solving.md) guide.
+The recommended orders are the same, as is the estimated expected profit. We use the same random key, the default, for both calls. The next guide, [Solving](solving.md), gives more information about {py:func}`solve` and explains how to read this result.
 
 ```{admonition} Limitations
 :class: info
@@ -157,14 +157,14 @@ For example, a nonlinear function expressing the owner's attitude to risk should
 
 PyLIMID evaluates these functions using [JAX](https://docs.jax.dev/en/latest/), where parent values are represented as JAX arrays. The functions must be **pure**, i.e., compute their result from their arguments and constants **without changing the diagram or other state while they run**.
 
-As a general tip, keep lookup tables such as `DEMAND_MEANS` and `ORDERS` as JAX arrays. Standard arithmetic operators (i.e., `+`, `-`, `/`, `*`) work with these arrays and, if you need to take a minimum or to express a condition, use `jnp`.
+As a general tip, keep lookup tables such as `DEMAND_MEANS` and `ORDERS` as JAX arrays. Standard arithmetic operators (`+`, `-`, `/`, `*`) work with these arrays. To take a minimum or express a condition, we use `jnp`.
 
 The following utility function contains several operations that would fail when JAX compiles it:
 
 ```python
 def incorrect_profit(order, demand):
-    stocked = ORDERS[int(order)]       # if you needed casting, use jnp.asarray(order, dtype=jnp.int32)
-    wanted = float(demand)             # if you needed casting, use jnp.asarray(demand, dtype=jnp.float32)
+    stocked = ORDERS[int(order)]       # For casting, use jnp.asarray(order, dtype=jnp.int32).
+    wanted = float(demand)             # For casting, use jnp.asarray(demand, dtype=jnp.float32).
     sold = min(stocked, wanted)        # Use jnp.minimum(stocked, demand).
 
     if demand > stocked:              # Use jnp.where(demand > stocked, -50.0, 0.0).
