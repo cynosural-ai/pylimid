@@ -4,20 +4,11 @@ Forward plan. The engine work is done (numpyro-only, scan + batched scan + backw
 
 ## 1. Finish discrete decisions
 
-- **More worked examples in the docs.** Cover the decision classes the library is meant to demonstrate, so the guides and the API have something concrete to point at. The two planned problem benchmarks — the mixed continuous/discrete logistics center (buildable now) and the future continuous-decision ride-hailing problem — are scoped in `design/problems/`.
-- **Proper documentation.** Turn the current living notes into reader-facing documentation: concepts, the solving strategies, and the result contract.
-- **Finish and publish the inference guide.** The ice cream shop draft is now in `docs/user_guide/inference.md` and included in the documentation build for review. Its opening section shows the daily-profit distribution behind the recommended policy's expected utility. Continue in this order: calculate loss probability from those profit draws, compare distributions, expected utilities, and loss probabilities under alternative policies, then ask about another model variable using observed sunny weather and the probability of demand exceeding 150 available ice creams after a delivery shortfall. Finish with a short sampling-accuracy section. Keep the same model throughout; learning uncertain parameters belongs on a future page. Replace the remaining draft notes with prose before publication. These examples do not require dataset fitting or vector-valued queries.
 - **Bayesian priors as a feature.** A parameter of a distribution can itself be a chance node with a prior, which lets a model encode personal experience, such as the ice cream shop owner's belief about tomorrow's weather or their insight on demand. List it under Features in `docs/index.md` and `README.md`, and show it in the docs, for example as an extension of the quickstart. Things to know first:
   - Scalar priors already work in `solve` and `infer`: a `Beta` prior on the chance of sun, or a `LogNormal` scale on the demand mean, solves and updates correctly after an observation.
   - Vector-valued priors can participate in `solve` and in `infer` when querying downstream scalar nodes. Querying the vector node itself, such as a `Dirichlet` node over the weather probabilities, crashes when `infer` builds its `Posterior`. Fix vector-valued results before advertising queries of Dirichlet priors (see Known issues).
   - Pick the example carefully. A prior on the weather probabilities alone leaves the quickstart's policy unchanged, since only its mean matters for a single forecast. A prior on demand does change it (a cloudy-day stock of 80 instead of 60), so it is the more convincing demonstration.
 - **Reorganize the code.** Settle the module layout now, with discrete decisions as the scope, so later work lands on a stable surface.
-
-## 2. Library documentation site
-
-Give the project a published documentation page, the way pyAgrum and NumPyro have: a proper site with guides and an API reference, rather than the development notes in `design/`, which are aimed at contributors.
-
-Built with [Sphinx](https://www.sphinx-doc.org/) using the [Read the Docs theme](https://sphinx-rtd-theme.readthedocs.io/) and hosted on Read the Docs.
 
 ## 3. Continuous decisions (afterwards)
 
@@ -47,11 +38,6 @@ A situation is one combination of a decision's parent states. When no sample lan
 - **Backward induction raises on every unseen situation, including impossible ones.** This blocks valid models: the common `no_results` idiom, a state that is certain when a test isn't run, can't be solved with backward induction. The error also says to increase `num_samples`, which can never help for an impossible situation. Proposal: finish the solve, give unseen situations an arbitrary action, and warn with the list of them, so the user can ignore impossible ones and re-solve with more samples for rare ones. If a warning is too easy to miss, add a parameter and keep raising by default. Either way, the message should say that more samples won't help if the situation is impossible.
 - **The scan gives unseen situations an arbitrary action without saying so.** Harmless for impossible situations, but a rare one that the simulation missed also gets an arbitrary action, and nothing tells the user. It should warn like backward induction would.
 - **The scan repeats work for impossible situations.** Policies that differ only in the action for an impossible situation get identical scores, so each impossible situation multiplies the number of policies by the decision's number of actions (the `no_results` idiom in the oil field would mean 2³ = 8 times more policies for `buy`). Possible fix: a short pilot simulation finds the situations that never come up, they get one fixed action, and the scan enumerates only the rest.
-
-### Cosmetic
-
-- **Doubled quote in messages.** `{name!r}'s` renders as `'forecast''s` because `!r` already adds quotes. It appears in `pylimid/graph/diagram.py` (the probe), `chance_node.py` and `utility_node.py` (the signature checks).
-- **Stale solver name in an error.** `solve(method="backward_induction")` on an unsolvable diagram says "Use the intervention scan"; the method is called `scan`.
 
 ### Documentation
 

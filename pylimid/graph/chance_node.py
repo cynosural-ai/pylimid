@@ -97,7 +97,7 @@ class ChanceNode(Node):
             return f"Node {self.name!r} has no `dist` configured yet."
         # STALE is the only remaining non-CONSISTENT state.
         return (
-            f"Node {self.name!r}'s `dist` signature does not match its "
+            f"The `dist` signature for node {self.name!r} does not match its "
             f"parents {self.parents!r}; reconfigure `dist` after changing "
             f"the parent set."
         )

@@ -484,7 +484,7 @@ class InfluenceDiagram:
                             kind=DiagramProblemKind.DIST_IGNORES_PARENT,
                             node=name,
                             message=(
-                                f"Node {name!r}'s callable returns the same "
+                                f"The callable for node {name!r} returns the same "
                                 f"distribution for every value of parent "
                                 f"{parent!r}; {parent} appears to have no "
                                 f"effect. Warning: a deliberately independent "

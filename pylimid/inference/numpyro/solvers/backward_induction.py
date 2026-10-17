@@ -92,7 +92,7 @@ def solve(
     if order is None:
         raise ValueError(
             "The diagram is not solvable: no backward-induction order exists. "
-            "Use the intervention scan, or add the memory arcs that make the "
+            'Use method="scan", or add the memory arcs that make the '
             "decisions observe each other."
         )
 
