@@ -34,8 +34,8 @@ figures = [
     ),
 ]
 bins = np.linspace(
-    min(min(posterior.values) for posterior, _, _ in figures),
-    max(max(posterior.values) for posterior, _, _ in figures),
+    min(posterior.values.min().item() for posterior, _, _ in figures),
+    max(posterior.values.max().item() for posterior, _, _ in figures),
     71,
 )
 for posterior, title, filename in figures:
@@ -75,8 +75,8 @@ policies = [
     (namespace["alternative_profit"], "Always order 160", "#bb5500"),
 ]
 comparison_bins = np.linspace(
-    min(min(posterior.values) for posterior, _, _ in policies),
-    max(max(posterior.values) for posterior, _, _ in policies),
+    min(posterior.values.min().item() for posterior, _, _ in policies),
+    max(posterior.values.max().item() for posterior, _, _ in policies),
     71,
 )
 fig, ax = plt.subplots(figsize=(7.5, 4.2), layout="constrained")

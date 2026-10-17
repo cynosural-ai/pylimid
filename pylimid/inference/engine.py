@@ -6,7 +6,7 @@ Unified inference entry-point.
     from pylimid import infer, solve
 
     result = infer(diagram, query=["rain"], observed={"wet_grass": 1})
-    # → {"rain": Posterior(values=[...], states=("no", "yes"))}
+    # → {"rain": Posterior(values=Array([...]), states=("no", "yes"))}
 
     solution = solve(diagram)
     # → Solution(policy={"treat": {(0,): 0, (1,): 1}}, expected_utility=78.3,
@@ -100,7 +100,8 @@ def infer(
         position in each posterior's ``values`` belong to the same joint draw. Use
         `Posterior.marginal` for discrete probabilities, and `Posterior.mean`,
         `Posterior.std` or `Posterior.hdi` for continuous variables and utilities.
-        Summaries of array-valued variables are computed componentwise.
+        Draws and numerical summaries are JAX arrays. Summaries have the node's shape,
+        including zero-dimensional arrays for scalar nodes. 
 
     Raises:
         InferenceError: If a decision that influences the query or the
@@ -302,11 +303,7 @@ def _infer_numpyro(
     for name in query:
         node = _find_node(snapshot, name)
         states = node.states if node.kind is NodeKind.CHANCE else None
-        values = draws[name]
-        result[name] = Posterior(
-            values=[float(x) for x in values] if values.ndim == 1 else values,
-            states=states,
-        )
+        result[name] = Posterior(values=draws[name], states=states)
     return result
 
 

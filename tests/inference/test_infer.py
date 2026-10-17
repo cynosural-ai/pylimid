@@ -153,15 +153,17 @@ def test_probabilities_sum_to_one():
     result = infer(_rain_wet_grass(), ["rain", "wet_grass"])
     assert isinstance(result["rain"], Posterior)
     assert isinstance(result["wet_grass"], Posterior)
-    assert sum(result["rain"].marginal()) == pytest.approx(1.0)
-    assert sum(result["wet_grass"].marginal()) == pytest.approx(1.0)
+    assert result["rain"].marginal().sum() == pytest.approx(1.0)
+    assert result["wet_grass"].marginal().sum() == pytest.approx(1.0)
 
 
 def test_probabilities_sum_to_one_with_observed():
     result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1})
     assert isinstance(result["rain"], Posterior)
-    assert sum(result["rain"].marginal()) == pytest.approx(1.0)
-    assert all(isinstance(p, float) for p in result["rain"].marginal())
+    probabilities = result["rain"].marginal()
+    assert isinstance(probabilities, jax.Array)
+    assert probabilities.shape == (2,)
+    assert probabilities.sum() == pytest.approx(1.0)
 
 
 def test_continuous_posterior_keeps_raw_draws():
@@ -170,11 +172,29 @@ def test_continuous_posterior_keeps_raw_draws():
     assert isinstance(result["x"], Posterior)
     assert result["x"].states is None
     assert not result["x"].is_discrete
-    assert len(result["x"].values) == 2000  # raw MCMC draws
+    assert isinstance(result["x"].values, jax.Array)
+    assert result["x"].values.shape == (2000,)
+    assert jnp.issubdtype(result["x"].values.dtype, jnp.floating)
     assert result["x"].mean() == pytest.approx(5.0, abs=0.2)
     assert result["x"].std() == pytest.approx(2.0, abs=0.15)
     lo, hi = result["x"].hdi()
     assert lo < 5.0 < hi
+
+
+def test_continuous_draws_preserve_float64_dtype():
+    with jax.enable_x64():
+        diagram = InfluenceDiagram()
+        diagram.add_node(
+            ChanceNode(
+                name="x",
+                dist=lambda: dist.Normal(jnp.asarray(1e9, dtype=jnp.float64), 1.0),
+            )
+        )
+
+        posterior = infer(diagram, ["x"], num_samples=20)["x"]
+
+        assert posterior.values.dtype == jnp.float64
+        assert posterior.mean().dtype == jnp.float64
 
 
 def test_dirichlet_prior_can_be_queried_with_a_scalar_child():
@@ -202,8 +222,9 @@ def test_dirichlet_prior_can_be_queried_with_a_scalar_child():
     assert weights.values.shape == (1000, 3)
     assert jnp.allclose(weights.values.sum(axis=1), 1.0)
     assert weights.mean() == pytest.approx([0.2, 0.3, 0.5], abs=0.03)
-    assert isinstance(result["outcome"].values, list)
-    assert all(isinstance(value, float) for value in result["outcome"].values)
+    assert isinstance(result["outcome"].values, jax.Array)
+    assert result["outcome"].values.shape == (1000,)
+    assert jnp.issubdtype(result["outcome"].values.dtype, jnp.integer)
     assert result["outcome"].marginal() == pytest.approx([0.2, 0.3, 0.5], abs=0.05)
 
 
@@ -251,8 +272,9 @@ def test_dirichlet_posterior_updates_and_keeps_joint_draw_order():
     assert lower.shape == upper.shape == (3,)
     assert jnp.all(lower < concentration / 11)
     assert jnp.all(upper > concentration / 11)
-    assert result["outcome"].values == [1.0] * 1000
-    assert result["payoff"].values == weights.values[:, 1].tolist()
+    assert jnp.issubdtype(result["outcome"].values.dtype, jnp.integer)
+    assert jnp.all(result["outcome"].values == 1)
+    assert jnp.array_equal(result["payoff"].values, weights.values[:, 1])
 
 
 @pytest.mark.parametrize("node_shape", [(1,), (2, 2)])
@@ -294,7 +316,9 @@ def test_mixed_result_shape_follows_variable_type():
 def test_discrete_posterior_stores_state_index_draws():
     """Discrete draws are integer state indices; the vector is derived."""
     result = infer(_rain_wet_grass(), ["rain"])
-    assert all(v in (0.0, 1.0) for v in result["rain"].values)
+    assert isinstance(result["rain"].values, jax.Array)
+    assert jnp.issubdtype(result["rain"].values.dtype, jnp.integer)
+    assert jnp.all((result["rain"].values == 0) | (result["rain"].values == 1))
     assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
 
 
@@ -370,7 +394,7 @@ def test_contingent_policy_is_evaluated_in_forward_sampling(reverse_policy):
     if reverse_policy:
         policy = dict(reversed(list(policy.items())))
     payoff = infer(diagram, ["payoff"], policy=policy, num_samples=5000)["payoff"]
-    assert set(payoff.values) == {1.0}
+    assert jnp.all(payoff.values == 1)
 
 
 @pytest.mark.parametrize("reverse_policy", [False, True])
@@ -389,7 +413,7 @@ def test_contingent_policy_keeps_latent_information_parent_conditionable(
     )
     expected = [0.9, 0.1] if invert_first else [0.1, 0.9]
     assert result["state"].marginal() == pytest.approx(expected, abs=0.04)
-    assert set(result["payoff"].values) == {1.0}
+    assert jnp.all(result["payoff"].values == 1)
 
 
 @pytest.mark.parametrize("observed", [{}, {"evidence": 1}])
@@ -400,7 +424,7 @@ def test_contingent_policy_accepts_solve_result(observed):
     payoff = infer(
         diagram, ["payoff"], policy=solution.policy, observed=observed, num_samples=1000
     )
-    assert set(payoff["payoff"].values) == {2.0}
+    assert jnp.all(payoff["payoff"].values == 2)
 
 
 @pytest.mark.parametrize("reverse_policy", [False, True])
@@ -443,7 +467,7 @@ def test_contingent_policy_with_mixed_nuts_posterior(reverse_policy):
     assert len(result["x"].values) == 500
     assert result["state"].marginal()[1] == pytest.approx(0.731, abs=0.06)
     assert result["x"].mean() == pytest.approx(0.269, abs=0.15)
-    assert result["payoff"].values == [1.0 - state for state in result["state"].values]
+    assert jnp.array_equal(result["payoff"].values, 1 - result["state"].values)
 
 
 def test_contingent_policy_can_follow_a_fixed_decision():
@@ -453,7 +477,7 @@ def test_contingent_policy_can_follow_a_fixed_decision():
         policy={"first": 1, "second": {(0,): 1, (1,): 0}},
         observed={"evidence": 1},
     )
-    assert set(result["payoff"].values) == {1.0}
+    assert jnp.all(result["payoff"].values == 1)
 
 
 def test_contingent_policy_table_must_be_complete_and_valid():
@@ -498,8 +522,8 @@ def test_rng_key_controls_the_draws():
     default = infer(diagram, ["x"])["x"].values
     same = infer(diagram, ["x"], rng_key=jax.random.PRNGKey(0))["x"].values
     other = infer(diagram, ["x"], rng_key=jax.random.PRNGKey(1))["x"].values
-    assert default == same
-    assert default != other
+    assert jnp.array_equal(default, same)
+    assert not jnp.array_equal(default, other)
 
 
 # --- policy binding -----------------------------------------------------------
@@ -725,8 +749,8 @@ def test_utility_query_under_a_policy():
     profit is capped at 640.
     """
     profit = infer(_shop_diagram(), ["profit"], policy={"stock": 0})["profit"]
-    assert max(profit.values) == pytest.approx(640.0)
-    capped = sum(v == pytest.approx(640.0) for v in profit.values) / len(profit.values)
+    assert profit.values.max() == pytest.approx(640.0)
+    capped = jnp.isclose(profit.values, 640.0).mean()
     assert capped == pytest.approx(0.84, abs=0.03)
 
 
@@ -756,7 +780,7 @@ def test_utility_draws_line_up_with_chance_draws():
         observed={"wet_grass": 1},
         policy={"guess": 1},
     )
-    assert result["hit"].values == result["rain"].values
+    assert jnp.array_equal(result["hit"].values, result["rain"].values)
 
 
 def test_utility_with_an_observed_parent():
@@ -769,7 +793,7 @@ def test_utility_with_an_observed_parent():
         )
     )
     result = infer(diag, ["cleanup"], observed={"wet_grass": 1})
-    assert set(result["cleanup"].values) == {-5.0}
+    assert jnp.all(result["cleanup"].values == -5)
 
 
 def test_utility_query_needs_its_upstream_decisions_bound():
@@ -785,4 +809,4 @@ def test_utilities_do_not_change_other_posteriors():
         policy={"guess": 0},
     )
     without = infer(_guess_diagram(), ["rain"], observed={"wet_grass": 1})
-    assert with_utility["rain"].values == without["rain"].values
+    assert jnp.array_equal(with_utility["rain"].values, without["rain"].values)

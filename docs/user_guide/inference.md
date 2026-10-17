@@ -95,10 +95,12 @@ recommended_profit = infer(
     policy=solution.policy,
     num_samples=50_000,
 )["profit"]
-round(recommended_profit.mean(), 1)
+round(recommended_profit.mean().item(), 1)
 ```
 
-The result is a {py:class}`Posterior` object whose `values` contain the profit draws. Each draw represents the profit on one possible day (i.e., the model draws values for weather, hotel bookings and demand, and the policy chooses the corresponding order value).
+The result is a {py:class}`Posterior` object whose `values` are a JAX array containing the profit draws. Each draw represents the profit on one possible day (i.e., the model draws values for weather, hotel bookings and demand, and the policy chooses the corresponding order value).
+
+Numerical summaries such as `mean()` also return JAX arrays. For this scalar profit node, the mean is a zero-dimensional array; `.item()` converts it to a Python number for display above. For a vector or matrix node, the summaries retain the node's shape and describe each component separately. Use `.tolist()` when a Python list is needed.
 
 ```{admonition} Why the estimates differ
 :class: info
@@ -147,7 +149,7 @@ sunny_profit = infer(
     observed={"weather": 1, "bookings": 1},
     num_samples=50_000,
 )["profit"]
-round(sunny_profit.mean(), 1)
+round(sunny_profit.mean().item(), 1)
 ```
 
 The new policy recommends ordering 300 ice creams, with an estimated average profit of about \$1,436. We can also see the distribution of profits for that day:
@@ -168,7 +170,7 @@ alternative_profit = infer(
     policy={"order": 8},
     num_samples=50_000,
 )["profit"]
-round(alternative_profit.mean(), 1)
+round(alternative_profit.mean().item(), 1)
 ```
 
 The mean of these draws gives an estimated expected profit of about \$508, compared with \$571 under the recommended policy. We can also compare both distributions, using no observations in either case:
@@ -193,7 +195,7 @@ sunny_demand = infer(
     observed={"weather": 1},
     num_samples=50_000,
 )["demand"]
-round(sunny_demand.mean(), 1)
+round(sunny_demand.mean().item(), 1)
 ```
 
 We do not pass a policy because, in this model, demand is not affected by what the owner orders. The estimated average demand is about 138 ice creams. Below we show the posterior distribution of `demand` given sunny weather:
@@ -206,8 +208,6 @@ We do not pass a policy because, in this model, demand is not affected by what t
 To estimate the probability of running out, we count how many demand draws exceed 150 and divide by the total:
 
 ```{code-cell} ipython3
-stockout_probability = sum(value > 150 for value in sunny_demand.values) / len(
-    sunny_demand.values
-)
+stockout_probability = (sunny_demand.values > 150).mean()
 f"{stockout_probability:.1%}"
 ```

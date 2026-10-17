@@ -144,7 +144,8 @@ outcomes = infer(
     policy=solution.policy,
     num_samples=50_000,
 )
-round(outcomes["profit"].mean() + outcomes["promotion_cost"].mean(), 1)
+total_profit = outcomes["profit"].mean() + outcomes["promotion_cost"].mean()
+round(total_profit.item(), 1)
 ```
 
 The estimated average total profit is about \$605 per day, including the promotion cost.

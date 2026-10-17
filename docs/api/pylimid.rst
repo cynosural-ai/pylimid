@@ -25,7 +25,7 @@ These aliases describe the dictionaries and solver names used by the functions a
 .. py:data:: InferenceResult
    :type: dict[str, Posterior]
 
-   One `Posterior` per query variable. Entries at the same position in each posterior's ``values`` belong to the same joint draw.
+   One `Posterior` per query variable. Each posterior stores a JAX array with shape ``(num_samples, *node_shape)``. Entries at the same position in each posterior's ``values`` belong to the same joint draw.
 
 .. py:data:: Policy
    :type: dict[str, dict[tuple[int, ...], int]]
