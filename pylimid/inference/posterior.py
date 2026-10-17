@@ -1,8 +1,7 @@
 """
 Posterior draws for a query variable — the result of `infer`.
 
-Engine modules produce these; the entry point normalizes to them. With a
-single NumPyro engine, every posterior is a Monte-Carlo estimate.
+Returned by `infer`. Draws and summaries are Monte Carlo estimates.
 """
 
 from __future__ import annotations

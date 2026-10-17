@@ -127,7 +127,7 @@ The action space also constrains us in the other direction. The solver only comp
 
 So far we haven't had to think about how {py:func}`solve` finds the best policy, because the default, `method="auto"`, picks the solver method for us. There are two:
 
-- `backward_induction` resolves one decision at a time, from the last to the first. It finds the best policy when the decisions can be resolved one after the other. PyLIMID checks this with {py:func}`~pylimid.inference.numpyro.solvers.is_solvable` when we select `auto`. A diagram with a single decision, like ours, always qualifies.
+- `backward_induction` resolves one decision at a time, from the last to the first. It finds the best policy when the decisions can be resolved one after the other. PyLIMID checks this with {py:func}`~pylimid.solver.is_solvable` when we select `auto`. A diagram with a single decision, like ours, always qualifies.
 - `scan` follows a brute-force approach. It simulates every possible policy in the action space and keeps the best one. It works on any diagram but, since the number of policies grows exponentially with the number of situations a decision can face, it quickly becomes impractical. In our problem, `order` has 21 actions and 2 situations (`cloudy` and `sunny`), so there are $21^2 = 441$ policies, each simulated `num_samples` times. If the owner also had a report showing whether hotel bookings are normal or high for that day, there would be 4 situations and $21^4 = 194,481$ policies. If we add another two-state parent variable the scan is no longer an option, even though the diagram itself is still small.
 
 ### Example: when we can't use backward induction
@@ -163,7 +163,7 @@ carts
 Leo's best spot depends on where Mia decides to go, and the other way around: if Mia takes the beach, Leo does better at the park, and if Mia takes the park, Leo does better at the beach. But neither sees the other's choice, so neither decision can be resolved first. As a result, backward induction can't be used:
 
 ```{code-cell} ipython3
-from pylimid.inference.numpyro.solvers import is_solvable
+from pylimid.solver import is_solvable
 
 is_solvable(carts.snapshot())
 ```

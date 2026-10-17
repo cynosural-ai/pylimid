@@ -1,8 +1,8 @@
 """
-NumPyro influence-diagram solver — the batched intervention scan.
+Influence-diagram solver — the batched intervention scan.
 
 Same algorithm and same semantics as
-`pylimid.inference.numpyro.solvers.intervention_scan`, evaluated in one
+``pylimid.solver.scan.intervention``, evaluated in one
 vmapped, jitted pass: every policy array carries a leading batch
 dimension, and the forward walk is nested-vmapped over (policy, sample).
 One trace, one dispatch for the whole solve — the per-policy re-trace
@@ -44,13 +44,13 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.inference.numpyro.solvers._policy import (
+from pylimid.policy import _info_assignments
+from pylimid.solver.scan._policy import (
     Rule,
     batched_policy_array,
-    info_assignments,
     policy_space,
 )
-from pylimid.inference.solution import Solution
+from pylimid.solver.solution import Solution
 
 __all__ = ["solve"]
 
@@ -103,7 +103,7 @@ def solve(
 
     rules: list[Rule] = []
     for name, node in decisions:
-        assignments = info_assignments(node, node_map)
+        assignments = _info_assignments(node, node_map)
         rules.append((name, node, assignments))
 
     policies = list(policy_space(rules))

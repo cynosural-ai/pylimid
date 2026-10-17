@@ -5,6 +5,8 @@ Use `infer` to query chance and utility nodes, and `solve` to find a policy that
 
 The node classes and `InfluenceDiagram` are also available directly from ``pylimid``; their reference is under :doc:`graph`.
 
+Posterior inference and its result types are also available from ``pylimid.inference``. Solver selection and solution results are available from ``pylimid.solver``. ``pylimid.policy`` defines the shared policy type, and ``pylimid.errors`` defines the error shared by inference and solving.
+
 .. currentmodule:: pylimid
 
 .. autosummary::

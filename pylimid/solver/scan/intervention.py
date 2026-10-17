@@ -1,12 +1,12 @@
 """
-NumPyro influence-diagram solver — the intervention scan.
+Influence-diagram solver — the intervention scan.
 
 The unbatched reference implementation: solves a mixed-type influence
 diagram by Monte-Carlo, enumerating the discrete policy space (one action
 per information-set assignment per decision) and evaluating each policy by
 forward-simulating the diagram with every decision resolved from its
 observed information set, keeping the policy with the highest estimated
-expected utility. The batched scan (`batched_scan`) is the same algorithm
+expected utility. The batched scan (`batched_solve`) is the same algorithm
 with all policies evaluated in one vmapped call.
 
 The forward pass mirrors the topological walk of `to_model` (parents before
@@ -46,13 +46,12 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.inference.numpyro.solvers._policy import (
+from pylimid.policy import Policy, _info_assignments, _policy_array
+from pylimid.solver.scan._policy import (
     Rule,
-    info_assignments,
-    policy_array,
     policy_space,
 )
-from pylimid.inference.solution import Policy, Solution
+from pylimid.solver.solution import Solution
 
 __all__ = ["solve"]
 
@@ -104,7 +103,7 @@ def solve(
 
     rules: list[Rule] = []
     for name, node in decisions:
-        assignments = info_assignments(node, node_map)
+        assignments = _info_assignments(node, node_map)
         rules.append((name, node, assignments))
 
     best: tuple[float, Policy] | None = None
@@ -134,7 +133,7 @@ def _estimate_eu(
     """Estimate E[U | policy] by forward sampling with decisions resolved."""
     nodes = snapshot.nodes
     decision_arrays = {
-        name: policy_array(node, policy[name], node_map)
+        name: _policy_array(node, policy[name], node_map)
         for name, node in nodes
         if isinstance(node, DecisionNode)
     }

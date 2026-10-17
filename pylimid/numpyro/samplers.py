@@ -1,21 +1,14 @@
 """
-NumPyro inference backend — posterior and forward sampling.
-
-Thin wrappers around `to_model`.
-Import this module to use NumPyro-based inference; requires ``numpyro``, a
-declared dependency of pylimid.
+Posterior and forward sampling from translated NumPyro models.
 
 Usage::
 
-    from pylimid.inference.numpyro import samples
+    from pylimid.numpyro import samples
 
     posterior = samples(diagram.snapshot(), observed={"wet_grass": 1})
 
-API design note
----------------
-This module exposes engine-specific functions. The unified `pylimid.infer`
-entry point dispatches here automatically, so most users should call it
-rather than import this directly.
+For posterior objects and query validation, use `infer`. `samples` accepts a
+validated snapshot and returns raw JAX arrays.
 """
 
 from __future__ import annotations
@@ -30,10 +23,10 @@ from numpyro.infer import MCMC, NUTS, Predictive
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.node import NodeKind
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.inference.numpyro.model import _policy_tables, _to_model, to_model
-from pylimid.inference.solution import Policy
+from pylimid.numpyro.model import _to_model
+from pylimid.policy import Policy, _policy_tables
 
-__all__ = ["samples", "to_model"]
+__all__ = ["samples"]
 
 
 def samples(

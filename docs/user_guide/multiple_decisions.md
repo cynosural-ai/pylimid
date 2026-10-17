@@ -123,7 +123,7 @@ The promotion still affects demand and still costs money. But the order decision
 This change also affects the solver. We can check whether each diagram has an order in which backward induction can resolve its decisions:
 
 ```{code-cell} ipython3
-from pylimid.inference.numpyro.solvers import is_solvable
+from pylimid.solver import is_solvable
 
 print("with memory:", is_solvable(diagram.snapshot()))
 print("without memory:", is_solvable(forgetful_diagram.snapshot()))

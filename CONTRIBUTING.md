@@ -33,7 +33,10 @@ Ruff and ty also run on every commit through pre-commit.
 | Path | Contents |
 | --- | --- |
 | `pylimid/graph/` | Node types, the mutable `InfluenceDiagram`, validation, and rendering |
-| `pylimid/inference/` | The NumPyro engine, solvers, and result types |
+| `pylimid/inference/` | Posterior queries and posterior result types |
+| `pylimid/solver/` | Policy optimisation, solver selection, and solution results |
+| `pylimid/numpyro/` | NumPyro model translation and sampling |
+| `pylimid/policy.py`, `pylimid/errors.py` | Shared policy representation and errors |
 | `tests/` | The pytest suite; fully discrete models are cross-checked against pyAgrum |
 | `docs/` | The published Sphinx site (see `docs/README.md` for build details) |
 | `design/` | Contributor-facing decision records and design notes; not published |

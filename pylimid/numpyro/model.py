@@ -1,17 +1,9 @@
 """
 NumPyro model factory — translate a validated snapshot into a NumPyro model.
 
-Internal module. Public convenience functions that wrap this are in
-`pylimid.inference.numpyro`.
-
-This is the bridge between the backend-agnostic graph layer and a concrete
-probabilistic programming system. It consumes a `DiagramSnapshot` and returns a plain
-NumPyro model function the caller feeds to ``numpyro.infer``
+`to_model` consumes a `DiagramSnapshot` and returns a plain NumPyro model function
+the caller feeds to ``numpyro.infer``
 (e.g. ``Predictive``, ``MCMC``, ``SVI``).
-
-NumPyro is a declared runtime dependency of pylimid (nothing in
-`pylimid.graph` imports it — the graph layer works on plain callables,
-but the translator itself needs it).
 
 Unobserved discrete nodes are detected automatically via ``node.is_discrete``
 and annotated with ``infer={"enumerate": "parallel"}`` so that NumPyro's NUTS
@@ -39,9 +31,7 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.inference._errors import InferenceError
-from pylimid.inference.numpyro.solvers._policy import info_assignments, policy_array
-from pylimid.inference.solution import Policy
+from pylimid.policy import Policy, _policy_tables
 
 __all__ = ["to_model"]
 
@@ -95,33 +85,6 @@ def to_model(
         ValueError: If a policy has a continuous information-set parent.
     """
     return _to_model(snapshot, observed or {}, _policy_tables(snapshot, policy or {}))
-
-
-def _policy_tables(snapshot: DiagramSnapshot, policy: Policy) -> dict[str, jax.Array]:
-    """Validate contingent rules and encode them with the solvers' table format."""
-    nodes = dict(snapshot.nodes)
-    node_map = {
-        name: node
-        for name, node in snapshot.nodes
-        if isinstance(node, (ChanceNode, DecisionNode))
-    }
-    tables = {}
-    for name, rule in policy.items():
-        decision = nodes[name]
-        if not isinstance(decision, DecisionNode):
-            raise InferenceError(f"Policy for {name!r} must bind a decision node.")
-        if set(rule) != set(info_assignments(decision, node_map)):
-            raise InferenceError(
-                f"Policy for {name!r} must define every information-set assignment."
-            )
-        assert decision.states is not None
-        if any(
-            not isinstance(action, int) or not 0 <= action < len(decision.states)
-            for action in rule.values()
-        ):
-            raise InferenceError(f"Policy for {name!r} contains an invalid action.")
-        tables[name] = policy_array(decision, rule, node_map)
-    return tables
 
 
 def _to_model(

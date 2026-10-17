@@ -23,12 +23,12 @@ import pyagrum as gum
 import pytest
 
 from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from pylimid.inference.numpyro.solvers.regularity import (
+from pylimid.solver.regularity import (
     is_solvable,
     solvability_order,
 )
 
-from .._limid_fixtures import (
+from ._fixtures import (
     EmptyInfoDecision,
     IrrelevantInfoDecision,
     NestedTwoDecisions,

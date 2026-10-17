@@ -14,10 +14,10 @@ import numpyro.distributions as dist
 import pytest
 
 from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from pylimid.inference.numpyro.solvers import backward_induction_solve
-from pylimid.inference.numpyro.solvers.intervention_scan import solve as scan_solve
+from pylimid.solver import backward_induction_solve
+from pylimid.solver.scan.intervention import solve as scan_solve
 
-from .._limid_fixtures import (
+from ._fixtures import (
     EmptyInfoDecision,
     IrrelevantInfoDecision,
     NestedTwoDecisions,

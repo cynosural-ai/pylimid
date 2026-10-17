@@ -1,5 +1,5 @@
 """
-NumPyro influence-diagram solver — backward induction.
+Influence-diagram solver — backward induction.
 
 Solves a solvable (regular) influence diagram one decision at a time, in the
 reverse order: the decisions closest to the utilities are resolved first, and
@@ -43,9 +43,9 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.inference.numpyro.solvers._policy import info_assignments
-from pylimid.inference.numpyro.solvers.regularity import solvability_order
-from pylimid.inference.solution import Policy, Solution
+from pylimid.policy import Policy, _info_assignments
+from pylimid.solver.regularity import solvability_order
+from pylimid.solver.solution import Solution
 
 __all__ = ["solve"]
 
@@ -137,7 +137,7 @@ def _resolve_decision(
     node_map: dict[str, ChanceNode | DecisionNode],
 ):
     """Estimate the decision's Q-values and return (rule array, sub-policy)."""
-    assignments = info_assignments(decision, node_map)
+    assignments = _info_assignments(decision, node_map)
     cards: list[int] = []
     for parent in decision.parents:
         states = node_map[parent].states
