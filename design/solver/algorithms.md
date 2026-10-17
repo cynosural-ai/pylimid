@@ -1,10 +1,10 @@
 # Solver algorithms: the scan, the batched scan, and backward induction
 
-This note collects the influence-diagram solving approaches — implemented and planned — and the papers behind them. It is the theory companion to `pylimid.inference.numpyro.solvers` and to the roadmap in REMAINING_WORK.md (items 4 and 5).
+This note collects the influence-diagram solving approaches — implemented and planned — and the papers behind them. It is the theory companion to `pylimid.solver` with estimator details in [backward induction](backward_induction.md).
 
 ## The problem
 
-Solving an influence diagram means finding the decision rules — one action per information-set assignment per decision — that maximize the expected total utility, and reporting that optimum. pylimid diagrams are LIMIDs by construction: a decision's information set is exactly its drawn parents, with no implicit memory (see decision_node.md). The scan and the backward-induction path below are both Monte-Carlo solvers: they never build closed-form posteriors, which is what lets them handle mixed and continuous diagrams.
+Solving an influence diagram means finding the decision rules — one action per information-set assignment per decision — that maximize the expected total utility, and reporting that optimum. pylimid diagrams are LIMIDs by construction: a decision's information set is exactly its drawn parents, with no implicit memory (see [decision nodes](../graph/decision_node.md)). The scan and the backward-induction path below are both Monte-Carlo solvers: they never build closed-form posteriors, which is what lets them handle mixed and continuous diagrams.
 
 ## Tier 1 — intervention scan (implemented)
 
@@ -17,27 +17,27 @@ The current solver enumerates the joint policy space and forward-samples every p
 
 Cost: `num_samples × ∏_d K_d^|A_d|`, with `|A_d| = ∏ over the info parents of their state counts`. This is doubly exponential in the number of info parents (the rule exponent is itself a product). It suits small decision spaces; continuous info parents are rejected because |A_d| would be infinite.
 
-Guarantee: the global optimum of the Monte-Carlo estimate — every policy is evaluated, so the scan is the reference answer for the other solvers. Implementation: `pylimid.inference.numpyro.solvers.intervention_scan.solve`.
+Guarantee: the global optimum of the Monte-Carlo estimate — every policy is evaluated, so the scan is the reference answer for the other solvers. Implementation: `pylimid.solver.scan.intervention.solve`.
 
 ## Tier 2 — batched scan (implemented)
 
 The same algorithm with the same semantics and the same guarantees, engineered to be fast: all policies evaluated in one vmapped call with the policy arrays as a leading batch dimension, and the forward step jitted once — one trace, one dispatch for the whole solve. Because it uses the same PRNG key schedule per policy, it returns the same policy and the same EU as Tier 1, which makes the validation trivial: the two must agree (to float rounding, since the unbatched scan accumulates in float64 in Python).
 
-The cost stays exponential (the enumeration is the same); what goes away is the per-policy JAX re-trace overhead, which dominated the runtime (measured ~260ms per 500-sample evaluation, ~60% of it trace machinery from user `dist` callables). Measured ~220× on a six-node soluble LIMID example: 112s → 0.5s at 2000 samples per policy. One constraint: utility `values` callables must be JAX-traceable (no `float()`/`int()` coercion), because they are evaluated inside the vmapped walk. Implementation: `pylimid.inference.numpyro.solvers.batched_scan`.
+The cost stays exponential (the enumeration is the same); what goes away is the per-policy JAX re-trace overhead, which dominated the runtime (measured ~260ms per 500-sample evaluation, ~60% of it trace machinery from user `dist` callables). Measured ~220× on a six-node soluble LIMID example: 112s → 0.5s at 2000 samples per policy. One constraint: utility `values` callables must be JAX-traceable (no `float()`/`int()` coercion), because they are evaluated inside the vmapped walk. Implementation: `pylimid.solver.scan.batched`.
 
-## Tier 3 — backward induction / single policy updating (regular diagrams implemented)
+## Tier 3 — backward induction / single policy updating (soluble diagrams implemented)
 
 The estimator design — what is sampled, what is grouped, variance and validation — is pinned down in [`backward_induction.md`](./backward_induction.md).
 
 The efficient alternative: solve one decision at a time, from the last to the first.
 
-The principle is dynamic programming: consider the last decision. For each info-set assignment and each action, estimate the continuation value — the expected utility of everything that follows, given that assignment and action — by forward sampling (each assignment gets its own dedicated samples: stratified). Pick the best action per assignment; the decision is resolved. Fold the resolved decision back into the problem and repeat for the previous decision. The key fact that makes this legal is that a later decision's optimal rule depends only on its information set, not on which actions earlier decisions will choose, so it can be solved before they are.
+The principle is dynamic programming: consider the last decision. For each info-set assignment and each action, estimate the continuation value — the expected utility of everything that follows, given that assignment and action — by forward sampling and grouping trajectories by their realized information-set assignment. Pick the best action per assignment; the decision is resolved. Fold the resolved decision back into the problem and repeat for the previous decision. The key fact that makes this legal is that a later decision's optimal rule depends only on its information set, not on which actions earlier decisions will choose, so it can be solved before they are.
 
 Cost: `Σ_d |A_d| × K_d` value estimates plus one argmax per decision — additive in the decisions, never the policy-product exponential.
 
 Guarantees split along the regularity line:
 
-- **Soluble diagrams (the gate in `solvers/regularity.py`):** an exact solution ordering exists — each decision can be finalized from its information set once the later decisions are resolved — so a single reverse-order pass is globally optimal. This generalizes Shachter's backward induction beyond no-forgetting. Exact in the potential-world, and still global when the values are Monte-Carlo estimates up to sampling noise.
+- **Soluble diagrams (the gate in `pylimid/solver/regularity.py`):** an exact solution ordering exists — each decision can be finalized from its information set once the later decisions are resolved — so a single reverse-order pass is globally optimal. This generalizes Shachter's backward induction beyond no-forgetting. Exact in the potential-world, and still global when the values are Monte-Carlo estimates up to sampling noise.
 - **True LIMIDs:** decisions may not remember relevant past information, so there is no clean order and a single pass is not valid. The fix is single policy updating (SPU): hold all rules fixed, improve one decision's rule given the others, sweep until no rule changes. This is coordinate ascent: monotone in expected utility, converges to a fixed point, but only a *local* optimum — the scan remains the ground truth when it matters.
 
 Adding memory arcs (from an earlier decision or its observations to a later one) converts a true LIMID into a regular one — the classical no-forgetting assumption made explicit — at the price of larger information sets. It is a modeling change, not a solver trick: more memory can only weakly improve the achievable expected utility, but it is a different decision problem.
@@ -56,9 +56,9 @@ This matters for validation: for solvable diagrams pyAgrum gives the exact refer
 
 One-pass backward induction is sound exactly on *soluble* LIMIDs, so the gate is part of the algorithm, not an optimization.
 
-- **The paper (what we implement).** A decision is *extremal* when the utilities it can influence are d-separated from the families of *every* other unresolved decision by its own information set (Lauritzen and Nilsson 2001, Definition 11). A LIMID is *soluble* when an ordering exists in which each decision is extremal once the later ones are resolved (Definition 14), and the paper's algorithm searches for an extremal decision over the whole remaining set. `solvers/regularity.py` implements that search directly: repeatedly take any decision passing the global test; if none does, the diagram is not soluble.
+- **The paper (what we implement).** A decision is *extremal* when the utilities it can influence are d-separated from the families of *every* other unresolved decision by its own information set (Lauritzen and Nilsson 2001, Definition 11). A LIMID is *soluble* when an ordering exists in which each decision is extremal once the later ones are resolved (Definition 14), and the paper's algorithm searches for an extremal decision over the whole remaining set. `pylimid/solver/regularity.py` implements that search directly: repeatedly take any decision passing the global test; if none does, the diagram is not soluble.
 - **aGrUM (the reference, with a hole).** `ShaferShenoyLIMIDInference` runs the same idea, but its `isSolvable()` compares candidates only against decisions sharing a level of an internal partial order (`_checkingSolvability_` in `ShaferShenoyLIMIDInference_tpl.h`). Decisions on different levels are never checked against each other, and the leveling itself is not in the published paper.
-- **What the hole costs.** `D1 -> X -> D2`, both decisions feeding one utility `U = [[5, 4], [0, 3]]`, with `X` uninformative about `D1`: pyAgrum calls it solvable and returns MEU 4.0, while the feasible policy "both play a" scores 5.0. The paper's criterion rejects the diagram; our gate raises and the scan finds 5.0. The regression is pinned in `tests/inference/numpyro/solvers/test_regularity.py` and `test_backward_induction.py`.
+- **What the hole costs.** `D1 -> X -> D2`, both decisions feeding one utility `U = [[5, 4], [0, 3]]`, with `X` uninformative about `D1`: pyAgrum calls it solvable and returns MEU 4.0, while the feasible policy "both play a" scores 5.0. The paper's criterion rejects the diagram; our gate raises and the scan finds 5.0. The regression is pinned in `tests/solver/test_regularity.py` and `test_backward_induction.py`.
 - **The divergence is deliberate.** `is_solvable` matches `isSolvable()` on every fixture and structural battery case except the pinned one, where the paper and pyAgrum disagree. A diagram pyAgrum solves that we reject is not a false alarm — it is a diagram on which pyAgrum can silently return a suboptimal policy.
 - **Not implemented from the paper:** the minimal-reduction loop (repeated removal of non-requisite arcs to test the reduced model). That loop explores reduced models and bounds; the correctness gate for solving the diagram as given is the exact-solution ordering above.
 
@@ -79,6 +79,6 @@ One-pass backward induction is sound exactly on *soluble* LIMIDs, so the gate is
 
 ## Status
 
-- Tier 1: implemented (`pylimid.inference.numpyro.solvers.intervention_scan`).
-- Tier 2: implemented (`pylimid.inference.numpyro.solvers.batched_scan`).
-- Tier 3: implemented for soluble diagrams (`pylimid.inference.numpyro.solvers.backward_induction`), gated by `...solvers.regularity` with the paper's exact-solution-ordering criterion (stricter than pyAgrum's level-based `isSolvable`, see above) and validated against pyAgrum and the scan; SPU for non-soluble LIMIDs planned — REMAINING_WORK item 5.
+- Tier 1: implemented (`pylimid.solver.scan.intervention`).
+- Tier 2: implemented (`pylimid.solver.scan.batched`).
+- Tier 3: implemented for soluble diagrams (`pylimid.solver.backward_induction`), gated by `pylimid.solver.regularity` with the paper's exact-solution-ordering criterion (stricter than pyAgrum's level-based `isSolvable`, see above) and validated against pyAgrum and the scan; SPU for non-soluble LIMIDs deferred.

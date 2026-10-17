@@ -1,8 +1,0 @@
-en el post de inferencia, lo primero que hacemos es mostrar que tenemos una distribucion, no un valor unico
-
-Luego, comparamos la policy que solve nos ha indicado como optima con otra y mostramos tanto su distribucion como su expected utility
-
-Luego, como tenemos una distribucion, podemos hacer preguntas sobre ella, como por ejemplo, cual es la probabilidad de que perdamos dinero 
-
-Luego cambiamos y decimos que si bien encontrar la policy optima es importante, podemos hacer preguntas sobre otras de las variables en el modelo. Por ejemplo, cual es la probabilidad de que tengamos una demanda de mas de 150 helados en un dia soleado (imaginemos que un dia no nos llega todo el stock que pedimos y queremos entender cuanto nos la estamos jugando con respecto a la demanda esperada)
-

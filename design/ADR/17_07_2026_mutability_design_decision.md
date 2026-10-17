@@ -4,7 +4,7 @@
 **Status:** Settled
 **Supersedes:** the parallel build-once prototype that lived alongside the mutable one.
 
-> **Where this fits.** This is a *decision record* — it records the call and what changed in the tree. The *reasoning* behind the mutable model itself is in [`diagram.md`](../diagram.md); this note does not re-argue it.
+> **Where this fits.** This is a *decision record* — it records the call and what changed in the tree. The *reasoning* behind the mutable model itself is in [`diagram.md`](../graph/diagram.md); this note does not re-argue it.
 
 ---
 
@@ -14,7 +14,7 @@ The influence diagram is a **mutable workspace**: nodes may be added before thei
 
 The alternative — a **build-once** container that required every parent to be present at registration and demanded a complete, valid object in a single atomic step — is rejected and removed from the tree.
 
-The rationale (incremental construction by external authors — scripts, UIs, LLMs — that can never produce a complete diagram atomically) is settled in [`diagram.md`](../diagram.md); the seven principles there govern every node and the container.
+The rationale (incremental construction by external authors — scripts, UIs, LLMs — that can never produce a complete diagram atomically) is settled in [`diagram.md`](../graph/diagram.md); the seven principles there govern every node and the container.
 
 ---
 
@@ -39,7 +39,7 @@ Once the build-once alternative is gone, the suffix has nothing to contrast agai
 
 ### Why remove the build-once files rather than keep them as reference
 
-A reference implementation that nothing imports, nothing tests, and that encodes a design we have explicitly rejected is a liability: it drifts, it misleads readers about the intended direction, and it tempts confusion about which file is canonical. The rejected design is fully documented in [`diagram.md`](../diagram.md) ("What this deliberately is not") and can be recovered from version control if ever needed. Keeping it in the tree served no active purpose.
+A reference implementation that nothing imports, nothing tests, and that encodes a design we have explicitly rejected is a liability: it drifts, it misleads readers about the intended direction, and it tempts confusion about which file is canonical. The rejected design is fully documented in [`diagram.md`](../graph/diagram.md) ("What this deliberately is not") and can be recovered from version control if ever needed. Keeping it in the tree served no active purpose.
 
 ---
 
@@ -54,6 +54,6 @@ A reference implementation that nothing imports, nothing tests, and that encodes
 This settles the *container*. It does not advance:
 
 - the NumPyro translator (not started),
-- `from_cpt` sugar (deferred — see [`chance_node.md`](../chance_node.md)),
-- parametric learning / `fit` (deferred — see [`diagram.md`](../diagram.md)),
+- `from_cpt` sugar (deferred — see [`chance_node.md`](../graph/chance_node.md)),
+- parametric learning / `fit` (deferred — see [`diagram.md`](../graph/diagram.md)),
 - decision and utility nodes (later milestones).

@@ -12,6 +12,10 @@ Forward plan. The engine work is done (numpyro-only, scan + batched scan + backw
 
 Only once 1 and 2 are done. Strategy A — continuous actions and continuous information sets — is the likely next feature. The exploration map (feasibility, difficulty axes, guarantee change, validation plan, scope ladder, and the revisit trigger) lives in `design/continuous_decisions/` (on the unmerged `docs/continuous-decisions` branch, still under the old `docs/` path).
 
+## Tutorial extensions (later)
+
+- **Logistics-center consequences.** The mixed continuous-score model is implemented in [`docs/tutorials/logistics_center.md`](docs/tutorials/logistics_center.md), with exact arithmetic on its collapsed discrete model as the reference. A future extension could add continuous downtime or revenue feeding the payoff. Calibrating the report probabilities to the original discrete problem is optional further work; the current Gamma example uses its own parameterization. A Poisson failure-count extension would also need numerical discrete-node support.
+
 ## Known issues
 
 Found while writing the user guide. Ordered by how badly they can mislead a user.

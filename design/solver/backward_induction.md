@@ -1,10 +1,10 @@
 # Backward induction (Level 2): the estimator design
 
-Short design note for the per-decision solver — Tier 3 in [`solver_algorithms.md`](./solver_algorithms.md), REMAINING_WORK item 5. It pins down the Monte-Carlo estimator: what is sampled, what is grouped, how the decisions interact, and where the variance lives. Implemented for regular diagrams in `pylimid.inference.numpyro.solvers.backward_induction`; SPU for non-regular LIMIDs is deferred.
+Short design note for the per-decision solver — Tier 3 in [solver algorithms](algorithms.md). It pins down the Monte-Carlo estimator: what is sampled, what is grouped, how the decisions interact, and where the variance lives. Implemented for soluble diagrams in `pylimid.solver.backward_induction`; SPU for non-soluble LIMIDs is deferred.
 
 ## Scope
 
-- **Regular LIMIDs** (no-forgetting) solved in one reverse-order pass. Non-regular diagrams are gated out by `is_solvable` — the first version raises a clean error naming the scan as the alternative rather than silently falling back into an exponential solver; SPU comes later.
+- **Soluble LIMIDs** solved in one valid solution-ordering pass, including regular no-forgetting diagrams. An explicit `method="backward_induction"` request rejects non-soluble diagrams; `method="auto"` selects the scan for them. SPU remains deferred.
 - **Discrete action spaces and discrete information sets.** Continuous information sets remain the deferred Strategy A.
 - Values are Monte-Carlo estimates, like every solver in the family.
 
@@ -22,7 +22,7 @@ The later rules are fixed by the time `d` is solved, so the estimate depends on 
 
 For each decision `d`, in reverse order, and each action `k`:
 
-1. Sample `num_samples` forward trajectories with `d` clamped to `k`, later decisions resolved by their rules, earlier decisions under the placeholder rule (uniform over actions is the simple choice, and it covers the info assignments evenly).
+1. Sample `num_samples` forward trajectories with `d` clamped to `k`, later decisions resolved by their rules, earlier decisions under the placeholder rule (uniform over actions provides exploration but does not guarantee even coverage of information-set assignments).
 2. Group the trajectories by the **realized information-set assignment** of `d` — the sampled values of its parents.
 3. `Q̂(a, k)` = mean total utility within the group for assignment `a`.
 
@@ -35,19 +35,19 @@ Batching follows the batched scan: the per-action passes are vmapped forward wal
 ## Variance: the careful part
 
 - Rare information-set assignments produce small groups, so `Q̂` is noisy and the argmax can flip on contested assignments. The bias is local to a group, unlike the scan's max-over-policies selection bias.
-- Mitigations, in order of effort: a placeholder policy that covers assignments evenly (uniform); enough samples per action; validation against pyAgrum (exact) on the fixtures, so a flip cannot pass silently. Explicit stratification over assignments — sampling each assignment's group directly — would need conditioning and is out of scope for now.
+- Mitigations, in order of effort: uniform placeholder actions to explore the earlier decisions; enough samples per action; validation against pyAgrum (exact) on the fixtures, so a flip cannot pass silently. Explicit stratification over assignments — sampling each assignment's group directly — would need conditioning and is out of scope for now.
 
 ## Regularity: `is_solvable`
 
-Implemented in `solvers/regularity.py` as the exact-solution-ordering criterion of Lauritzen and Nilsson (2001), Definition 11 read directly over the whole remaining decision set: a decision can be ordered next when the utilities it can influence are d-separated from the families of every other unresolved decision given its own family. The order built this way is the solving order (first entry solved first), which is what the solver processes.
+Implemented in `pylimid/solver/regularity.py` as the exact-solution-ordering criterion of Lauritzen and Nilsson (2001), Definition 11 read directly over the whole remaining decision set: a decision can be ordered next when the utilities it can influence are d-separated from the families of every other unresolved decision given its own family. The order built this way is the solving order (first entry solved first), which is what the solver processes.
 
 This is weaker than the "contains all earlier information sets" closure: decisions with separate utilities, or whose influence is blocked by an observed node, need not observe each other — all solvable.
 
-It is deliberately stricter than pyAgrum's `ShaferShenoyLIMIDInference.isSolvable()`, which compares candidates only within a level of its internal partial order. That shortcut admits diagrams on which one-pass backward induction is not optimal — the regression in `test_regularity.py` and `test_backward_induction.py` shows pyAgrum returning 4.0 where the scan finds 5.0. Where the two criteria disagree, `is_solvable` is the paper's; see `solver_algorithms.md` for the full comparison.
+It is deliberately stricter than pyAgrum's `ShaferShenoyLIMIDInference.isSolvable()`, which compares candidates only within a level of its internal partial order. That shortcut admits diagrams on which one-pass backward induction is not optimal — the regression in `test_regularity.py` and `test_backward_induction.py` shows pyAgrum returning 4.0 where the scan finds 5.0. Where the two criteria disagree, `is_solvable` is the paper's; see [solver algorithms](algorithms.md) for the full comparison.
 
 Adding memory arcs turns a non-solvable diagram into a regular one, but that is a modeling change the user makes (pyAgrum's `addNoForgettingAssumption`), not something the solver does.
 
-## Validation plan
+## Validation
 
 - `is_solvable` equals pyAgrum's `isSolvable()` on every fixture and on a structural battery (separate-utility decisions sharing info, d-separated influence chains, forgotten irrelevant observations, unordered decisions) — the zero-tolerance test, except the pinned divergence where pyAgrum's level shortcut is unsound and the paper's criterion rejects the diagram.
 - Soluble diagrams: policy and expected utility against pyAgrum's exact solver at Monte-Carlo tolerances (LIMID fixtures).
@@ -56,6 +56,6 @@ Adding memory arcs turns a non-solvable diagram into a regular one, but that is 
 
 ## Deferred
 
-- SPU iteration for non-regular LIMIDs — an outer loop re-applying the same per-decision update until no rule changes (local optimum).
+- SPU iteration for non-soluble LIMIDs — an outer loop re-applying the same per-decision update until no rule changes (local optimum).
 - Continuous information sets (Strategy A).
 - Explicit per-assignment stratification and smarter sampling policies.

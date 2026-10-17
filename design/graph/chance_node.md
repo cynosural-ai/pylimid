@@ -8,21 +8,19 @@ Design note covering how a `ChanceNode`'s conditional distribution should be exp
 
 ## The decision
 
-**Canonical form: a callable that takes resolved parent values and returns a NumPyro/JAX Distribution.** Tables (conditional probability tables, CPTs) are provided as a thin convenience layer that desugars into the same callable.
+**Canonical form: a callable that takes resolved parent values and returns a NumPyro/JAX Distribution.** A conditional probability table (CPT) is an array wrapped in such a callable. A named table-construction helper is deferred.
 
 ```python
 # canonical — one form for every case (discrete, continuous, mixed)
 ChanceNode(
     name="wet_grass",
     parents=("rain",),
+    states=("dry", "wet", "soaked"),
     dist=lambda rain: dist.Categorical(probs=P[rain]),
 )
-
-# sugar — builds the callable from a dict-keyed table
-ChanceNode.from_cpt(name="wet_grass", parents=("rain",), table={...})
 ```
 
-One internal representation, two ergonomic surfaces. No second node type, no forked code path through the validator / translator / solver.
+One internal representation, with any future table helper producing the same callable. No second node type, no forked code path through the validator / translator / solver.
 
 ---
 
@@ -97,8 +95,8 @@ P = jnp.array(
 
 ChanceNode(
     name="wet_grass",
-    parents=["rain"],
-    states=["dry", "wet", "soaked"],
+    parents=("rain",),
+    states=("dry", "wet", "soaked"),
     dist=lambda rain: dist.Categorical(probs=P[rain]),
 )
 ```
@@ -132,9 +130,9 @@ One axis per parent. No new mechanism.
 
 Since categorical values are integers internally, the label list does real work:
 
-- **Cardinality:** `len(states)` fixes the support size every engine assumes for the node — the length of each `probs` vector VE extracts, the number of states a marginal vector reports. Nothing validates the shape of a `dist`'s probability array against `states`; a mismatched table surfaces as wrong numbers, which `probe_discrete_parents()` (see [`diagram.md`](./diagram.md)) can flag when the wrong row is silently reused.
+- **Cardinality:** `len(states)` sizes policy-table axes and discrete posterior probability vectors. Distribution outputs must be integer indices from zero to `len(states) - 1`. Structural validation does not execute `dist`, so it cannot establish that runtime contract.
 - **Display:** report results as `wet_grass = soaked` rather than `wet_grass = 2`.
-- **Decision nodes too:** a discrete decision's action space is its `states` list, and the solver returns a policy keyed by these labels.
+- **Decision nodes too:** a discrete decision's action space is its `states` tuple. Policies use integer indices; `Solution.render()` decodes them to labels for display.
 
 `states` is required for discrete nodes and absent for continuous ones.
 

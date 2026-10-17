@@ -2,7 +2,7 @@
 
 Design note for the container in `diagram.py` and the node base in `node.py`. Captures *why* the container behaves the way it does, not the API reference (which lives in the module docstrings).
 
-> **Where this fits.** This is the foundational design note — the mutability and validation model here governs every node type. See [`README.md`](./README.md) for the doc index and reading order. The node-specific notes ([`chance_node.md`](./chance_node.md), [`decision_node.md`](./decision_node.md), [`utility_node.md`](./utility_node.md)) build on the principles below.
+> **Where this fits.** This is the foundational design note — the mutability and validation model here governs every node type. See [design index](../README.md) for the doc index and reading order. The node-specific notes ([`chance_node.md`](./chance_node.md), [`decision_node.md`](./decision_node.md), [`utility_node.md`](./utility_node.md)) build on the principles below.
 
 ---
 
@@ -75,6 +75,6 @@ Per-node state (`UNCONFIGURED` / `STALE` / `CONSISTENT`) is computed by the node
 
 ## What this deliberately is not
 
-- **Not a build-once container.** Nodes may be added before their parents, arcs rewired, distributions filled in at any time. The build-once prototype that preceded this design has been removed — see [`17_07_2026_mutability_design_decision.md`](./ADR/17_07_2026_mutability_design_decision.md) for the decision.
+- **Not a build-once container.** Nodes may be added before their parents, arcs rewired, distributions filled in at any time. The build-once prototype that preceded this design has been removed — see [`17_07_2026_mutability_design_decision.md`](../ADR/17_07_2026_mutability_design_decision.md) for the decision.
 - **Not mutable at random.** Field-level validation rejects malformed values immediately; only completeness is deferred.
 - **Not a parametric learner.** Parameter fitting (MLE, EM, SGD over CPTs) is a future concern and will likely take the form of a functional `fit(diagram, data) -> diagram` rather than in-place mutation of closed-over params. The current design does not commit to either, but does not block either.
