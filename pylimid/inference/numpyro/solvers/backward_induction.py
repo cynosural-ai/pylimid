@@ -92,7 +92,7 @@ def solve(
     if order is None:
         raise ValueError(
             "The diagram is not solvable: no backward-induction order exists. "
-            "Use the intervention scan, or add the memory arcs that make the "
+            'Use method="scan", or add the memory arcs that make the '
             "decisions observe each other."
         )
 
@@ -165,8 +165,9 @@ def _resolve_decision(
     if not bool((counts > 0).all()):
         raise ValueError(
             f"Some information-set assignments of decision {decision.name!r} "
-            f"were never sampled in {num_samples} trajectories; increase "
-            f"num_samples."
+            f"were never sampled in {num_samples} trajectories. They may be rare "
+            "or impossible under the model. Increasing num_samples if they are "
+            "simply rare"
         )
 
     rule_flat = jnp.argmax(quality, axis=0)

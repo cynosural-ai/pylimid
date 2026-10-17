@@ -177,6 +177,108 @@ def test_continuous_posterior_keeps_raw_draws():
     assert lo < 5.0 < hi
 
 
+def test_dirichlet_prior_can_be_queried_with_a_scalar_child():
+    diagram = InfluenceDiagram()
+    diagram.add_node(
+        ChanceNode(
+            name="weights", dist=lambda: dist.Dirichlet(jnp.array([2.0, 3.0, 5.0]))
+        )
+    )
+    diagram.add_node(
+        ChanceNode(
+            name="outcome",
+            parents=("weights",),
+            states=("a", "b", "c"),
+            dist=lambda weights: dist.Categorical(probs=weights),
+        )
+    )
+
+    result = infer(diagram, ["weights", "outcome"], num_samples=1000)
+    weights = result["weights"]
+
+    assert weights.states is None
+    assert not weights.is_discrete
+    assert isinstance(weights.values, jax.Array)
+    assert weights.values.shape == (1000, 3)
+    assert jnp.allclose(weights.values.sum(axis=1), 1.0)
+    assert weights.mean() == pytest.approx([0.2, 0.3, 0.5], abs=0.03)
+    assert isinstance(result["outcome"].values, list)
+    assert all(isinstance(value, float) for value in result["outcome"].values)
+    assert result["outcome"].marginal() == pytest.approx([0.2, 0.3, 0.5], abs=0.05)
+
+
+def test_dirichlet_posterior_updates_and_keeps_joint_draw_order():
+    diagram = InfluenceDiagram()
+    diagram.add_node(
+        ChanceNode(
+            name="weights", dist=lambda: dist.Dirichlet(jnp.array([2.0, 3.0, 5.0]))
+        )
+    )
+    diagram.add_node(
+        ChanceNode(
+            name="outcome",
+            parents=("weights",),
+            states=("a", "b", "c"),
+            dist=lambda weights: dist.Categorical(probs=weights),
+        )
+    )
+    diagram.add_node(
+        UtilityNode(
+            name="payoff",
+            parents=("weights", "outcome"),
+            values=lambda weights, outcome: weights[outcome],
+        )
+    )
+
+    result = infer(
+        diagram,
+        ["weights", "outcome", "payoff"],
+        observed={"outcome": 1},
+        num_samples=1000,
+    )
+    weights = result["weights"]
+    assert isinstance(weights.values, jax.Array)
+    assert weights.values.shape == (1000, 3)
+    # Dirichlet-Categorical conjugacy gives concentration [2, 4, 5].
+    concentration = jnp.array([2.0, 4.0, 5.0])
+    assert weights.mean() == pytest.approx(concentration / 11, abs=0.03)
+    assert weights.std() == pytest.approx(
+        jnp.sqrt(concentration * (11 - concentration) / (11**2 * 12)), abs=0.02
+    )
+    lower, upper = weights.hdi()
+    assert isinstance(lower, jax.Array)
+    assert isinstance(upper, jax.Array)
+    assert lower.shape == upper.shape == (3,)
+    assert jnp.all(lower < concentration / 11)
+    assert jnp.all(upper > concentration / 11)
+    assert result["outcome"].values == [1.0] * 1000
+    assert result["payoff"].values == weights.values[:, 1].tolist()
+
+
+@pytest.mark.parametrize("node_shape", [(1,), (2, 2)])
+def test_array_queries_preserve_event_dimensions(node_shape):
+    diagram = InfluenceDiagram()
+    diagram.add_node(
+        ChanceNode(
+            name="x",
+            dist=lambda: dist.Normal(jnp.ones(node_shape), 0.1).to_event(
+                len(node_shape)
+            ),
+        )
+    )
+
+    posterior = infer(diagram, ["x"], num_samples=50)["x"]
+
+    assert isinstance(posterior.values, jax.Array)
+    assert posterior.values.shape == (50, *node_shape)
+    assert posterior.mean() == pytest.approx(jnp.ones(node_shape), abs=0.1)
+    assert posterior.std() == pytest.approx(jnp.full(node_shape, 0.1), abs=0.05)
+    lower, upper = posterior.hdi()
+    assert isinstance(lower, jax.Array)
+    assert isinstance(upper, jax.Array)
+    assert lower.shape == upper.shape == node_shape
+
+
 def test_mixed_result_shape_follows_variable_type():
     """One Posterior type; states distinguish discrete from continuous."""
     result = infer(_mixed_diagram(), ["rain", "temp"])

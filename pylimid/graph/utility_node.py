@@ -100,7 +100,7 @@ class UtilityNode(Node):
             return f"Utility {self.name!r} has no `values` function configured."
         # STALE is the only remaining non-CONSISTENT state.
         return (
-            f"Utility {self.name!r}'s `values` signature does not match its "
+            f"The `values` signature for utility {self.name!r} does not match its "
             f"parents {self.parents!r}; reconfigure `values` after changing "
             f"the parent set."
         )
