@@ -72,7 +72,8 @@ def solve(
             ``method="backward_induction"`` is asked for on a diagram that is
             not solvable, or if an information-set assignment is never
             sampled during backward induction. Increasing ``num_samples`` can help with
-            rare assignments; impossible assignments cannot be sampled.
+            rare assignments; impossible assignments cannot be sampled. Also raised if
+            a chance distribution conflicts with its ``states``.
         ValueError: If the diagram fails `InfluenceDiagram.validate`, or *method* is not
             one of the supported names.
     """

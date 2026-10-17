@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="docs/_static/branding/pylimid-readme.svg" alt="PyLIMID" width="560">
+  <img src="https://raw.githubusercontent.com/cynosural-ai/pylimid/main/docs/_static/branding/pylimid-readme.svg" alt="PyLIMID" width="560">
 </p>
 
 [![PyPI](https://img.shields.io/pypi/v/pylimid.svg)](https://pypi.org/project/pylimid/)
 [![Documentation](https://readthedocs.org/projects/pylimid/badge/?version=latest)](https://pylimid.readthedocs.io/en/latest/)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE.md)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/cynosural-ai/pylimid/blob/main/LICENSE.md)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 
 PyLIMID is a Python library built on top of [NumPyro](https://num.pyro.ai) for building and solving *limited-memory influence diagrams* (LIMIDs) whose chance nodes can be discrete, continuous, or both in the same model.
@@ -103,8 +103,8 @@ The full documentation is at **<https://pylimid.readthedocs.io>**:
 
 ## Contributing
 
-Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to set up a development environment, which checks a change has to pass, and the conventions the project follows.
+Contributions are welcome. [CONTRIBUTING.md](https://github.com/cynosural-ai/pylimid/blob/main/CONTRIBUTING.md) explains how to set up a development environment, which checks a change has to pass, and the conventions the project follows.
 
 ## License
 
-PyLIMID is released under the Apache 2.0 license. See [LICENSE.md](LICENSE.md) for details.
+PyLIMID is released under the Apache 2.0 license. See [LICENSE.md](https://github.com/cynosural-ai/pylimid/blob/main/LICENSE.md) for details.

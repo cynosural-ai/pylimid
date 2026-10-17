@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import jax
 
+from pylimid._distributions import _validate_chance_distribution
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
@@ -87,7 +88,8 @@ def solve(
 
     Raises:
         ValueError: If a decision's information set contains a continuous
-            variable (a continuous information set cannot be tabulated).
+            variable (a continuous information set cannot be tabulated), or a chance
+            distribution conflicts with its ``states``.
     """
     if rng_key is None:
         rng_key = jax.random.PRNGKey(0)
@@ -158,7 +160,9 @@ def _estimate_eu(
             assert isinstance(node, ChanceNode)
             assert node.dist is not None
             parent_values = {p: values[p] for p in node.parents}
-            values[name] = node.dist(**parent_values).sample(node_keys[ki])
+            fn = node.dist(**parent_values)
+            _validate_chance_distribution(node, fn)
+            values[name] = fn.sample(node_keys[ki])
             ki += 1
         return values
 

@@ -43,6 +43,10 @@ Read in this order:
 
 10. **[`backward_induction.md`](./inference/backward_induction.md)** — the Level 2 estimator design (planned): the per-decision `Q(a, k)` conditional expectation, stratified grouping over information-set assignments, the regularity gate, variance expectations, and the validation plan against pyAgrum.
 
+## Proposals
+
+- **[More expressive discrete chance nodes](./graph/discrete_chance_nodes.md)** — proposed separation of distribution support, categorical versus numerical semantics, finite computational domains, and display labels. Covers count variables, operation-specific inference and solver requirements, posterior summaries, and a staged implementation. This is a future proposal, not the current API.
+
 ## Problem design notes
 
 Living notes for the example decision problems the library is meant to demonstrate. Each note describes the model, the capability it is meant to exercise, and its validation plan; the library capabilities it depends on are settled in the notes above. They are parked, not being executed.
