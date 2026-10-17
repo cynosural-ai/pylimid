@@ -51,6 +51,11 @@ def solve(
     operations on parent values, without ``float()`` or ``int()`` conversions or Python
     conditionals on those values.
 
+    With backward induction, parent-state combinations absent from the simulation
+    receive the first action in the decision's ``states`` and produce a warning.
+    Those policy entries are not optimised; they may represent impossible or rare
+    situations.
+
     Args:
         diagram: An influence diagram with at least one decision. Validation runs
             automatically.
@@ -70,12 +75,16 @@ def solve(
         InferenceError: If the diagram has no decision nodes, if a
             decision's information set is not discrete, if
             ``method="backward_induction"`` is asked for on a diagram that is
-            not solvable, or if an information-set assignment is never
-            sampled during backward induction. Increasing ``num_samples`` can help with
-            rare assignments; impossible assignments cannot be sampled. Also raised if
+            not solvable. Also raised if
             a chance distribution conflicts with its ``states``.
         ValueError: If the diagram fails `InfluenceDiagram.validate`, or *method* is not
             one of the supported names.
+
+    Warns:
+        UserWarning: If backward induction never samples an information-set assignment.
+            Its action defaults to the first in ``states``. Increasing ``num_samples``
+            can help with rare assignments, but impossible assignments cannot be
+            sampled.
     """
     if method not in ("auto", "backward_induction", "scan"):
         raise ValueError(
