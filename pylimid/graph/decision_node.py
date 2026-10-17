@@ -13,7 +13,7 @@ The information set is structural, not causal
 A decision's ``parents`` are *not* a statistical dependency. They record what
 the agent observes before acting. This is the standard influence-diagram
 convention: the same ``parents`` tuple that drives topological ordering and
-cycle prevention for chance nodes is reused here, but its meaning is
+cycle detection for chance nodes is reused here, but its meaning is
 "information available at decision time." Keeping one field name means the
 container's shared bookkeeping (validation, ordering) is reused unchanged —
 see `pylimid.graph.node`.
@@ -44,6 +44,11 @@ from pylimid.graph.node import (
 class DecisionNode(Node):
     """
     A decision variable in an influence diagram.
+
+    A decision chooses among a finite set of actions and can observe only discrete
+    parents. Its ``parents`` are exactly the information available when it acts; earlier
+    observations and decisions are remembered only when included explicitly.
+    ``states=None`` leaves the decision unconfigured.
 
     Attributes:
         name: Identifier for the node.
@@ -89,7 +94,15 @@ class DecisionNode(Node):
         return Consistency.CONSISTENT
 
     def consistency_message(self, state: Consistency) -> str:
-        """Decision-node wording for a non-CONSISTENT state (see base)."""
+        """
+        Describe the missing action states.
+
+        Args:
+            state: The node's ``UNCONFIGURED`` consistency state.
+
+        Returns:
+            A description of the configuration problem.
+        """
         # UNCONFIGURED is the only non-CONSISTENT state for a decision.
         return (
             f"Decision {self.name!r} has no action space (`states`) declared; "

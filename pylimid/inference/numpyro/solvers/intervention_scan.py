@@ -10,7 +10,7 @@ expected utility. The batched scan (`batched_scan`) is the same algorithm
 with all policies evaluated in one vmapped call.
 
 The forward pass mirrors the topological walk of `to_model` (parents before
-children — guaranteed by the `Snapshot`), except that a decision node is
+children — guaranteed by the `DiagramSnapshot`), except that a decision node is
 not a sample site: its action is looked up from the candidate policy as a
 deterministic function of the realized information-set values. Utility
 nodes are evaluated on the sampled values after the walk; their average
@@ -44,7 +44,7 @@ import jax
 
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
-from pylimid.graph.diagram import Snapshot
+from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
 from pylimid.inference.numpyro.solvers._policy import (
     Rule,
@@ -52,13 +52,13 @@ from pylimid.inference.numpyro.solvers._policy import (
     policy_array,
     policy_space,
 )
-from pylimid.inference.result import Policy, Solution
+from pylimid.inference.solution import Policy, Solution
 
 __all__ = ["solve"]
 
 
 def solve(
-    snapshot: Snapshot,
+    snapshot: DiagramSnapshot,
     *,
     num_samples: int = 2000,
     rng_key: jax.Array | None = None,
@@ -66,13 +66,18 @@ def solve(
     """
     Solve *snapshot* by the intervention scan.
 
-    Enumerates the discrete policy space, estimates expected utility per
-    policy by forward sampling with each decision resolved from its
-    observed information set, and keeps the best policy.
+    Enumerates every policy, estimates its expected total utility by forward sampling,
+    and selects the highest estimate. Policies are evaluated individually;
+    `batched_solve` evaluates the same policies together with JAX and is the scan used
+    by `pylimid.solve`.
+
+    For most uses, call `pylimid.solve`, which validates the diagram and selects a
+    solver. Chance distributions and utility functions must be JAX-traceable. The number
+    of policies grows exponentially with the number of action-table entries.
 
     Args:
-        snapshot: A validated influence-diagram snapshot with at least one
-            decision.
+        snapshot: A validated snapshot from `InfluenceDiagram.snapshot`, with discrete
+            decisions and information sets.
         num_samples: Forward samples per candidate policy.
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``.
 
@@ -120,7 +125,7 @@ def solve(
 
 
 def _estimate_eu(
-    snapshot: Snapshot,
+    snapshot: DiagramSnapshot,
     policy: Policy,
     num_samples: int,
     rng_key: jax.Array,

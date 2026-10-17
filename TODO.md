@@ -6,9 +6,10 @@ Forward plan. The engine work is done (numpyro-only, scan + batched scan + backw
 
 - **More worked examples in the docs.** Cover the decision classes the library is meant to demonstrate, so the guides and the API have something concrete to point at. The two planned problem benchmarks — the mixed continuous/discrete logistics center (buildable now) and the future continuous-decision ride-hailing problem — are scoped in `design/problems/`.
 - **Proper documentation.** Turn the current living notes into reader-facing documentation: concepts, the solving strategies, and the result contract.
-- **Bayesian priors as a feature.** A parameter of a distribution can itself be a chance node with a prior, which lets a model encode personal experience, such as the ice-cream vendor's belief about tomorrow's weather or their insight on demand. List it under Features in `docs/index.md` and `README.md`, and show it in the docs, for example as an extension of the quickstart. Things to know first:
+- **Finish and publish the inference guide.** The ice cream shop draft is now in `docs/user_guide/inference.md` and included in the documentation build for review. Its opening section shows the daily-profit distribution behind the recommended policy's expected utility. Continue in this order: calculate loss probability from those profit draws, compare distributions, expected utilities, and loss probabilities under alternative policies, then ask about another model variable using observed sunny weather and the probability of demand exceeding 150 available ice creams after a delivery shortfall. Finish with a short sampling-accuracy section. Keep the same model throughout; learning uncertain parameters belongs on a future page. Replace the remaining draft notes with prose before publication. These examples do not require dataset fitting or vector-valued queries.
+- **Bayesian priors as a feature.** A parameter of a distribution can itself be a chance node with a prior, which lets a model encode personal experience, such as the ice cream shop owner's belief about tomorrow's weather or their insight on demand. List it under Features in `docs/index.md` and `README.md`, and show it in the docs, for example as an extension of the quickstart. Things to know first:
   - Scalar priors already work in `solve` and `infer`: a `Beta` prior on the chance of sun, or a `LogNormal` scale on the demand mean, solves and updates correctly after an observation.
-  - Vector-valued priors do not: a `Dirichlet` node over the weather probabilities solves, but `infer` crashes when it builds the `Posterior`, because `_infer_numpyro` in `pylimid/inference/engine.py` converts every draw with `float()`. Fix that before advertising Dirichlet priors.
+  - Vector-valued priors can participate in `solve` and in `infer` when querying downstream scalar nodes. Querying the vector node itself, such as a `Dirichlet` node over the weather probabilities, crashes when `infer` builds its `Posterior`. Fix vector-valued results before advertising queries of Dirichlet priors (see Known issues).
   - Pick the example carefully. A prior on the weather probabilities alone leaves the quickstart's policy unchanged, since only its mean matters for a single forecast. A prior on demand does change it (a cloudy-day stock of 80 instead of 60), so it is the more convincing demonstration.
 - **Reorganize the code.** Settle the module layout now, with discrete decisions as the scope, so later work lands on a stable surface.
 
@@ -21,3 +22,53 @@ Built with [Sphinx](https://www.sphinx-doc.org/) using the [Read the Docs theme]
 ## 3. Continuous decisions (afterwards)
 
 Only once 1 and 2 are done. Strategy A — continuous actions and continuous information sets — is the likely next feature. The exploration map (feasibility, difficulty axes, guarantee change, validation plan, scope ladder, and the revisit trigger) lives in `design/continuous_decisions/` (on the unmerged `docs/continuous-decisions` branch, still under the old `docs/` path).
+
+## Known issues
+
+Found while writing the user guide. Ordered by how badly they can mislead a user.
+
+### Wrong answers without an error
+
+- **A discrete node's distribution can produce values outside its states.** Nothing checks that a discrete node only samples `0` to `len(states) - 1`. A node with six `states` and a `Poisson` distribution passes `validate()`, and `solve()` returns a policy in which every draw of 6 or more is treated as state 5, because JAX clamps out-of-range indices silently. About 8% of draws were affected in the test. Possible fix: have `probe_discrete_parents()`, or a new check, sample each discrete node and report values outside its states.
+- **Chained table indexing (`T[a][b]`) under `infer()`.** This is a NumPyro bug, [pyro-ppl/numpyro#2252](https://github.com/pyro-ppl/numpyro/issues/2252), and the maintainers say the chained form cannot be made to work. With a continuous latent (the NUTS path) the posterior is silently wrong: 0.53 against an exact 0.22 in the test. With only discrete latents it crashes with `KeyError: '_pyro_dim_…'`. `solve()` is not affected. What we can do:
+  - Catch the `KeyError` and re-raise it with a hint to index in one step, `T[a, b]`.
+  - Investigate a check that calls each `dist` with parent values carrying an extra leading dimension and verifies the output shape; this might catch the silent case. Untested idea.
+  - When the upstream PR that improves the `KeyError` lands, revisit the note in `design/inference/backend_numpyro.md`.
+
+### Crashes with unhelpful messages
+
+- **Querying vector-valued nodes crashes `infer()`.** Querying a `Dirichlet` node, or another node whose draws are arrays, fails because `_infer_numpyro` in `pylimid/inference/engine.py` converts every draw with `float()`. Such nodes can already participate in inference when querying downstream scalar nodes. Supporting vector queries requires preserving draw shapes and defining componentwise `Posterior.mean`, `Posterior.std`, and `Posterior.hdi` summaries, while preserving scalar behaviour.
+- **`IndexError: list index out of range` from `infer()`** when a discrete node samples beyond its states (the `Poisson` case above, with no observations). The message does not name the cause. Fixing the states check above mostly covers this.
+
+### Situations that never come up in the simulation
+
+A situation is one combination of a decision's parent states. When no sample lands in one, the solver can't tell whether it is rare (it can happen, but the simulation missed it) or impossible (its probability is 0, such as "test not run, result positive").
+
+- **Backward induction raises on every unseen situation, including impossible ones.** This blocks valid models: the common `no_results` idiom, a state that is certain when a test isn't run, can't be solved with backward induction. The error also says to increase `num_samples`, which can never help for an impossible situation. Proposal: finish the solve, give unseen situations an arbitrary action, and warn with the list of them, so the user can ignore impossible ones and re-solve with more samples for rare ones. If a warning is too easy to miss, add a parameter and keep raising by default. Either way, the message should say that more samples won't help if the situation is impossible.
+- **The scan gives unseen situations an arbitrary action without saying so.** Harmless for impossible situations, but a rare one that the simulation missed also gets an arbitrary action, and nothing tells the user. It should warn like backward induction would.
+- **The scan repeats work for impossible situations.** Policies that differ only in the action for an impossible situation get identical scores, so each impossible situation multiplies the number of policies by the decision's number of actions (the `no_results` idiom in the oil field would mean 2³ = 8 times more policies for `buy`). Possible fix: a short pilot simulation finds the situations that never come up, they get one fixed action, and the scan enumerates only the rest.
+
+### Cosmetic
+
+- **Doubled quote in messages.** `{name!r}'s` renders as `'forecast''s` because `!r` already adds quotes. It appears in `pylimid/graph/diagram.py` (the probe), `chance_node.py` and `utility_node.py` (the signature checks).
+- **Stale solver name in an error.** `solve(method="backward_induction")` on an unsolvable diagram says "Use the intervention scan"; the method is called `scan`.
+
+### Documentation
+
+- **Learning from data (future guide).** Introduce uncertainty about model parameters and updating those beliefs from observations separately from the inference guide. A scalar prior such as `busyness` and one observation work already. Repeated datasets and decisions under learned uncertainty can extend the page once those capabilities are available.
+- **Remake the oil field tutorial.** Its note on the result when the test isn't run says that with a `no_results` state "`solve()` would fall back to the scan". It doesn't: `auto` picks the solver from the structure alone (`is_solvable`), the diagram is solvable, so backward induction runs and raises, and there is no fallback after an error. The tutorial avoids the case with a 50/50 filler for `result`; once backward induction warns instead of raising, the `no_results` idiom would work as it is.
+
+### Missing features
+
+- **Sampler diagnostics and controls.** Expose configurable NUTS warmup through `infer` and return diagnostics that help users assess sampling reliability, including divergences and effective sample sizes. Support multiple chains for convergence checks and report R-hat only when applicable. Forward sampling and discrete enumeration should distinguish diagnostics that do not apply.
+- **Dataset fitting (later).** Define how repeated observations share model parameters, rather than relying on broadcasting alone. A fitting tutorial should cover learning shared parameters and predicting new observations; keep this out of the inference-guide rewrite.
+- **Decisions under learned uncertainty (later).** Provide a way to carry posterior uncertainty from `infer` into future simulations used by `solve`, preserving dependencies between learned parameters. This is separate from accepting datasets; plugging in posterior means alone would discard that uncertainty.
+- **Every `solve()` and `infer()` call compiles again**, because the jitted functions are defined inside each call. That costs about 0.3–0.6 s even on the quickstart model, independent of `num_samples`. Caching the compiled functions would help anyone who calls them in a loop.
+
+
+------
+
+### Comments from Fer
+
+- Should we have a 3rd guide about "Fitting a model"?
+- After we have defined all of the main pages, reviewed the API, have good tutorials, etc. we would take a look into LLM-based integration, most probably with a different repo. And we would decide then how to document it

@@ -17,7 +17,7 @@ import jax.numpy as jnp
 
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
-from pylimid.inference.result import Policy
+from pylimid.inference.solution import Policy
 
 __all__ = [
     "Rule",

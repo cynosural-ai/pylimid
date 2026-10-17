@@ -78,7 +78,6 @@ result = infer(
     diagram,
     ["busyness"],
     observed={"weather": 1, "demand": 180.0},
-    policy={"order": 0},
 )
 result["busyness"].mean()
 ```
@@ -93,7 +92,7 @@ A busy sunny day nudges the belief up and a quiet one nudges it down, but one da
 
 The intervals come from `result["busyness"].hdi()`, whose default covers 95% of the draws.
 
-The `policy` argument needs a sentence of explanation on the page. `infer` requires every decision to be fixed, even though the order has no effect on demand, so `{"order": 0}` works but looks arbitrary. Something like "`infer` needs every decision fixed; the order doesn't affect demand, so any value works" is enough.
+No `policy` is needed: the order is not an ancestor of `busyness`, `weather` or `demand`, so it can't affect the answer and `infer` leaves it out.
 
 ## Feeding the update back into the decision
 

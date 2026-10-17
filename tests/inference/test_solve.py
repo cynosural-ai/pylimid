@@ -208,3 +208,62 @@ def test_solve_no_decisions_raises():
 def test_solve_continuous_information_set_raises(method):
     with pytest.raises(InferenceError, match="continuous"):
         solve(_continuous_info_diagram(), method=method)
+
+
+# --- rendering ---------------------------------------------------------------
+
+
+def test_render_labels_policy_with_node_states():
+    diag = _umbrella_diagram()
+    assert solve(diag).render(diag) == (
+        "expected utility: 1.00 (method: backward_induction)\n"
+        "\n"
+        "umbrella (rain)\n"
+        "  rain=no  -> no\n"
+        "  rain=yes -> yes"
+    )
+
+
+def test_render_multiple_parents_aligns_situations():
+    diag = InfluenceDiagram()
+    diag.add_node(
+        ChanceNode(
+            name="a",
+            states=("x", "yy"),
+            dist=lambda: dist.Categorical(probs=jnp.array([0.5, 0.5])),
+        )
+    )
+    diag.add_node(
+        ChanceNode(
+            name="b",
+            states=("0", "1"),
+            dist=lambda: dist.Categorical(probs=jnp.array([0.5, 0.5])),
+        )
+    )
+    diag.add_node(DecisionNode(name="d", parents=("a", "b"), states=("no", "yes")))
+    diag.add_node(
+        UtilityNode(
+            name="u",
+            parents=("d", "a", "b"),
+            values=lambda d, a, b: (d == a * b) * 1.0,
+        )
+    )
+    assert solve(diag).render(diag) == (
+        "expected utility: 1.00 (method: backward_induction)\n"
+        "\n"
+        "d (a, b)\n"
+        "  a=x, b=0  -> no\n"
+        "  a=x, b=1  -> no\n"
+        "  a=yy, b=0 -> no\n"
+        "  a=yy, b=1 -> yes"
+    )
+
+
+def test_render_no_parents_situation_is_always():
+    diag = InfluenceDiagram()
+    diag.add_node(DecisionNode(name="d", states=("a", "b")))
+    diag.add_node(UtilityNode(name="u", parents=("d",), values=lambda d: d * 1.0))
+    assert solve(diag).render(diag) == (
+        "expected utility: 1.00 (method: backward_induction)\n\nd (no parents)\n"
+        "  always -> b"
+    )

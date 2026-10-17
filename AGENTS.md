@@ -10,24 +10,25 @@ uv run pytest tests/       # run tests
 
 ## Code style
 - Google-style docstrings for all public functions, methods, and classes.
-- Cross-references to public names use single backticks: `Snapshot`, `InfluenceDiagram.validate`. The documentation site resolves them into links (Sphinx `default_role`). No explicit Sphinx roles (`:class:`, `:func:`).
+- Cross-references to public names use single backticks: `DiagramSnapshot`, `InfluenceDiagram.validate`. The documentation site resolves them into links (Sphinx `default_role`). No explicit Sphinx roles (`:class:`, `:func:`).
 - Literal code and values use double backticks: ``None``, ``num_samples=500``, ``jnp``.
 
 Example:
 ```python
-def add_edge(self, parent: str, child: str) -> None:
+def add_arc(self, parent: str, child: str) -> None:
     """
-    Wire an edge parent -> child.
+    Wire an arc parent -> child.
 
-    Both endpoints must already be in the diagram; see `InfluenceDiagram.add_node`.
+    The child must already be in the diagram; see `InfluenceDiagram.add_node`.
+    Cycles are reported by `InfluenceDiagram.validate`, not rejected here.
 
     Args:
         parent: Name of the parent node.
         child: Name of the child node.
 
     Raises:
-        KeyError: If either endpoint is not in the diagram.
-        ValueError: If the edge would create a cycle or the child is a utility node.
+        KeyError: If the child is not in the diagram.
+        ValueError: If the arc is a self-loop.
     """
 ```
 
@@ -59,6 +60,8 @@ old_tuple = tuple(old_lookup[v] for v in self.variables)
 
 ## Writing Markdown files
 `docs/` holds only the published Sphinx documentation, written for users. Development notes for contributors (decision records, design notes, plans) go in `design/`.
+
+Before changing anything in `docs/` or `README.md`, read `design/documentation_plan.md`: it records the current state of the docs, the agreed structure, and the writing conventions every page follows.
 
 Dont break lines at 80 characters, let lines flow and the viewer will adjust 
 

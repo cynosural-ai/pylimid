@@ -20,7 +20,7 @@ The diagram is allowed to be unsound at all times. Inference consumes a **valida
 
 This mirrors the working-tree / commit split in Git, or live tables / snapshot isolation in a database: the source of truth is always editable; the consumer sees an immutable, checked view.
 
-Concretely: `add_node`, `add_edge`, `set_dist` never reject an edit for being incomplete (only for being *malformed* — see Principle 2). `validate()` / `snapshot()` are the only operations that demand soundness.
+Concretely: `add_node`, `add_arc`, `set_dist` never reject an edit for being incomplete (only for being *malformed* — see Principle 2). `validate()` / `snapshot()` are the only operations that demand soundness.
 
 ---
 
@@ -44,14 +44,14 @@ A malformed value (empty name) is never a useful intermediate state, so it is re
 
 ---
 
-## Principle 4 — structural invariants are enforced eagerly on the happy path, defensively elsewhere
+## Principle 4 — structural invariants are checked in `validate()`, whatever the mutation path
 
-Two structural invariants are "never a useful intermediate state" and get this two-layer treatment:
+Two structural invariants must hold before inference:
 
-- **Acyclicity.** A cycle is never useful. `add_edge` rejects an edge that would close a cycle before applying it. But a node is independently mutable through its own `add_parent`, which bypasses the diagram, so `validate()` runs a defensive cycle check as the backstop.
-- **Utility nodes are sinks.** A payoff with a child is never valid. `add_edge` rejects an edge whose parent is a utility node (read via `node.is_sink`). The same direct-mutation bypass applies, so `validate()` reports any utility node that has nonetheless acquired a child as `ProblemKind.UTILITY_NOT_SINK`.
+- **Acyclicity.** `validate()` reports a cycle as `DiagramProblemKind.CYCLE`, naming its nodes in arc order.
+- **Utility nodes are sinks.** A payoff with a child is never valid. `validate()` reports any utility node with a child as `DiagramProblemKind.UTILITY_NOT_SINK` (read via `node.is_sink`).
 
-Two layers because there are two mutation paths; neither alone is sufficient.
+An arc can be created three ways: `add_arc`, `parents=` in `add_node`, and a node's own `add_parent`. All three are checked by the same code at the same time, so the result does not depend on how or in which order the diagram was built, and edits such as reversing an arc (add the new one, then remove the old one) are possible. Editing methods only refuse what they cannot carry out: a duplicate name, an arc into a child that is not in the diagram, a malformed field. See [`09_10_2026_structural_checks_in_validate.md`](../ADR/09_10_2026_structural_checks_in_validate.md) for why the earlier eager checks in `add_arc` were removed.
 
 ---
 
@@ -75,6 +75,6 @@ Per-node state (`UNCONFIGURED` / `STALE` / `CONSISTENT`) is computed by the node
 
 ## What this deliberately is not
 
-- **Not a build-once container.** Nodes may be added before their parents, edges rewired, distributions filled in at any time. The build-once prototype that preceded this design has been removed — see [`17_07_2026_mutability_design_decision.md`](./ADR/17_07_2026_mutability_design_decision.md) for the decision.
+- **Not a build-once container.** Nodes may be added before their parents, arcs rewired, distributions filled in at any time. The build-once prototype that preceded this design has been removed — see [`17_07_2026_mutability_design_decision.md`](./ADR/17_07_2026_mutability_design_decision.md) for the decision.
 - **Not mutable at random.** Field-level validation rejects malformed values immediately; only completeness is deferred.
 - **Not a parametric learner.** Parameter fitting (MLE, EM, SGD over CPTs) is a future concern and will likely take the form of a functional `fit(diagram, data) -> diagram` rather than in-place mutation of closed-over params. The current design does not commit to either, but does not block either.

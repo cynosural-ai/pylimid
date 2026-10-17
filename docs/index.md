@@ -39,14 +39,6 @@ How each piece works: diagrams, chance nodes, decisions, utilities, inference, a
 [](user_guide/building_a_diagram.md)
 :::
 
-:::{grid-item-card} Tutorials
-:text-align: center
-Build complete models step by step, starting with a classic decision problem.
-
-+++
-[](tutorials/oil_field.md)
-:::
-
 :::{grid-item-card} API reference
 :text-align: center
 Technical descriptions of every public class, function, and method.
@@ -56,6 +48,16 @@ Technical descriptions of every public class, function, and method.
 :::
 
 ::::
+
+<!--
+:::{grid-item-card} Tutorials
+:text-align: center
+Build complete models step by step, starting with a classic decision problem.
+
++++
+[](tutorials/oil_field.md)
+:::
+-->
 
 ```{toctree}
 :hidden:
@@ -72,15 +74,13 @@ getting_started/quickstart
 :maxdepth: 1
 
 user_guide/building_a_diagram
-user_guide/chance_nodes
-user_guide/decisions_and_information_sets
-user_guide/utilities
-user_guide/inference
+user_guide/distributions_and_utilities
 user_guide/solving
-user_guide/rendering
-user_guide/scope_and_limitations
+user_guide/inference
+user_guide/multiple_decisions
 ```
 
+<!--
 ```{toctree}
 :hidden:
 :caption: Tutorials
@@ -90,6 +90,15 @@ tutorials/oil_field
 tutorials/logistics_center
 tutorials/newsvendor
 tutorials/bayesian_networks
+```
+-->
+
+```{toctree}
+:hidden:
+:caption: Resources
+:maxdepth: 1
+
+resources/common_pitfalls
 ```
 
 ```{toctree}

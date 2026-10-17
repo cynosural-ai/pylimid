@@ -41,17 +41,17 @@ import jax.numpy as jnp
 
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
-from pylimid.graph.diagram import Snapshot
+from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
 from pylimid.inference.numpyro.solvers._policy import info_assignments
 from pylimid.inference.numpyro.solvers.regularity import solvability_order
-from pylimid.inference.result import Policy, Solution
+from pylimid.inference.solution import Policy, Solution
 
 __all__ = ["solve"]
 
 
 def solve(
-    snapshot: Snapshot,
+    snapshot: DiagramSnapshot,
     *,
     num_samples: int = 2000,
     rng_key: jax.Array | None = None,
@@ -59,15 +59,17 @@ def solve(
     """
     Solve *snapshot* by backward induction.
 
-    Resolves the decisions in reverse order (closest to the utilities
-    first), estimating every action's continuation value per
-    information-set assignment by stratified forward sampling, and keeps
-    the per-assignment argmax. The reported expected utility is a final
-    forward pass with the fully resolved policy.
+    Follows `solvability_order`, estimating the expected total utility of each action
+    for every information-set assignment. Forward samples are grouped by the observed
+    assignment to select its best action. The reported expected utility comes from a
+    final forward pass with all decisions resolved.
+
+    For most uses, call `pylimid.solve`, which validates the diagram and selects a
+    solver. Chance distributions and utility functions must be JAX-traceable.
 
     Args:
-        snapshot: A validated, solvable influence-diagram snapshot with at
-            least one decision.
+        snapshot: A validated, solvable snapshot from `InfluenceDiagram.snapshot`, with
+            discrete decisions and information sets.
         num_samples: Forward trajectories per action per decision.
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``.
 
@@ -80,7 +82,8 @@ def solve(
         ValueError: If the diagram is not solvable (no backward-induction
             order — use the scan), or if a decision's information set is
             continuous, or if a decision's assignment never appeared in
-            the samples (increase *num_samples*).
+            the samples. Increasing ``num_samples`` can help with rare assignments;
+            impossible assignments cannot be sampled.
     """
     if rng_key is None:
         rng_key = jax.random.PRNGKey(0)
@@ -126,7 +129,7 @@ def solve(
 
 
 def _resolve_decision(
-    snapshot: Snapshot,
+    snapshot: DiagramSnapshot,
     decision: DecisionNode,
     rules: dict[str, jax.Array],
     num_samples: int,
@@ -176,7 +179,7 @@ def _resolve_decision(
 
 
 def _estimate_policy_eu(
-    snapshot: Snapshot,
+    snapshot: DiagramSnapshot,
     rules: dict[str, jax.Array],
     num_samples: int,
     rng_key: jax.Array,
@@ -199,7 +202,7 @@ def _estimate_policy_eu(
 
 
 def _trajectory(
-    snapshot: Snapshot,
+    snapshot: DiagramSnapshot,
     rules: dict[str, jax.Array],
     target: DecisionNode | None,
 ) -> Callable[[jax.Array, jax.Array], tuple[jax.Array, jax.Array]]:

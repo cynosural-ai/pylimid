@@ -22,26 +22,47 @@ first, and every later entry is tested against the ones already placed.
 
 from __future__ import annotations
 
-from pylimid.graph.diagram import Snapshot
+from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.node import NodeKind
 
 __all__ = ["is_solvable", "solvability_order"]
 
 
-def is_solvable(snapshot: Snapshot) -> bool:
-    """Whether *snapshot* admits an exact solution ordering."""
+def is_solvable(snapshot: DiagramSnapshot) -> bool:
+    """
+    Check whether the graph admits an exact solution ordering.
+
+    This is the structural check used by ``solve(method="auto")`` to choose backward
+    induction. It does not check whether information sets are discrete or whether every
+    assignment will appear in the samples.
+
+    Args:
+        snapshot: A validated snapshot from `InfluenceDiagram.snapshot`.
+
+    Returns:
+        ``True`` if `solvability_order` finds an ordering, including for a diagram with
+        no decisions. Numerical requirements must still be satisfied to solve the
+        diagram.
+    """
     return solvability_order(snapshot) is not None
 
 
-def solvability_order(snapshot: Snapshot) -> list[str] | None:
+def solvability_order(snapshot: DiagramSnapshot) -> list[str] | None:
     """
-    The decisions in solving order, or None if the diagram is not soluble.
+    Find an order in which backward induction can resolve the decisions.
 
-    Repeatedly picks a decision whose downstream utilities are
-    d-separated from the families of the remaining decisions given its own
-    family, until no decision passes — then the diagram is not soluble.
-    The first decision in the list is solved first; later entries are
-    tested against the earlier ones as resolved.
+    Repeatedly picks a decision whose downstream utilities are d-separated from the
+    families of the other unresolved decisions, given its own family. A decision's
+    family consists of the decision and its parents. Previously selected decisions are
+    treated as resolved.
+
+    Args:
+        snapshot: A validated snapshot from `InfluenceDiagram.snapshot`.
+
+    Returns:
+        Decision names in the order they are resolved. The first entry need not be the
+        first decision in time. Returns ``None`` if no complete ordering exists, or an
+        empty list if there are no decisions.
     """
     names, kinds, parents, children = _graph(snapshot)
     utilities = {name for name in names if kinds[name] is NodeKind.UTILITY}
@@ -73,7 +94,7 @@ def solvability_order(snapshot: Snapshot) -> list[str] | None:
 # ---------------------------------------------------------------------------
 
 
-def _graph(snapshot: Snapshot):
+def _graph(snapshot: DiagramSnapshot):
     names = [name for name, _ in snapshot.nodes]
     kinds = {name: node.kind for name, node in snapshot.nodes}
     parents = {name: tuple(node.parents) for name, node in snapshot.nodes}

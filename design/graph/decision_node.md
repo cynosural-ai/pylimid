@@ -10,7 +10,7 @@ Design note covering how a `DecisionNode` should be represented under the hood i
 
 `DecisionNode` lives in [`graph/decision_node.py`](../pylimid/graph/decision_node.py), subclasses the shared [`Node`](../pylimid/graph/node.py), and participates in the diagram like any other node. What it carries:
 
-- **`parents`** — the **information set**: the variables observed when the decision is made. *Not* a causal dependency. This is the standard influence-diagram convention; the field name is reused from chance/utility nodes so the container's shared bookkeeping (validation, topological ordering, cycle prevention) applies unchanged.
+- **`parents`** — the **information set**: the variables observed when the decision is made. *Not* a causal dependency. This is the standard influence-diagram convention; the field name is reused from chance/utility nodes so the container's shared bookkeeping (validation, topological ordering, cycle detection) applies unchanged.
 - **`states`** — the available actions (labels). `None` marks the decision as not-yet-configured (or, forward-looking, continuous — to be owned by the solver).
 - **No `dist`.** The decision's value is chosen, not sampled.
 

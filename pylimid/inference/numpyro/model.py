@@ -5,7 +5,7 @@ Internal module. Public convenience functions that wrap this are in
 `pylimid.inference.numpyro`.
 
 This is the bridge between the backend-agnostic graph layer and a concrete
-probabilistic programming system. It consumes a `Snapshot` and returns a plain
+probabilistic programming system. It consumes a `DiagramSnapshot` and returns a plain
 NumPyro model function the caller feeds to ``numpyro.infer``
 (e.g. ``Predictive``, ``MCMC``, ``SVI``).
 
@@ -18,8 +18,9 @@ and annotated with ``infer={"enumerate": "parallel"}`` so that NumPyro's NUTS
 and SVI engines can marginalise them out. Observed discrete nodes skip
 enumeration (the value is clamped).
 
-Bound decisions (clamped by a policy) become degenerate observed sites; utility
-nodes are skipped — a payoff is never sampled and is never a parent.
+Fixed decisions become degenerate observed sites; contingent decisions are
+deterministic functions of their information sets. Utility nodes are skipped
+— a payoff is never sampled and is never a parent.
 
 Forward / prior-predictive sampling: pass ``observed=None`` (the default) and
 feed the model to ``Predictive``.
@@ -30,20 +31,25 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+import jax
 import numpyro
 import numpyro.distributions as dist
 
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
-from pylimid.graph.diagram import Snapshot
+from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
+from pylimid.inference._errors import InferenceError
+from pylimid.inference.numpyro.solvers._policy import info_assignments, policy_array
+from pylimid.inference.solution import Policy
 
 __all__ = ["to_model"]
 
 
 def to_model(
-    snapshot: Snapshot,
+    snapshot: DiagramSnapshot,
     observed: dict[str, Any] | None = None,
+    policy: Policy | None = None,
 ) -> Callable[[], dict[str, Any]]:
     """
     Build a NumPyro model function from a validated snapshot.
@@ -58,9 +64,9 @@ def to_model(
     them out. Observed nodes skip enumeration and are clamped via ``obs=``.
     Continuous nodes are left for the inference engine.
 
-    A decision node becomes a degenerate observed site at its bound value —
-    every decision must appear in *observed* (``infer(policy=...)`` merges the
-    policy there). A utility node is skipped entirely.
+    A fixed decision becomes a degenerate observed site. A state-dependent
+    decision policy is evaluated from its information-set parents as the
+    model walks the diagram. A utility node is skipped entirely.
 
     Note:
         Under NumPyro's parallel enumeration, the parent values passed to a
@@ -74,16 +80,57 @@ def to_model(
             diagram.
         observed: Mapping of node names to observed values. Chance nodes
             present here are conditioned on their given value; chance nodes
-            absent are treated as latent; decisions must always be present.
-            Pass ``None`` or ``{}`` for forward sampling of a
-            chance-node-only diagram.
+            absent are treated as latent. Fixed decisions are bound here.
+        policy: State-dependent decision rules mapping information-set
+            assignments (tuples of state indices) to action indices.
 
     Returns:
         A NumPyro model function taking no arguments, returning a
         ``dict[str, Any]`` of sampled (or observed) values keyed by node name.
+
+    Raises:
+        InferenceError: If a policy names a non-decision node, omits an
+            information-set assignment, or contains an invalid action.
+        KeyError: If a policy names a node that is not in the snapshot.
+        ValueError: If a policy has a continuous information-set parent.
     """
+    return _to_model(snapshot, observed or {}, _policy_tables(snapshot, policy or {}))
+
+
+def _policy_tables(snapshot: DiagramSnapshot, policy: Policy) -> dict[str, jax.Array]:
+    """Validate contingent rules and encode them with the solvers' table format."""
+    nodes = dict(snapshot.nodes)
+    node_map = {
+        name: node
+        for name, node in snapshot.nodes
+        if isinstance(node, (ChanceNode, DecisionNode))
+    }
+    tables = {}
+    for name, rule in policy.items():
+        decision = nodes[name]
+        if not isinstance(decision, DecisionNode):
+            raise InferenceError(f"Policy for {name!r} must bind a decision node.")
+        if set(rule) != set(info_assignments(decision, node_map)):
+            raise InferenceError(
+                f"Policy for {name!r} must define every information-set assignment."
+            )
+        assert decision.states is not None
+        if any(
+            not isinstance(action, int) or not 0 <= action < len(decision.states)
+            for action in rule.values()
+        ):
+            raise InferenceError(f"Policy for {name!r} contains an invalid action.")
+        tables[name] = policy_array(decision, rule, node_map)
+    return tables
+
+
+def _to_model(
+    snapshot: DiagramSnapshot,
+    observed: dict[str, Any],
+    policy_tables: dict[str, jax.Array],
+) -> Callable[[], dict[str, Any]]:
+    """Build a model using already validated and compiled policy tables."""
     nodes = snapshot.nodes
-    observed = observed or {}
 
     def model() -> dict[str, Any]:
         values: dict[str, Any] = {}
@@ -91,8 +138,14 @@ def to_model(
             if isinstance(node, UtilityNode):
                 continue
             if isinstance(node, DecisionNode):
-                value = observed[name]
-                values[name] = numpyro.sample(name, dist.Delta(value), obs=value)
+                if name in policy_tables:
+                    parent_values = tuple(values[parent] for parent in node.parents)
+                    table = policy_tables[name]
+                    value = table[parent_values] if parent_values else table
+                    values[name] = numpyro.deterministic(name, value)
+                else:
+                    value = observed[name]
+                    values[name] = numpyro.sample(name, dist.Delta(value), obs=value)
                 continue
             assert isinstance(node, ChanceNode)
             parent_values = {parent: values[parent] for parent in node.parents}

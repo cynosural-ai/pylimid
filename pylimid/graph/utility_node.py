@@ -11,12 +11,8 @@ a chance node's ``dist``).
 Utility nodes are terminal
 --------------------------
 In an influence diagram a payoff is always a **sink**: it has parents but no
-children. The diagram enforces this on `InfluenceDiagram.add_edge` (rejecting
-an edge that would give a utility node a child) and again in
-`InfluenceDiagram.validate` (the defensive
-backstop against a node mutated directly through its own ``add_parent``).
-This mirrors the eager-plus-defensive treatment of acyclicity — a
-utility-with-child is never a useful intermediate state.
+children. `InfluenceDiagram.validate` reports a utility node that has
+children, like it reports a cycle, however the arc was created.
 """
 
 from collections.abc import Callable
@@ -40,13 +36,20 @@ class UtilityNode(Node):
     """
     A utility (payoff) node in an influence diagram.
 
+    The utility function receives parent values as keyword arguments and returns a
+    scalar payoff. Discrete parents pass integer state indices; continuous parents pass
+    their numerical values. The function must be JAX-traceable. When a diagram has
+    several utility nodes, `solve` maximises their sum.
+
+    A utility node cannot have children; `InfluenceDiagram.validate` reports any such
+    arcs.
+
     Attributes:
         name: Identifier for the node.
         parents: Names of the variables the payoff depends on. May be edited
             after construction.
-        values: Callable invoked as ``values(**parent_values)`` returning a
-            ``float`` payoff. ``None`` (the default) marks the node as
-            not-yet-configured.
+        values: Callable invoked as ``values(**parent_values)`` returning a scalar
+            payoff. ``None`` (the default) marks the node as not-yet-configured.
     """
 
     values: ValueFactory | None = field(default=None, kw_only=True)
@@ -71,14 +74,7 @@ class UtilityNode(Node):
 
     @property
     def is_discrete(self) -> bool:
-        """
-        ``False`` — a utility node is not a random variable.
-
-        It is a deterministic scalar payoff with no sampling domain, so
-        ``is_discrete`` is vacuous for it. Engines must classify nodes by
-        ``kind`` — a diagram with a utility node is an influence diagram, not
-        a Bayesian network — never by ``is_discrete``.
-        """
+        """``False`` — a utility is a deterministic payoff with no state labels."""
         return False
 
     # --- consistency --------------------------------------------------------
@@ -91,7 +87,15 @@ class UtilityNode(Node):
         return Consistency.STALE
 
     def consistency_message(self, state: Consistency) -> str:
-        """Utility-node wording for a non-CONSISTENT state (see base)."""
+        """
+        Describe a missing utility function or a mismatch with the parents.
+
+        Args:
+            state: The node's ``UNCONFIGURED`` or ``STALE`` consistency state.
+
+        Returns:
+            A description of the configuration problem.
+        """
         if state is Consistency.UNCONFIGURED:
             return f"Utility {self.name!r} has no `values` function configured."
         # STALE is the only remaining non-CONSISTENT state.

@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 
 from pylimid.graph import ChanceNode, InfluenceDiagram, UtilityNode
-from pylimid.graph.validation import ProblemKind
+from pylimid.graph.validation import DiagramProblemKind
 
 # --- helpers -----------------------------------------------------------------
 
@@ -62,7 +62,7 @@ def test_probe_catches_clamped_continuous_child():
     diag = _group_mixture(loc_table=jnp.array([10.0]), scale_table=jnp.array([1.0]))
     problems = diag.probe_discrete_parents()
     assert len(problems) == 1
-    assert problems[0].kind is ProblemKind.DIST_IGNORES_PARENT
+    assert problems[0].kind is DiagramProblemKind.DIST_IGNORES_PARENT
     assert problems[0].node == "y"
     assert "group" in problems[0].message
 
@@ -72,7 +72,7 @@ def test_probe_catches_clamped_discrete_child():
     diag = _rain_wet_grass(probs_table=jnp.array([[0.90, 0.10]]))
     problems = diag.probe_discrete_parents()
     assert len(problems) == 1
-    assert problems[0].kind is ProblemKind.DIST_IGNORES_PARENT
+    assert problems[0].kind is DiagramProblemKind.DIST_IGNORES_PARENT
     assert problems[0].node == "wet_grass"
 
 
@@ -114,7 +114,7 @@ def test_probe_flags_intentionally_independent_node():
     diag = _rain_wet_grass(probs_table=jnp.array([[0.90, 0.10], [0.90, 0.10]]))
     problems = diag.probe_discrete_parents()
     assert len(problems) == 1
-    assert problems[0].kind is ProblemKind.DIST_IGNORES_PARENT
+    assert problems[0].kind is DiagramProblemKind.DIST_IGNORES_PARENT
 
 
 def test_probe_skips_continuous_parents():

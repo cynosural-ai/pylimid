@@ -15,10 +15,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-__all__ = ["DiagramProblem", "ProblemKind"]
+__all__ = ["DiagramProblem", "DiagramProblemKind"]
 
 
-class ProblemKind(Enum):
+class DiagramProblemKind(Enum):
     """
     Category of a `DiagramProblem`.
 
@@ -31,8 +31,8 @@ class ProblemKind(Enum):
             parents.
         UTILITY_NOT_SINK: A utility node has acquired a child — a payoff must
             be terminal.
-        DIST_IGNORES_PARENT: A node's callable returns the same output for
-            every value of a discrete parent — found by
+        DIST_IGNORES_PARENT: A node's callable returns the same output for every state
+            of a discrete parent, with other parents fixed at zero. Found by
             `InfluenceDiagram.probe_discrete_parents`, a warning rather than
             an error.
     """
@@ -50,10 +50,16 @@ class DiagramProblem:
     """
     A single issue found by a diagram check.
 
-    Carries enough structure for a UI or LLM to render or act on the problem
-    without parsing prose.
+    Returned by `InfluenceDiagram.validate` or
+    `InfluenceDiagram.probe_discrete_parents`. The latter returns warnings about parent
+    effects, which do not block inference.
+
+    Attributes:
+        kind: The category of the problem.
+        node: The name of the node the problem belongs to.
+        message: A human-readable description of the problem.
     """
 
-    kind: ProblemKind
+    kind: DiagramProblemKind
     node: str
     message: str

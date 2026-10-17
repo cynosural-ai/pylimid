@@ -2,7 +2,7 @@
 
 The bridge between the backend-agnostic graph layer and a concrete probabilistic programming system. This is the most bug-prone layer (per [`diagram.md`](./diagram.md)), so it is kept deliberately thin.
 
-> **Where this fits.** The graph layer ([`diagram.md`](./diagram.md)) settles the container and the `dist` calling convention; the translator consumes a validated `Snapshot` and turns it into a runnable model. A chance-node-only diagram *is* a Bayesian network; an influence diagram is translated once every decision is bound by a policy (the `policy=` binding on `infer()`, see `pylimid.inference.engine`).
+> **Where this fits.** The graph layer ([`diagram.md`](./diagram.md)) settles the container and the `dist` calling convention; the translator consumes a validated `DiagramSnapshot` and turns it into a runnable model. A chance-node-only diagram *is* a Bayesian network; an influence diagram is translated once every decision is bound by a policy (the `policy=` binding on `infer()`, see `pylimid.inference.engine`).
 
 ---
 
@@ -52,7 +52,7 @@ NumPyro (and its JAX base) is a declared runtime dependency of pylimid, not a se
 
 **Not handled here:**
 - **Unbound decisions.** The translator does not check binding itself — an unbound decision fails with a `KeyError`, and `infer()` rejects unbound diagrams with a clean `InferenceError` before any engine runs.
-- **A deep-frozen snapshot.** A `Snapshot` holds references to still-mutable nodes ([`diagram.md`](./diagram.md), "the snapshot is logical, not deep-frozen"). The node list is captured once at `to_model` time, so structural edits afterward don't affect an already-captured model; but field mutation on a captured node *before* sampling would be seen by the model. Freezing is the documented future tightening; v0 assumes the caller does not mutate captured nodes.
+- **A deep-frozen snapshot.** A `DiagramSnapshot` holds references to still-mutable nodes ([`diagram.md`](./diagram.md), "the snapshot is logical, not deep-frozen"). The node list is captured once at `to_model` time, so structural edits afterward don't affect an already-captured model; but field mutation on a captured node *before* sampling would be seen by the model. Freezing is the documented future tightening; v0 assumes the caller does not mutate captured nodes.
 
 ---
 

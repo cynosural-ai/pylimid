@@ -9,7 +9,7 @@
 The graph-native influence-diagram solver that lived in
 `pylimid.inference.exact.categorical`, the counterpart to variable elimination: same factor machinery, but for the full decision objective — maximize expected total utility by choosing, per decision, the best action given its observed information set. Numpy-only, exact, and the primary engine behind `solve()` before the NumPyro intervention scan took over.
 
-> **Where this fits.** [`decision_node.md`](../graph/decision_node.md) settles the decision-node representation and the solving strategies (intervention-scan vs. policy-as-parameters); this note is about the *implemented* exact solver. It consumes a validated `Snapshot` (see [`diagram.md`](../graph/diagram.md)) and the shared factor primitives in `pylimid.inference.utils` (same as [`variable elimination`](./backend_numpyro.md)'s sibling in the same package).
+> **Where this fits.** [`decision_node.md`](../graph/decision_node.md) settles the decision-node representation and the solving strategies (intervention-scan vs. policy-as-parameters); this note is about the *implemented* exact solver. It consumes a validated `DiagramSnapshot` (see [`diagram.md`](../graph/diagram.md)) and the shared factor primitives in `pylimid.inference.utils` (same as [`variable elimination`](./backend_numpyro.md)'s sibling in the same package).
 
 ---
 
@@ -33,7 +33,7 @@ The policy is a solve-time object; it is not stored on the `DecisionNode`. Bindi
 ## Algorithm
 
 1. **Factor build** — one CPT factor per chance node (`P(node | parents)`), one utility factor per utility node (`U(parents)`). The utility factors combine **additively** into a single factor, because the objective is `E[sum_k U_k]` — utilities add where probabilities multiply.
-2. **Reverse-topological elimination** (sinks → roots, the Snapshot's order reversed). For each variable:
+2. **Reverse-topological elimination** (sinks → roots, the DiagramSnapshot's order reversed). For each variable:
    - **chance node** — multiply the probability factors mentioning it; if the variable appears in the utility factor, fold the product into it (`sum_X P * U`), otherwise sum it out among the probability factors;
    - **decision node** — **max it out**: for every instantiation of the information set, keep the best action as the policy and the best value as the utility factor.
 3. **Combine the remaining scalars** — the maximum expected utility.

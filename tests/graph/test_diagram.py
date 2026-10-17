@@ -6,10 +6,10 @@ import pytest
 
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
-from pylimid.graph.diagram import InfluenceDiagram, Snapshot
+from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.node import Consistency
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.graph.validation import ProblemKind
+from pylimid.graph.validation import DiagramProblemKind
 
 # --- helpers ----------------------------------------------------------------
 
@@ -76,6 +76,39 @@ def test_unknown_name_lookup_raises() -> None:
         _ = diag["ghost"]
 
 
+def test_states_of_reads_discrete_labels() -> None:
+    diag = InfluenceDiagram()
+    diag.add_node(ChanceNode(name="rain", states=("no", "yes"), dist=_dist_matching))
+    diag.add_node(DecisionNode(name="umbrella", states=("no", "yes")))
+
+    assert diag.states_of("rain") == ("no", "yes")
+    assert diag.states_of("umbrella") == ("no", "yes")
+
+
+def test_states_of_unknown_name_raises() -> None:
+    diag = InfluenceDiagram()
+
+    with pytest.raises(KeyError):
+        diag.states_of("ghost")
+
+
+@pytest.mark.parametrize(
+    "make",
+    [
+        lambda: ChanceNode(name="x", dist=_dist_matching),  # continuous
+        lambda: DecisionNode(name="d"),  # unconfigured
+        lambda: UtilityNode(name="u"),  # no action space at all
+    ],
+)
+def test_states_of_node_without_labels_raises(make: Any) -> None:
+    diag = InfluenceDiagram()
+    node = make()
+    diag.add_node(node)
+
+    with pytest.raises(ValueError, match="has no state labels"):
+        diag.states_of(node.name)
+
+
 def test_add_node_tolerates_dangling_parent() -> None:
     """A node may be added before its parents exist — caught at validate."""
     diag = InfluenceDiagram()
@@ -103,7 +136,7 @@ def test_remove_node_returns_it_and_drops_from_registry() -> None:
 
 
 def test_remove_node_scrubs_survivor_parents() -> None:
-    """Removing a referenced parent cleans up dangling edges."""
+    """Removing a referenced parent cleans up dangling arcs."""
     diag = _consistent_rain_wetgrass()
     diag.remove_node("rain")
 
@@ -116,89 +149,119 @@ def test_remove_unknown_node_raises() -> None:
         diag.remove_node("ghost")
 
 
-# --- edges ------------------------------------------------------------------
+# --- arcs ------------------------------------------------------------------
 
 
-def test_add_edge_links_parent_to_child() -> None:
+def test_add_arc_links_parent_to_child() -> None:
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="rain", dist=_dist_matching))
     diag.add_node(ChanceNode(name="wet", dist=_dist_matching))
 
-    diag.add_edge("rain", "wet")
+    diag.add_arc("rain", "wet")
 
     assert diag.parents_of("wet") == ("rain",)
     assert diag.children_of("rain") == ("wet",)
 
 
-def test_add_edge_idempotent() -> None:
+def test_add_arc_idempotent() -> None:
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="a", dist=_dist_matching))
     diag.add_node(ChanceNode(name="b", dist=_dist_matching))
 
-    diag.add_edge("a", "b")
-    diag.add_edge("a", "b")  # no-op
+    diag.add_arc("a", "b")
+    diag.add_arc("a", "b")  # no-op
 
     assert diag.parents_of("b") == ("a",)
 
 
-def test_add_edge_unknown_endpoint_raises() -> None:
+def test_add_arc_unknown_child_raises() -> None:
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="a", dist=_dist_matching))
 
     with pytest.raises(KeyError):
-        diag.add_edge("a", "ghost")
-    with pytest.raises(KeyError):
-        diag.add_edge("ghost", "a")
+        diag.add_arc("a", "ghost")
 
 
-def test_add_edge_self_loop_rejected() -> None:
+def test_add_arc_tolerates_dangling_parent() -> None:
+    """Like a parent declared in add_node, a missing parent waits for validate."""
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="a", dist=_dist_matching))
 
-    with pytest.raises(ValueError, match="own parent"):
-        diag.add_edge("a", "a")
+    diag.add_arc("ghost", "a")
+
+    assert diag.parents_of("a") == ("ghost",)
+    kinds = {p.kind for p in diag.validate()}
+    assert DiagramProblemKind.DANGLING_PARENT in kinds
 
 
-def test_add_edge_rejects_cycle() -> None:
-    """A -> b already exists; adding b -> a would close a cycle."""
+def test_add_arc_self_loop_rejected() -> None:
+    diag = InfluenceDiagram()
+    diag.add_node(ChanceNode(name="a", dist=_dist_matching))
+
+    with pytest.raises(ValueError, match="itself"):
+        diag.add_arc("a", "a")
+
+
+def test_add_arc_accepts_cycle_and_validate_reports_it() -> None:
+    """A -> b exists; b -> a is accepted, and validate names the cycle."""
     diag = InfluenceDiagram()
     for n in ("a", "b"):
         diag.add_node(ChanceNode(name=n, dist=_dist_matching))
-    diag.add_edge("a", "b")
+    diag.add_arc("a", "b")
 
-    with pytest.raises(ValueError, match="cycle"):
-        diag.add_edge("b", "a")
+    diag.add_arc("b", "a")
+
+    cycles = [p for p in diag.validate() if p.kind is DiagramProblemKind.CYCLE]
+    assert len(cycles) == 1
+    assert cycles[0].node in {"a", "b"}
 
 
-def test_add_edge_rejects_longer_cycle() -> None:
-    """A -> b -> c exists; adding c -> a would close a 3-cycle."""
+def test_validate_names_a_longer_cycle_in_arc_order() -> None:
+    """A -> b -> c -> a, plus d downstream of the cycle but not on it."""
     diag = InfluenceDiagram()
-    for n in ("a", "b", "c"):
+    for n in ("a", "b", "c", "d"):
         diag.add_node(ChanceNode(name=n, dist=_dist_matching))
-    diag.add_edge("a", "b")
-    diag.add_edge("b", "c")
+    diag.add_arc("a", "b")
+    diag.add_arc("b", "c")
+    diag.add_arc("c", "a")
+    diag.add_arc("c", "d")
 
-    with pytest.raises(ValueError, match="cycle"):
-        diag.add_edge("c", "a")
+    cycles = [p for p in diag.validate() if p.kind is DiagramProblemKind.CYCLE]
+    assert len(cycles) == 1
+    assert cycles[0].message == "Diagram contains a cycle: 'b' -> 'c' -> 'a' -> 'b'."
 
 
-def test_remove_edge() -> None:
+def test_reversing_an_arc_in_either_order() -> None:
+    """Adding the new arc before removing the old one is a valid edit."""
+    diag = InfluenceDiagram()
+    for n in ("a", "b"):
+        diag.add_node(ChanceNode(name=n, dist=_dist_matching))
+    diag.add_arc("a", "b")
+
+    diag.add_arc("b", "a")
+    diag.remove_arc("a", "b")
+
+    assert diag.parents_of("a") == ("b",)
+    assert diag.topological_sort() == ("b", "a")
+
+
+def test_remove_arc() -> None:
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="a", dist=_dist_matching))
     diag.add_node(ChanceNode(name="b", dist=_dist_matching))
-    diag.add_edge("a", "b")
+    diag.add_arc("a", "b")
 
-    diag.remove_edge("a", "b")
+    diag.remove_arc("a", "b")
 
     assert diag.parents_of("b") == ()
 
 
-def test_remove_edge_absent_is_noop() -> None:
+def test_remove_arc_absent_is_noop() -> None:
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="a", dist=_dist_matching))
     diag.add_node(ChanceNode(name="b", dist=_dist_matching))
 
-    diag.remove_edge("a", "b")  # no edge to remove; no error
+    diag.remove_arc("a", "b")  # no arc to remove; no error
 
 
 # --- topological sort -------------------------------------------------------
@@ -208,10 +271,10 @@ def test_topological_sort_puts_parents_before_children() -> None:
     diag = InfluenceDiagram()
     for n in ("cloudy", "rain", "sprinkler", "wet_grass"):
         diag.add_node(ChanceNode(name=n, dist=_dist_matching))
-    diag.add_edge("cloudy", "rain")
-    diag.add_edge("cloudy", "sprinkler")
-    diag.add_edge("rain", "wet_grass")
-    diag.add_edge("sprinkler", "wet_grass")
+    diag.add_arc("cloudy", "rain")
+    diag.add_arc("cloudy", "sprinkler")
+    diag.add_arc("rain", "wet_grass")
+    diag.add_arc("sprinkler", "wet_grass")
 
     order = diag.topological_sort()
     pos = {name: i for i, name in enumerate(order)}
@@ -263,7 +326,7 @@ def test_validate_reports_dangling_parent() -> None:
 
     problems = diag.validate()
     assert len(problems) == 1
-    assert problems[0].kind is ProblemKind.DANGLING_PARENT
+    assert problems[0].kind is DiagramProblemKind.DANGLING_PARENT
     assert problems[0].node == "wet"
 
 
@@ -273,7 +336,7 @@ def test_validate_reports_unconfigured_node() -> None:
 
     problems = diag.validate()
     assert len(problems) == 1
-    assert problems[0].kind is ProblemKind.UNCONFIGURED
+    assert problems[0].kind is DiagramProblemKind.UNCONFIGURED
     assert problems[0].node == "rain"
 
 
@@ -284,8 +347,8 @@ def test_validate_reports_stale_node() -> None:
 
     problems = diag.validate()
     kinds = {p.kind for p in problems}
-    assert ProblemKind.STALE in kinds
-    stale_nodes = [p.node for p in problems if p.kind is ProblemKind.STALE]
+    assert DiagramProblemKind.STALE in kinds
+    stale_nodes = [p.node for p in problems if p.kind is DiagramProblemKind.STALE]
     assert "wet_grass" in stale_nodes
 
 
@@ -302,21 +365,21 @@ def test_validate_reports_all_problems_at_once() -> None:
 
     problems = diag.validate()
     kinds = {p.kind for p in problems}
-    assert ProblemKind.DANGLING_PARENT in kinds
-    assert ProblemKind.UNCONFIGURED in kinds
+    assert DiagramProblemKind.DANGLING_PARENT in kinds
+    assert DiagramProblemKind.UNCONFIGURED in kinds
 
 
 def test_validate_detects_cycle_from_direct_node_mutation() -> None:
-    """A node mutated via its own add_parent bypasses add_edge; validate catches it."""
+    """A node mutated via its own add_parent bypasses the diagram; validate sees it."""
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="a", dist=_dist_matching))
     diag.add_node(ChanceNode(name="b", dist=_dist_matching))
-    diag.add_edge("a", "b")
-    # Sneak in the back-edge directly on the node, bypassing the diagram.
+    diag.add_arc("a", "b")
+    # Sneak in the back-arc directly on the node, bypassing the diagram.
     diag["a"].add_parent("b")  # now a -> b -> a cycle
 
     problems = diag.validate()
-    assert any(p.kind is ProblemKind.CYCLE for p in problems)
+    assert any(p.kind is DiagramProblemKind.CYCLE for p in problems)
 
 
 # --- snapshot() -------------------------------------------------------------
@@ -326,7 +389,7 @@ def test_snapshot_returns_validated_view_in_topological_order() -> None:
     diag = _consistent_rain_wetgrass()
     snap = diag.snapshot()
 
-    assert isinstance(snap, Snapshot)
+    assert isinstance(snap, DiagramSnapshot)
     assert snap.order == ("rain", "wet_grass")
     assert [name for name, _ in snap.nodes] == ["rain", "wet_grass"]
 
@@ -342,16 +405,16 @@ def test_snapshot_raises_on_invalid_diagram() -> None:
 # --- adjacency is derived ---------------------------------------------------
 
 
-def test_children_of_reflects_edge_changes() -> None:
+def test_children_of_reflects_arc_changes() -> None:
     """children_of is derived on demand, so it tracks live mutations."""
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="a", dist=_dist_matching))
     diag.add_node(ChanceNode(name="b", dist=_dist_matching))
 
     assert diag.children_of("a") == ()
-    diag.add_edge("a", "b")
+    diag.add_arc("a", "b")
     assert diag.children_of("a") == ("b",)
-    diag.remove_edge("a", "b")
+    diag.remove_arc("a", "b")
     assert diag.children_of("a") == ()
 
 
@@ -410,14 +473,18 @@ def test_mixed_diagram_snapshot_is_valid() -> None:
     assert snap.nodes[2][1].is_sink is True
 
 
-def test_add_edge_rejects_utility_as_child_eagerly() -> None:
-    """A utility node is a sink: wiring a child edge is rejected on add_edge."""
+def test_add_arc_from_utility_reported_by_validate() -> None:
+    """A utility node is a sink: an arc out of one is reported, not rejected."""
     diag = InfluenceDiagram()
     diag.add_node(UtilityNode(name="payoff", values=_utility_values))
     diag.add_node(ChanceNode(name="x", dist=_dist_matching))
 
-    with pytest.raises(ValueError, match="cannot have children"):
-        diag.add_edge("payoff", "x")
+    diag.add_arc("payoff", "x")
+
+    sink_problems = [
+        p for p in diag.validate() if p.kind is DiagramProblemKind.UTILITY_NOT_SINK
+    ]
+    assert [p.node for p in sink_problems] == ["payoff"]
 
 
 def test_validate_reports_unconfigured_decision_and_utility() -> None:
@@ -428,24 +495,17 @@ def test_validate_reports_unconfigured_decision_and_utility() -> None:
 
     problems = diag.validate()
     kinds = {p.kind for p in problems}
-    assert ProblemKind.UNCONFIGURED in kinds
-    unconfigured = {p.node for p in problems if p.kind is ProblemKind.UNCONFIGURED}
+    assert DiagramProblemKind.UNCONFIGURED in kinds
+    unconfigured = {
+        p.node for p in problems if p.kind is DiagramProblemKind.UNCONFIGURED
+    }
     assert unconfigured == {"invest", "payoff"}
 
 
-def test_validate_reports_utility_not_sink_defensively() -> None:
-    """
-    A utility mutated via its own add_parent bypasses add_edge; validate catches it.
-
-    We cannot give a utility a *child* through add_edge (rejected eagerly), so
-    simulate the bypass: register a node whose `parents` already list the
-    utility as a parent — i.e. the utility is a parent of something.
-    """
+def test_validate_reports_utility_not_sink_declared_in_add_node() -> None:
+    """A node that lists a utility among its parents is reported by validate."""
     diag = InfluenceDiagram()
     diag.add_node(UtilityNode(name="payoff", values=_utility_values))
-
-    # A chance node that declares the utility as a parent — constructed with
-    # the dangling reference, so add_edge's eager check never runs.
     diag.add_node(
         ChanceNode(
             name="x", parents=("payoff",), dist=_dist_matching, states=("a", "b")
@@ -453,26 +513,23 @@ def test_validate_reports_utility_not_sink_defensively() -> None:
     )
 
     problems = diag.validate()
-    sink_problems = [p for p in problems if p.kind is ProblemKind.UTILITY_NOT_SINK]
+    sink_problems = [
+        p for p in problems if p.kind is DiagramProblemKind.UTILITY_NOT_SINK
+    ]
     assert len(sink_problems) == 1
     assert sink_problems[0].node == "payoff"
 
 
 def test_validate_detects_cycle_through_decision() -> None:
-    """
-    Decisions participate in cycle detection like any node.
-
-    add_edge rejects the cycle eagerly, so reach the defensive backstop in
-    validate() by wiring the back-edge directly on the node.
-    """
+    """Decisions participate in cycle detection like any node."""
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="a", dist=_dist_matching))
     diag.add_node(DecisionNode(name="d", states=("x", "y")))
-    diag["a"].add_parent("d")  # bypass add_edge
-    diag["d"].add_parent("a")  # bypass add_edge — closes a -> d -> a
+    diag.add_arc("d", "a")
+    diag.add_arc("a", "d")  # closes a -> d -> a
 
     problems = diag.validate()
-    assert any(p.kind is ProblemKind.CYCLE for p in problems)
+    assert any(p.kind is DiagramProblemKind.CYCLE for p in problems)
 
 
 # --- set_dist narrowing -----------------------------------------------------
@@ -489,24 +546,14 @@ def test_set_dist_rejects_non_chance_node() -> None:
         diag.set_dist("u", _dist_matching)
 
 
-# --- add_edge eager checks (documented behavior) ----------------------------
+# --- arcs into utility nodes -----------------------------------------------
 
 
-def test_add_edge_from_utility_as_parent_raises() -> None:
-    """A utility node as a *parent* would gain a child — rejected eagerly."""
-    diag = InfluenceDiagram()
-    diag.add_node(UtilityNode(name="payoff", values=_utility_values))
-    diag.add_node(ChanceNode(name="x", dist=_dist_matching, states=("a", "b")))
-
-    with pytest.raises(ValueError, match="utility"):
-        diag.add_edge("payoff", "x")
-
-
-def test_add_edge_to_utility_as_child_is_allowed() -> None:
+def test_add_arc_to_utility_as_child_is_allowed() -> None:
     """A utility gaining a *parent* is legitimate (it depends on that node)."""
     diag = InfluenceDiagram()
     diag.add_node(ChanceNode(name="rain", dist=_dist_matching, states=("no", "yes")))
     diag.add_node(UtilityNode(name="payoff", values=_utility_values))
 
-    diag.add_edge("rain", "payoff")  # no error
+    diag.add_arc("rain", "payoff")  # no error
     assert diag.parents_of("payoff") == ("rain",)
