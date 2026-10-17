@@ -27,6 +27,7 @@ import jax
 import numpyro
 import numpyro.distributions as dist
 
+from pylimid._distributions import _validate_chance_distribution
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
@@ -82,7 +83,8 @@ def to_model(
         InferenceError: If a policy names a non-decision node, omits an
             information-set assignment, or contains an invalid action.
         KeyError: If a policy names a node that is not in the snapshot.
-        ValueError: If a policy has a continuous information-set parent.
+        ValueError: If a policy has a continuous information-set parent, or a chance
+            distribution conflicts with its ``states`` when the model is executed.
     """
     return _to_model(snapshot, observed or {}, _policy_tables(snapshot, policy or {}))
 
@@ -114,6 +116,7 @@ def _to_model(
             parent_values = {parent: values[parent] for parent in node.parents}
             assert node.dist is not None
             fn = node.dist(**parent_values)
+            _validate_chance_distribution(node, fn)
             if name in observed:
                 values[name] = numpyro.sample(name, fn, obs=observed[name])
             elif node.is_discrete:

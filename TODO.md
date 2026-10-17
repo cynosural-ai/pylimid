@@ -22,15 +22,10 @@ Found while writing the user guide. Ordered by how badly they can mislead a user
 
 ### Wrong answers without an error
 
-- **A discrete node's distribution can produce values outside its states.** Nothing checks that a discrete node only samples `0` to `len(states) - 1`. A node with six `states` and a `Poisson` distribution passes `validate()`, and `solve()` returns a policy in which every draw of 6 or more is treated as state 5, because JAX clamps out-of-range indices silently. About 8% of draws were affected in the test. Possible fix: have `probe_discrete_parents()`, or a new check, sample each discrete node and report values outside its states.
 - **Chained table indexing (`T[a][b]`) under `infer()`.** This is a NumPyro bug, [pyro-ppl/numpyro#2252](https://github.com/pyro-ppl/numpyro/issues/2252), and the maintainers say the chained form cannot be made to work. With a continuous latent (the NUTS path) the posterior is silently wrong: 0.53 against an exact 0.22 in the test. With only discrete latents it crashes with `KeyError: '_pyro_dim_…'`. `solve()` is not affected. What we can do:
   - Catch the `KeyError` and re-raise it with a hint to index in one step, `T[a, b]`.
   - Investigate a check that calls each `dist` with parent values carrying an extra leading dimension and verifies the output shape; this might catch the silent case. Untested idea.
   - When the upstream PR that improves the `KeyError` lands, revisit the note in `design/inference/backend_numpyro.md`.
-
-### Crashes with unhelpful messages
-
-- **`IndexError: list index out of range` from `infer()`** when a discrete node samples beyond its states (the `Poisson` case above, with no observations). The message does not name the cause. Fixing the states check above mostly covers this.
 
 ### Situations that never come up in the simulation
 
@@ -47,6 +42,7 @@ A situation is one combination of a decision's parent states. When no sample lan
 
 ### Missing features
 
+- **Numerical discrete chance nodes (future proposal).** Chance nodes currently support labeled Categorical and Bernoulli distributions; runtime validation rejects incompatible distributions or category counts before sampling. Binomial and Poisson remain unsupported, with or without labels. The [discrete chance-node proposal](design/graph/discrete_chance_nodes.md) covers numerical count semantics, finite domains for policy tables, and operation-specific inference requirements. The public API is still to be agreed.
 - **Sampler diagnostics and controls.** Expose configurable NUTS warmup through `infer` and return diagnostics that help users assess sampling reliability, including divergences and effective sample sizes. Support multiple chains for convergence checks and report R-hat only when applicable. Forward sampling and discrete enumeration should distinguish diagnostics that do not apply.
 - **Dataset fitting (later).** Define how repeated observations share model parameters, rather than relying on broadcasting alone. A fitting tutorial should cover learning shared parameters and predicting new observations; keep this out of the inference-guide rewrite.
 - **Decisions under learned uncertainty (later).** Provide a way to carry posterior uncertainty from `infer` into future simulations used by `solve`, preserving dependencies between learned parameters. This is separate from accepting datasets; plugging in posterior means alone would discard that uncertainty.

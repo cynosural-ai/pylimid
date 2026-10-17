@@ -81,7 +81,8 @@ def infer(
         KeyError: If *query* or *observed* names a node that is not in the
             diagram.
         ValueError: If the diagram fails `InfluenceDiagram.validate`, or a table policy
-            has a continuous information-set parent.
+            has a continuous information-set parent, or a relevant chance distribution
+            conflicts with its ``states``.
     """
     observed = observed or {}
     policy = policy or {}

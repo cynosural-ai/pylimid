@@ -75,7 +75,8 @@ def samples(
         InferenceError: If a policy names a non-decision node, omits an
             information-set assignment, or contains an invalid action.
         KeyError: If a policy names a node that is not in the snapshot.
-        ValueError: If a policy has a continuous information-set parent.
+        ValueError: If a policy has a continuous information-set parent, or a chance
+            distribution conflicts with its ``states``.
     """
     observed = observed or {}
     if rng_key is None:

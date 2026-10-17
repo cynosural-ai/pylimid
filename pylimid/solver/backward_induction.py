@@ -39,6 +39,7 @@ from collections.abc import Callable
 import jax
 import jax.numpy as jnp
 
+from pylimid._distributions import _validate_chance_distribution
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
@@ -83,7 +84,8 @@ def solve(
             order — use the scan), or if a decision's information set is
             continuous, or if a decision's assignment never appeared in
             the samples. Increasing ``num_samples`` can help with rare assignments;
-            impossible assignments cannot be sampled.
+            impossible assignments cannot be sampled. Also raised if a chance
+            distribution conflicts with its ``states``.
     """
     if rng_key is None:
         rng_key = jax.random.PRNGKey(0)
@@ -272,7 +274,9 @@ def _trajectory(
             assert isinstance(node, ChanceNode)
             assert node.dist is not None
             parent_values = {p: values[p] for p in node.parents}
-            values[name] = node.dist(**parent_values).sample(node_keys[ki])
+            fn = node.dist(**parent_values)
+            _validate_chance_distribution(node, fn)
+            values[name] = fn.sample(node_keys[ki])
             ki += 1
 
         total = 0.0

@@ -39,6 +39,13 @@ class ChanceNode(Node):
     parents pass integer state indices; continuous parents pass their numerical values.
     The function must be JAX-traceable and return a NumPyro distribution.
 
+    With ``states``, the distribution must be Categorical with one label per category,
+    or Bernoulli with exactly two labels. Both probability and logit parameterizations
+    are supported, and zero-probability outcomes still need labels.
+    ``states=None`` requires continuous support. Inference and solving check this
+    contract when constructing the distribution, including for observed nodes;
+    `InfluenceDiagram.validate` checks only the diagram's structure and declarations.
+
     Attributes:
         name: Identifier for the node.
         parents: Names of the nodes this one conditionally depends on. Empty
@@ -46,9 +53,9 @@ class ChanceNode(Node):
         dist: Callable invoked as ``dist(**parent_values)`` returning the
             node's distribution. ``None`` (the default) marks the node as
             not-yet-configured.
-        states: Unique, non-empty labels for a discrete node's outcomes. The
-            distribution must produce integer indices into this tuple. ``None`` marks
-            the node as continuous.
+        states: Unique, non-empty labels for the outcomes of a Categorical or Bernoulli
+            distribution. Draws are integer indices into this tuple. ``None`` requires
+            a distribution with continuous support.
     """
 
     dist: DistFactory | None = field(default=None, kw_only=True)
