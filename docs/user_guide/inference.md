@@ -100,7 +100,7 @@ round(recommended_profit.mean().item(), 1)
 
 The result is a {py:class}`Posterior` object whose `values` are a JAX array containing the profit draws. Each draw represents the profit on one possible day (i.e., the model draws values for weather, hotel bookings and demand, and the policy chooses the corresponding order value).
 
-Numerical summaries such as `mean()` also return JAX arrays. For this scalar profit node, the mean is a zero-dimensional array; `.item()` converts it to a Python number for display above. For a vector or matrix node, the summaries retain the node's shape and describe each component separately. Use `.tolist()` when a Python list is needed.
+Numerical summaries such as `mean()` also return JAX arrays. For this scalar profit node, the mean is a zero-dimensional array; `.item()` converts it to a Python number for display above.
 
 ```{admonition} Why the estimates differ
 :class: info
