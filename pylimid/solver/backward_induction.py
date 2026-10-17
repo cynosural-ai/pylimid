@@ -34,6 +34,7 @@ References:
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable
 
 import jax
@@ -65,6 +66,10 @@ def solve(
     assignment to select its best action. The reported expected utility comes from a
     final forward pass with all decisions resolved.
 
+    Assignments absent from the samples receive the first action in the decision's
+    ``states`` and produce a warning. These entries are not optimised: the assignments
+    may be impossible or simply too rare to have appeared in the simulation.
+
     For most uses, call `pylimid.solve`, which validates the diagram and selects a
     solver. Chance distributions and utility functions must be JAX-traceable.
 
@@ -82,10 +87,13 @@ def solve(
     Raises:
         ValueError: If the diagram is not solvable (no backward-induction
             order — use the scan), or if a decision's information set is
-            continuous, or if a decision's assignment never appeared in
-            the samples. Increasing ``num_samples`` can help with rare assignments;
-            impossible assignments cannot be sampled. Also raised if a chance
+            continuous. Also raised if a chance
             distribution conflicts with its ``states``.
+
+    Warns:
+        UserWarning: If an information-set assignment never appeared in the samples.
+            Its action defaults to the first in ``states``. Increasing ``num_samples``
+            can help with rare assignments; impossible assignments cannot be sampled.
     """
     if rng_key is None:
         rng_key = jax.random.PRNGKey(0)
@@ -140,11 +148,12 @@ def _resolve_decision(
 ):
     """Estimate the decision's Q-values and return (rule array, sub-policy)."""
     assignments = _info_assignments(decision, node_map)
-    cards: list[int] = []
+    parent_states: dict[str, tuple[str, ...]] = {}
     for parent in decision.parents:
         states = node_map[parent].states
         assert states is not None  # info_assignments rejected continuous info
-        cards.append(len(states))
+        parent_states[parent] = states
+    cards = [len(states) for states in parent_states.values()]
     assert decision.states is not None  # decisions always declare states
     step = _trajectory(snapshot, rules, target=decision)
     actions = jnp.arange(len(decision.states), dtype=jnp.int32)
@@ -164,14 +173,27 @@ def _resolve_decision(
         return quality, counts
 
     quality, counts = estimate(actions, keys)
-    if not bool((counts > 0).all()):
-        raise ValueError(
-            f"Some information-set assignments of decision {decision.name!r} "
-            f"were never sampled in {num_samples} trajectories. They may be rare "
-            "or impossible under the model. Increasing num_samples if they are "
-            "simply rare"
+    # The target action cannot affect its parents, and all actions use the same keys.
+    unseen = [
+        {
+            parent: parent_states[parent][state]
+            for parent, state in zip(decision.parents, assignment, strict=True)
+        }
+        for assignment, count in zip(assignments, counts[0].tolist(), strict=True)
+        if count == 0
+    ]
+    if unseen:
+        warnings.warn(
+            f"Decision {decision.name!r} had no samples in {num_samples} trajectories "
+            f"for parent states: {unseen}. Using the first action, index 0 "
+            f"({decision.states[0]!r}), for these entries; their actions were not "
+            "optimised. These situations may be rare or impossible. Increasing "
+            "num_samples can help only if they are possible.",
+            UserWarning,
+            stacklevel=3,
         )
 
+    # Empty groups have zero quality for every action, so argmax chooses action 0.
     rule_flat = jnp.argmax(quality, axis=0)
     rule = rule_flat.reshape(tuple(cards))
     sub_policy = {

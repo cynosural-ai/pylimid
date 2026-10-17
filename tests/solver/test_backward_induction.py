@@ -8,11 +8,14 @@ policies tie — and agree with the global scan at Monte-Carlo tolerance.
 
 from __future__ import annotations
 
+import warnings
+
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 import pytest
 
+from pylimid import solve
 from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
 from pylimid.solver import backward_induction_solve
 from pylimid.solver.scan.intervention import solve as scan_solve
@@ -98,9 +101,121 @@ def test_continuous_information_set_raises():
         backward_induction_solve(_continuous_info_diagram().snapshot())
 
 
+@pytest.mark.parametrize("method", [None, "auto", "backward_induction"])
+def test_impossible_parent_combinations_warn_and_return_a_complete_policy(method):
+    diagram = _inspection_diagram()
+    with pytest.warns(UserWarning, match="Decision 'buy'") as captured:
+        if method is None:
+            solution = backward_induction_solve(diagram.snapshot(), num_samples=1000)
+        else:
+            solution = solve(diagram, method=method, num_samples=1000)
+
+    assert solution.method == "backward_induction"
+    assert solution.policy == {
+        "test": {(): 1},
+        "buy": {
+            (0, 0): 0,
+            (0, 1): 0,
+            (0, 2): 0,
+            (1, 0): 0,
+            (1, 1): 1,
+            (1, 2): 0,
+        },
+    }
+    assert solution.expected_utility == pytest.approx(4.0, abs=0.6)
+    assert len(captured) == 1
+    message = str(captured[0].message)
+    assert (
+        "[{'test': 'no_test', 'result': 'success'}, "
+        "{'test': 'no_test', 'result': 'failure'}, "
+        "{'test': 'test', 'result': 'no_result'}]"
+    ) in message
+    assert "1000 trajectories" in message
+    assert "first action, index 0 ('do_not_buy')" in message
+    assert "not optimised" in message
+    assert "rare or impossible" in message
+
+
+def test_a_rare_unsampled_state_warns_and_uses_a_reproducible_fallback():
+    diagram = InfluenceDiagram()
+    diagram.add_node(
+        ChanceNode(
+            name="signal",
+            states=("common", "rare"),
+            dist=lambda: dist.Categorical(probs=jnp.array([1.0 - 1e-9, 1e-9])),
+        )
+    )
+    diagram.add_node(
+        DecisionNode(name="act", parents=("signal",), states=("first", "second"))
+    )
+    diagram.add_node(
+        UtilityNode(
+            name="payoff",
+            parents=("signal", "act"),
+            values=lambda signal, act: jnp.array([[-2.0, -1.0], [-10.0, 10.0]])[
+                signal, act
+            ],
+        )
+    )
+    snapshot = diagram.snapshot()
+    with pytest.warns(UserWarning, match="'signal': 'rare'") as first_warning:
+        first = backward_induction_solve(snapshot, num_samples=128)
+    with pytest.warns(UserWarning, match="'signal': 'rare'") as second_warning:
+        second = backward_induction_solve(snapshot, num_samples=128)
+
+    assert first == second
+    assert first.policy == {"act": {(0,): 1, (1,): 0}}
+    assert first.expected_utility == pytest.approx(-1.0)
+    assert len(first_warning) == len(second_warning) == 1
+    message = str(first_warning[0].message)
+    assert message == str(second_warning[0].message)
+    assert "'signal': 'common'" not in message
+    assert "num_samples can help only if they are possible" in message
+
+
+@pytest.mark.parametrize("fixture", [EmptyInfoDecision, SingleDecisionTreat])
+def test_observed_parent_combinations_do_not_warn(fixture):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        backward_induction_solve(fixture.pylimid().snapshot())
+
+
 # ---------------------------------------------------------------------------
 # Diagrams for the failure paths
 # ---------------------------------------------------------------------------
+
+
+def _inspection_diagram() -> InfluenceDiagram:
+    """Buy after a successful test; skipping the test produces no result."""
+    diagram = InfluenceDiagram()
+    diagram.add_node(DecisionNode(name="test", states=("no_test", "test")))
+    diagram.add_node(
+        ChanceNode(
+            name="result",
+            parents=("test",),
+            states=("no_result", "success", "failure"),
+            dist=lambda test: dist.Categorical(
+                probs=jnp.array([[1.0, 0.0, 0.0], [0.0, 0.5, 0.5]])[test]
+            ),
+        )
+    )
+    diagram.add_node(
+        DecisionNode(
+            name="buy", parents=("test", "result"), states=("do_not_buy", "buy")
+        )
+    )
+    diagram.add_node(
+        UtilityNode(
+            name="payoff",
+            parents=("test", "result", "buy"),
+            values=lambda test, result, buy: (
+                jnp.where(buy == 1, jnp.where(result == 1, 10.0, -10.0), 0.0)
+                + 2.0 * (1 - test)
+                - test
+            ),
+        )
+    )
+    return diagram
 
 
 def _shared_utility_diagram() -> InfluenceDiagram:
