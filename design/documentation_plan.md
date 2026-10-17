@@ -70,7 +70,7 @@ Theory goes inline in the user guide page where it explains a behaviour the read
 - Solving: what solvability means and why backward induction needs it (Lauritzen and Nilsson, 2001); why results are Monte Carlo estimates (Bielza et al., 1999).
 - Utilities: expected utility and risk attitude, why a concave utility changes the decision (Clemen).
 
-**The solvability note is original content and must be kept.** The library's solvability check follows Lauritzen and Nilsson (2001) exactly and is stricter than pyAgrum's `isSolvable()`: in the `D1 → X → D2` case documented in `design/inference/solver_algorithms.md`, pyAgrum reports an expected utility of 4.0 while the optimum is 5.0. It goes in the Solving page as a section or a collapsible note.
+**The solvability note is original content and must be kept.** The library's solvability check follows Lauritzen and Nilsson (2001) exactly and is stricter than pyAgrum's `isSolvable()`: in the `D1 → X → D2` case documented in [the solver design](solver/algorithms.md), pyAgrum reports an expected utility of 4.0 while the optimum is 5.0. It goes in the Solving page as a section or a collapsible note.
 
 **Further reading page**, grouped by topic with one line on what each source is good for:
 

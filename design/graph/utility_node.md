@@ -2,7 +2,7 @@
 
 Design note covering how a `UtilityNode` is represented in the graph layer, how its consistency model works, and why utility nodes are *sinks*.
 
-> **Where this fits.** This is the utility-side companion to [`decision_node.md`](./decision_node.md): together they complete the three node types of an influence diagram. The *mutability and validation model* — editable fields, the `UNCONFIGURED`/`STALE`/`CONSISTENT` consistency states, the editing-vs-inference gate — is settled in [`diagram.md`](./diagram.md) and lives on the shared `Node` base (see [`node.py`](../pylimid/graph/node.py)). The *solving strategy* that consumes utilities is in [`decision_node.md`](./decision_node.md); this note covers only the node's representation. Several utility nodes aggregate additively — the convention and the contrast with true multi-objective (Pareto) optimization are in [`multiple_utility_nodes.md`](./multiple_utility_nodes.md). Expected-utility solving is implemented by the NumPyro intervention scan (`pylimid.inference.numpyro.solvers`); bucket elimination ([`bucket_elim.md`](../inference/bucket_elim.md)) served as the v0 exact solver and is retired.
+> **Where this fits.** The [diagram principles](diagram.md) govern mutation, consistency, and validation for all nodes. This note covers payoff representation and aggregation; [decision nodes](decision_node.md) and the [solver algorithms](../solver/algorithms.md) cover optimization. The shared consistency model lives on [`Node`](../../pylimid/graph/node.py).
 
 ---
 
@@ -40,6 +40,39 @@ The check reads `node.is_sink` rather than branching on node type, so the contai
 
 ---
 
+## Multiple utilities and weighting
+
+Several utility nodes assert additively separable preferences. Every solver adds their values along each sampled trajectory and maximizes the mean total:
+
+```
+maximize E[sum_k U_k(parents(U_k))]
+```
+
+Linearity of expectation means summing utilities introduces no additional approximation. A weight belongs inside the relevant `values` callable; the solver takes no separate objective weights. `Solution.expected_utility` reports one estimated total, without per-utility means or a variance. This is also pyAgrum's additive convention.
+
+```python
+import jax.numpy as jnp
+from pylimid import DecisionNode, InfluenceDiagram, UtilityNode, solve
+
+diagram = InfluenceDiagram()
+diagram.add_node(DecisionNode(name="D", states=("a", "b")))
+diagram.add_node(
+    UtilityNode(name="U1", parents=("D",), values=lambda D: jnp.array([1.0, 0.0])[D])
+)
+diagram.add_node(
+    UtilityNode(name="U2", parents=("D",), values=lambda D: jnp.array([0.0, 2.0])[D])
+)
+solution = solve(diagram)
+```
+
+Action `a` scores `1 + 0 = 1`; action `b` scores `0 + 2 = 2`, so the optimal action is `b`. Rescaling the callables to `U1 = [2, 0]` and `U2 = [0, 1]` makes `a` optimal instead.
+
+For a non-additive trade-off, such as a minimum or product of attributes, put the complete scalar expression in one utility callable with the required parents. The functions must still be JAX-traceable.
+
+A Pareto front over vector-valued payoffs is a separate optimization problem and remains out of scope. Re-solving with different weights is possible today, but weighted sums do not recover every Pareto point of a non-convex front.
+
+---
+
 ## Consistency model
 
 `UtilityNode` reuses the shared consistency gate from `Node`, applied to its `values` field (mirroring how `ChanceNode` applies it to `dist`):
@@ -56,5 +89,5 @@ STALE arises, exactly as for chance nodes, when a parent is added or removed aft
 
 ## What is deliberately deferred
 
-- **No policy-as-parameters solving (Strategy A).** The graph layer represents the utility; the NumPyro intervention scan (Strategy B from [`decision_node.md`](./decision_node.md)) evaluates it by forward sampling per candidate policy. Continuous information sets and continuous decisions — the Strategy A path — are deferred.
+- **No policy-as-parameters solving (Strategy A).** The graph layer represents the utility; the solvers evaluate it by forward sampling (see [solver algorithms](../solver/algorithms.md)). Continuous information sets and continuous decisions — the Strategy A path — are deferred.
 - **No table sugar** for discrete utilities (analogous to the deferred `from_cpt` for chance nodes). A discrete utility is a callable wrapping an array today.

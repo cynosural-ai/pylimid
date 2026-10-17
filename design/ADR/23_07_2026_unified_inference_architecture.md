@@ -4,7 +4,7 @@
 **Status:** Superseded in part by [`25_08_2026_numpyro_only_engine.md`](./25_08_2026_numpyro_only_engine.md) — the unified package and the two verbs (`infer`, `solve`) remain; the auto-dispatch and the multi-engine table below do not describe the current library (NumPyro is the only engine).
 **Supersedes:** the single-backend `backend/numpyro.py` as the sole inference surface.
 
-> **Where this fits.** This is a *decision record* — it records the call and what will change in the tree. The *reasoning* lives in [`inference_strategy.md`](../inference_strategy.md); this note documents the architectural choices.
+> **Where this fits.** This is a *decision record* — it records the call and what will change in the tree. The *reasoning* lives in [`inference_strategy.md`](https://github.com/cynosural-ai/pylimid/blob/c0211a9ddb0c7ed5921373842baaf6d82721d059/design/inference/inference_strategy.md); this note documents the architectural choices.
 
 ---
 

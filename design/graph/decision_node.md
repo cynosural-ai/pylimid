@@ -8,7 +8,7 @@ Design note covering how a `DecisionNode` should be represented under the hood i
 
 ## Representation in the graph layer
 
-`DecisionNode` lives in [`graph/decision_node.py`](../pylimid/graph/decision_node.py), subclasses the shared [`Node`](../pylimid/graph/node.py), and participates in the diagram like any other node. What it carries:
+`DecisionNode` lives in [`graph/decision_node.py`](../../pylimid/graph/decision_node.py), subclasses the shared [`Node`](../../pylimid/graph/node.py), and participates in the diagram like any other node. What it carries:
 
 - **`parents`** — the **information set**: the variables observed when the decision is made. *Not* a causal dependency. This is the standard influence-diagram convention; the field name is reused from chance/utility nodes so the container's shared bookkeeping (validation, topological ordering, cycle detection) applies unchanged.
 - **`states`** — the available actions (labels). `None` marks the decision as not-yet-configured (or, forward-looking, continuous — to be owned by the solver).
@@ -16,7 +16,7 @@ Design note covering how a `DecisionNode` should be represented under the hood i
 
 A decision is `CONSISTENT` once its action `states` are declared, and `UNCONFIGURED` before. There is **no STALE state** for a decision: the action space does not depend on the information set's size, so adding or removing an information parent never invalidates it.
 
-The *solving* of decisions is implemented: the **NumPyro intervention scan** (Strategy B, `pylimid.inference.numpyro.solvers`) — `solve()` enumerates the discrete policy space (one action per information-set assignment per decision) and estimates each policy's expected utility by forward sampling with every decision resolved from its observed information set, keeping the best. It handles mixed and continuous diagrams, and requires discrete information sets. Strategy A (policy-as-parameters) remains the deferred path for continuous decisions and continuous information sets. Bucket elimination ([`bucket_elim.md`](../inference/bucket_elim.md)) served as the v0 exact solver and is retired; its full history is in git. The node's representation is settled here; the solver options are what the sections below are about.
+The implemented solvers live in `pylimid.solver`. `solve(method="auto")` selects backward induction when the diagram has a valid solution ordering and the batched policy scan otherwise. Both estimate expected utility by forward simulation and require finite decisions with discrete information sets; chance variables may be discrete, continuous, or both in the same diagram. The [solver algorithms](../solver/algorithms.md) describe the costs, solvability criterion, and validation references.
 
 ---
 
@@ -39,13 +39,13 @@ where the expectation is over chance variables, whose distributions depend on th
 
 The *graph* and *node definitions* are identical in both strategies — only the solver differs.
 
-### Strategy A — policy as parameters
+### Strategy A — policy as parameters (deferred)
 
-A decision node is backed by `numpyro.param()` forming a parameterized policy (e.g. logits over actions, or a continuous policy mean/variance). Utility is pushed into the objective as a log-density factor via `numpyro.factor()`. Solving is gradient ascent on `E[U]` (reparameterization or score function).
+In this proposed approach, a decision node would be backed by `numpyro.param()` forming a parameterized policy (e.g. logits over actions, or a continuous policy mean/variance). Utility is pushed into the objective as a log-density factor via `numpyro.factor()`. Solving is gradient ascent on `E[U]` (reparameterization or score function).
 
 ### Strategy B — intervention scan
 
-Decisions are discrete action choices. The solver enumerates the policy space — one action per information-set assignment per decision — and estimates each policy's expected utility by forward-sampling the diagram with every decision resolved deterministically from its observed information set (a Monte-Carlo estimate per policy). The policy with the highest estimated EU wins. Implemented as `pylimid.inference.numpyro.solvers.intervention_scan.solve`. The full solver family — the scan, the batched scan, and the backward-induction / SPU path — and the papers behind them are in [`solver_algorithms.md`](../inference/solver_algorithms.md).
+Decisions are discrete action choices. The solver enumerates the policy space — one action per information-set assignment per decision — and estimates each policy's expected utility by forward-sampling the diagram with every decision resolved deterministically from its observed information set (a Monte-Carlo estimate per policy). The policy with the highest estimated EU wins. Implemented as `pylimid.solver.scan.intervention.solve`; `solve(method="scan")` uses the batched implementation in `pylimid.solver.scan.batched`. The full solver family — the scan, the batched scan, and the backward-induction / SPU path — and the papers behind them are in [solver algorithms](../solver/algorithms.md).
 
 ### Trade-offs
 
@@ -56,31 +56,13 @@ Decisions are discrete action choices. The solver enumerates the policy space �
 | Main difficulty     | gradient of `E[U]` w.r.t. policy — SVI's ELBO framing does not directly fit EU maximization, so a custom loss around `jax.grad` + trace is required | exponential blow-up in (#decisions × action-space) |
 | Verifiability       | hard to tell convergence from correctness | trivially correct — EU measured per action |
 
-The exact graph-native alternative to both — **bucket elimination** ([`bucket_elim.md`](../inference/bucket_elim.md), historical) — was the v0 solver: the factor machinery of variable elimination applied to the decision objective, exact optimal policies for all-categorical diagrams, numpy-only. It was retired together with the other exact engines (see [`25_08_2026_numpyro_only_engine.md`](../ADR/25_08_2026_numpyro_only_engine.md)); its history lives in git.
-
----
-
-## Status: Strategy B implemented; bucket elimination retired
-
-The v0 solver was bucket elimination, chosen for the same criteria that motivated Strategy B: verifiability by hand for small diagrams and cross-validation against pyAgrum's exact LIMID solver, while sidestepping the genuinely hard part of Strategy A (the expected-utility gradient). It was exact, but restricted to all-categorical diagrams.
-
-The NumPyro intervention scan has since replaced it, keeping the "EU measured per action" verifiability with none of that restriction:
-
-- `solve()` handles mixed and continuous diagrams — the step the docs had always framed as Strategy B's purpose;
-- the implementation is cross-validated against pyAgrum's exact LIMID solver (`tests/inference/numpyro/test_compare_pyagrum_limid.py`) and, for continuous posteriors, against `pyagrum.clg`;
-- its scope is discrete decisions with discrete information sets, and its cost is the exponential policy space from the trade-off table above.
-
-Strategy A (policy-as-parameters) remains the deferred path: it is what continuous decisions and continuous information sets will require.
-
-Crucially, whichever solver runs, it commits only to the *algorithm*, not to the *node abstraction*. A `DecisionNode` declares "I have these possible actions / this support, and these parents I can observe." Whether the solver scans interventions or optimizes a policy is a solve-time choice.
-
-Risks: the intervention scan is exponential in the policy space — it suits discrete decisions with small information sets. A continuous decision ("how much to invest") requires Strategy A, still deferred.
+Bucket elimination was the original exact solver and was retired with the other exact engines; the [NumPyro-only ADR](../ADR/25_08_2026_numpyro_only_engine.md) records that decision. Solver choice does not change the graph abstraction: a `DecisionNode` declares its actions and the parents it can observe.
 
 ---
 
 ## Mixed discrete + continuous decisions
 
-Mixed decisions are not an edge case — they are a first-class situation that classical influence-diagram tooling handles badly and a PPL backend handles well. They do not require a third strategy; they **nest**.
+Mixed discrete and continuous decisions remain a future proposal. The intended approach nests discrete policy search around continuous policy optimization; it is not supported by the current solvers.
 
 Standard decomposition (same structure as mixed-integer nonlinear programming):
 

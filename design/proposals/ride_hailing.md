@@ -2,7 +2,7 @@
 
 **Status:** future. Two extensions parked behind the discrete-decision roadmap. This note is the problem statement they will be built against.
 
-**Depends on.** Continuous decisions and continuous utilities are the policy-optimization (Strategy A) work mapped in the continuous-decisions notes (currently `docs/continuous_decisions/` on the unmerged `docs/continuous-decisions` branch; to move to `design/continuous_decisions/`). Bayesian priors over the model parameters depend on the deferred parametric-learning / `fit` story ([`README.md`](../README.md), status table). Neither exists yet.
+**Depends on.** Continuous actions and continuous information sets require the deferred [policy-optimization approach](../graph/decision_node.md#strategy-a--policy-as-parameters-deferred). Scalar priors and conditioning on one observation already work; fitting shared parameters from repeated observations and carrying their posterior uncertainty into later decisions remain separate future capabilities in [`TODO.md`](../../TODO.md).
 
 ## Where it comes from
 
@@ -54,7 +54,7 @@ This is Extension 1 with the parameters lifted to random variables. The two comp
 
 - Continuous decision representation and parameterized policies; a continuous policy is a function, not a table, so the result contract changes.
 - Continuous information sets, if the observed-feature fork is taken.
-- Parametric learning / `fit` for Extension 2.
+- Shared-parameter dataset fitting and decisions under learned uncertainty for Extension 2.
 - All of it is parked until the discrete-decision work in [`TODO.md`](../../TODO.md) is finished.
 
 ## Source
