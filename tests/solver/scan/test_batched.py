@@ -12,10 +12,10 @@ from __future__ import annotations
 import jax
 import pytest
 
-from pylimid.inference.numpyro.solvers import batched_solve
-from pylimid.inference.numpyro.solvers.intervention_scan import solve as scan_solve
+from pylimid.solver import batched_solve
+from pylimid.solver.scan.intervention import solve as scan_solve
 
-from .._limid_fixtures import (
+from .._fixtures import (
     EmptyInfoDecision,
     IrrelevantInfoDecision,
     NestedTwoDecisions,

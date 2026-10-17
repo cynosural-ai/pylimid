@@ -26,8 +26,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
-# The inference engines (NumPyro, and VE's distribution extraction) build on
-# numpyro/jax; previously an optional extra, now a plain runtime dependency.
+# Model translation, sampling, and policy simulation use NumPyro and JAX.
 dependencies = [
     "numpyro>=0.15",
     "jax>=0.4",

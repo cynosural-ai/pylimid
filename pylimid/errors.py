@@ -1,4 +1,4 @@
-"""Errors shared by inference entry points and backends."""
+"""Errors shared by posterior inference, policy handling, and solving."""
 
 
 class InferenceError(Exception):

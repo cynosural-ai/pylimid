@@ -1,8 +1,7 @@
 """
 Optimal policy and expected utility — the result of `solve`.
 
-Engine modules produce these; the entry point normalizes to them. With a
-single NumPyro engine, every solution is a Monte-Carlo estimate.
+Returned by `solve`. Expected utility is a Monte Carlo estimate.
 """
 
 from __future__ import annotations
@@ -11,12 +10,10 @@ from dataclasses import dataclass
 from typing import Literal, TypeAlias
 
 from pylimid.graph.diagram import InfluenceDiagram
+from pylimid.policy import Policy
 
-__all__ = ["Policy", "Solution", "SolverName"]
+__all__ = ["Solution", "SolverName"]
 
-
-#: Policy tables: decision name -> {parent-state indices: action index}.
-Policy: TypeAlias = dict[str, dict[tuple[int, ...], int]]
 
 #: The solver that produced a `Solution`.
 SolverName: TypeAlias = Literal["backward_induction", "scan"]

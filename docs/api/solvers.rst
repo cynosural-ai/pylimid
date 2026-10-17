@@ -1,7 +1,7 @@
 Solvers
 =======
 
-.. currentmodule:: pylimid.inference.numpyro.solvers
+.. currentmodule:: pylimid.solver
 
 For most uses, call `pylimid.solve`. It chooses backward induction when the diagram is structurally solvable and the batched policy scan otherwise. The :doc:`solving guide <../user_guide/solving>` explains this choice.
 

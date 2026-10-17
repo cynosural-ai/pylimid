@@ -1,4 +1,4 @@
-"""Tests for :func:`pylimid.inference.numpyro.solvers.intervention_scan.solve`."""
+"""Tests for :func:`pylimid.solver.scan.intervention.solve`."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import numpyro.distributions as dist
 import pytest
 
 from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from pylimid.inference.numpyro.solvers.intervention_scan import solve
+from pylimid.solver.scan.intervention import solve
 
 # --- helpers ----------------------------------------------------------------
 

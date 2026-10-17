@@ -14,12 +14,12 @@ from __future__ import annotations
 import pyagrum as gum
 import pytest
 
-from pylimid.inference import infer, solve
-from pylimid.inference.numpyro.solvers.intervention_scan import (
+from pylimid import infer, solve
+from pylimid.solver.scan.intervention import (
     solve as numpyro_solve,
 )
 
-from ._limid_fixtures import (
+from ._fixtures import (
     EmptyInfoDecision,
     IrrelevantInfoDecision,
     NestedTwoDecisions,

@@ -1,4 +1,4 @@
-"""Tests for :func:`pylimid.inference.solve` — the solver front door."""
+"""Tests for :func:`pylimid.solver.solve` — the solver front door."""
 
 from __future__ import annotations
 
@@ -7,12 +7,13 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 import pytest
 
+from pylimid import InferenceError
 from pylimid.graph import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
-from pylimid.inference import InferenceError, solve
-from pylimid.inference.numpyro.solvers import (
+from pylimid.solver import (
     backward_induction_solve,
     batched_solve,
     scan_solve,
+    solve,
 )
 
 # --- helpers -----------------------------------------------------------------

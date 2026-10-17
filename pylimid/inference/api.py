@@ -1,51 +1,20 @@
-"""
-Unified inference entry-point.
-
-::
-
-    from pylimid import infer, solve
-
-    result = infer(diagram, query=["rain"], observed={"wet_grass": 1})
-    # → {"rain": Posterior(values=Array([...]), states=("no", "yes"))}
-
-    solution = solve(diagram)
-    # → Solution(policy={"treat": {(0,): 0, (1,): 1}}, expected_utility=78.3,
-    #            method="backward_induction")
-"""
+"""Posterior inference for chance and utility nodes."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Literal
 
 import jax
 
+from pylimid.errors import InferenceError
+from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.node import NodeKind
-from pylimid.inference._errors import InferenceError
-from pylimid.inference.numpyro import samples as numpyro_samples
-from pylimid.inference.numpyro.solvers import (
-    backward_induction_solve,
-    batched_solve,
-    is_solvable,
-)
 from pylimid.inference.posterior import InferenceResult, Posterior
-from pylimid.inference.solution import Policy, Solution, SolverName
+from pylimid.numpyro import samples
+from pylimid.policy import Policy
 
-__all__ = [
-    "InferenceError",
-    "InferenceResult",
-    "Policy",
-    "Posterior",
-    "Solution",
-    "SolveMethod",
-    "SolverName",
-    "infer",
-    "solve",
-]
-
-#: Solver selection for solve().
-SolveMethod = Literal["auto", "backward_induction", "scan"]
+__all__ = ["infer"]
 
 
 def infer(
@@ -101,7 +70,7 @@ def infer(
         `Posterior.marginal` for discrete probabilities, and `Posterior.mean`,
         `Posterior.std` or `Posterior.hdi` for continuous variables and utilities.
         Draws and numerical summaries are JAX arrays. Summaries have the node's shape,
-        including zero-dimensional arrays for scalar nodes. 
+        including zero-dimensional arrays for scalar nodes.
 
     Raises:
         InferenceError: If a decision that influences the query or the
@@ -150,96 +119,23 @@ def infer(
             table_policy[name] = rule
         else:
             bound[name] = rule
-    return _infer_numpyro(
+    draws = samples(
         pruned,
-        query,
-        {**observed, **bound},
+        observed={**observed, **bound},
+        query=query,
         num_samples=num_samples,
         rng_key=rng_key,
         policy=table_policy,
     )
-
-
-def solve(
-    diagram: InfluenceDiagram,
-    *,
-    method: SolveMethod = "auto",
-    num_samples: int = 2000,
-    rng_key: jax.Array | None = None,
-) -> Solution:
-    """
-    Find a policy that maximises expected total utility.
-
-    Two Monte Carlo solvers are available, both for discrete decisions with discrete
-    information sets. Chance nodes may be discrete, continuous, or both in the same
-    diagram. The total utility is the sum of all utility nodes.
-
-    - ``"backward_induction"`` resolves one decision at a time, from the
-      last to the first, estimating each action's expected utility per
-      information-set assignment by forward sampling. Its cost is additive
-      in the decisions. It requires a solvable diagram (see
-      `pylimid.inference.numpyro.solvers.is_solvable`), on which it
-      finds the optimal policy up to sampling noise.
-    - ``"scan"`` enumerates every policy and estimates each one's expected
-      utility by forward sampling, keeping the best. It handles any
-      diagram with discrete decisions and information sets, but the number of policies
-      grows exponentially with the number of action-table entries.
-    - ``"auto"`` uses backward induction when the diagram is solvable and
-      the scan otherwise.
-
-    Chance distributions and utility functions must be JAX-traceable: use ``jnp``
-    operations on parent values, without ``float()`` or ``int()`` conversions or Python
-    conditionals on those values.
-
-    Args:
-        diagram: An influence diagram with at least one decision. Validation runs
-            automatically.
-        method: Which solver to run.
-        num_samples: Forward samples per evaluation: per candidate policy
-            for the scan, per action per decision for backward induction.
-        rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``, so
-            repeated calls return the same estimate.
-
-    Returns:
-        A `Solution` with the optimal per-decision policy (decision name to
-        information-set assignment to chosen action), the expected total
-        utility (a Monte-Carlo estimate), and the solver that ran
-        (`Solution.method`, never ``"auto"``).
-
-    Raises:
-        InferenceError: If the diagram has no decision nodes, if a
-            decision's information set is not discrete, if
-            ``method="backward_induction"`` is asked for on a diagram that is
-            not solvable, or if an information-set assignment is never
-            sampled during backward induction. Increasing ``num_samples`` can help with
-            rare assignments; impossible assignments cannot be sampled.
-        ValueError: If the diagram fails `InfluenceDiagram.validate`, or *method* is not
-            one of the supported names.
-    """
-    if method not in ("auto", "backward_induction", "scan"):
-        raise ValueError(
-            f"Unknown method {method!r}; expected 'auto', "
-            "'backward_induction' or 'scan'."
+    nodes = dict(pruned.nodes)
+    result: InferenceResult = {}
+    for name in query:
+        node = nodes[name]
+        result[name] = Posterior(
+            values=draws[name],
+            states=node.states if isinstance(node, ChanceNode) else None,
         )
-
-    snapshot = diagram.snapshot()
-
-    if not any(node.kind is NodeKind.DECISION for _, node in snapshot.nodes):
-        raise InferenceError(
-            "solve() requires an influence diagram with at least one decision "
-            "node; this diagram has none. Use infer() for Bayesian networks."
-        )
-
-    if method == "auto":
-        method = "backward_induction" if is_solvable(snapshot) else "scan"
-    solver = (
-        backward_induction_solve if method == "backward_induction" else batched_solve
-    )
-
-    try:
-        return solver(snapshot, num_samples=num_samples, rng_key=rng_key)
-    except ValueError as e:
-        raise InferenceError(f"solve(method={method!r}) failed. {e}") from e
+    return result
 
 
 def _validate_query(snapshot, query: list[str]) -> None:
@@ -263,9 +159,6 @@ def _validate_observed(snapshot, observed: dict[str, int | float]) -> None:
             )
 
 
-# -- backend ------------------------------------------------------------------
-
-
 def _ancestors(snapshot: DiagramSnapshot, names: list[str]) -> set[str]:
     """*names* together with every node upstream of them."""
     parents = {name: node.parents for name, node in snapshot.nodes}
@@ -277,34 +170,6 @@ def _ancestors(snapshot: DiagramSnapshot, names: list[str]) -> set[str]:
             found.add(name)
             pending.extend(parents[name])
     return found
-
-
-def _infer_numpyro(
-    snapshot,
-    query,
-    observed,
-    *,
-    num_samples: int,
-    rng_key: jax.Array | None,
-    policy: Policy,
-) -> InferenceResult:
-    # ``samples()`` returns raw draws; ``infer()`` wraps them in a
-    # Posterior, keeping the draws and the variable's states together.
-    # Everything is a Monte-Carlo estimate.
-    draws = numpyro_samples(
-        snapshot,
-        observed=observed,
-        query=query,
-        num_samples=num_samples,
-        rng_key=rng_key,
-        policy=policy,
-    )
-    result: InferenceResult = {}
-    for name in query:
-        node = _find_node(snapshot, name)
-        states = node.states if node.kind is NodeKind.CHANCE else None
-        result[name] = Posterior(values=draws[name], states=states)
-    return result
 
 
 def _find_node(snapshot, name: str):
