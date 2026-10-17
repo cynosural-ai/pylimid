@@ -163,11 +163,13 @@ The following utility function contains several operations that would fail when 
 
 ```python
 def incorrect_profit(order, demand):
-    stocked = ORDERS[int(order)]       # For casting, use jnp.asarray(order, dtype=jnp.int32).
-    wanted = float(demand)             # For casting, use jnp.asarray(demand, dtype=jnp.float32).
-    sold = min(stocked, wanted)        # Use jnp.minimum(stocked, demand).
+    # For casting, use jnp.asarray(order, dtype=jnp.int32).
+    stocked = ORDERS[int(order)]
+    # For casting, use jnp.asarray(demand, dtype=jnp.float32).
+    wanted = float(demand)
+    sold = min(stocked, wanted)  # Use jnp.minimum(stocked, demand).
 
-    if demand > stocked:              # Use jnp.where(demand > stocked, -50.0, 0.0).
+    if demand > stocked:  # Use jnp.where(demand > stocked, -50.0, 0.0).
         penalty = -50.0
     else:
         penalty = 0.0
