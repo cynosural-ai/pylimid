@@ -80,7 +80,8 @@ def infer(
 
     Args:
         diagram: The influence diagram to query. Validation runs automatically.
-        query: Names of scalar chance and utility nodes whose posteriors are requested.
+        query: Names of chance and utility nodes whose posteriors are requested.
+            Chance nodes may have scalar or array-valued draws; utilities are scalar.
         observed: Map from chance node name to its observed value: an integer state
             index for a discrete variable, a real value for a continuous one.
         policy: Map from decision names to fixed integer actions or contingent
@@ -99,6 +100,7 @@ def infer(
         position in each posterior's ``values`` belong to the same joint draw. Use
         `Posterior.marginal` for discrete probabilities, and `Posterior.mean`,
         `Posterior.std` or `Posterior.hdi` for continuous variables and utilities.
+        Summaries of array-valued variables are computed componentwise.
 
     Raises:
         InferenceError: If a decision that influences the query or the
@@ -300,7 +302,11 @@ def _infer_numpyro(
     for name in query:
         node = _find_node(snapshot, name)
         states = node.states if node.kind is NodeKind.CHANCE else None
-        result[name] = Posterior(values=[float(x) for x in draws[name]], states=states)
+        values = draws[name]
+        result[name] = Posterior(
+            values=[float(x) for x in values] if values.ndim == 1 else values,
+            states=states,
+        )
     return result
 
 

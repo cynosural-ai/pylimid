@@ -6,7 +6,6 @@ Forward plan. The engine work is done (numpyro-only, scan + batched scan + backw
 
 - **Bayesian priors as a feature.** A parameter of a distribution can itself be a chance node with a prior, which lets a model encode personal experience, such as the ice cream shop owner's belief about tomorrow's weather or their insight on demand. List it under Features in `docs/index.md` and `README.md`, and show it in the docs, for example as an extension of the quickstart. Things to know first:
   - Scalar priors already work in `solve` and `infer`: a `Beta` prior on the chance of sun, or a `LogNormal` scale on the demand mean, solves and updates correctly after an observation.
-  - Vector-valued priors can participate in `solve` and in `infer` when querying downstream scalar nodes. Querying the vector node itself, such as a `Dirichlet` node over the weather probabilities, crashes when `infer` builds its `Posterior`. Fix vector-valued results before advertising queries of Dirichlet priors (see Known issues).
   - Pick the example carefully. A prior on the weather probabilities alone leaves the quickstart's policy unchanged, since only its mean matters for a single forecast. A prior on demand does change it (a cloudy-day stock of 80 instead of 60), so it is the more convincing demonstration.
 - **Reorganize the code.** Settle the module layout now, with discrete decisions as the scope, so later work lands on a stable surface.
 
@@ -28,7 +27,6 @@ Found while writing the user guide. Ordered by how badly they can mislead a user
 
 ### Crashes with unhelpful messages
 
-- **Querying vector-valued nodes crashes `infer()`.** Querying a `Dirichlet` node, or another node whose draws are arrays, fails because `_infer_numpyro` in `pylimid/inference/engine.py` converts every draw with `float()`. Such nodes can already participate in inference when querying downstream scalar nodes. Supporting vector queries requires preserving draw shapes and defining componentwise `Posterior.mean`, `Posterior.std`, and `Posterior.hdi` summaries, while preserving scalar behaviour.
 - **`IndexError: list index out of range` from `infer()`** when a discrete node samples beyond its states (the `Poisson` case above, with no observations). The message does not name the cause. Fixing the states check above mostly covers this.
 
 ### Situations that never come up in the simulation

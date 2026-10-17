@@ -75,7 +75,8 @@ def samples(
             assignments to action indices.
 
     Returns:
-        Dict mapping node name to a 1-D JAX array of ``num_samples`` draws.
+        Dict mapping node name to a JAX array with shape
+        ``(num_samples, *node_shape)``. Scalar nodes have shape ``(num_samples,)``.
 
     Raises:
         InferenceError: If a policy names a non-decision node, omits an
