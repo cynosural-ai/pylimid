@@ -106,6 +106,7 @@ These conventions came out of reviewing the home, installation and quickstart pa
 
 **Accuracy: do not overpromise**
 
+- Chance nodes with `states` require Categorical with one label per category or Bernoulli with exactly two labels, for either probabilities or logits and including zero-probability outcomes. Nodes with `states=None` require continuous support; count distributions are unsupported. Keep the distributions guide focused on supported distributions and label requirements. Document the full contract and its validation timing in `ChanceNode`. Execution docstrings should retain relevant exception descriptions without repeating the contract.
 - Distributions and utilities must be JAX-traceable: pure `jnp` expressions, no `float()` / `int()` coercion, no Python `if` on a parent value (use `jnp.where`). Never describe them as "arbitrary code" or "any function".
 - Decisions choose among a finite set of actions, and they can only observe discrete parents. State this wherever decisions are introduced.
 - Inference: discrete variables are handled by exact enumeration and continuous ones by MCMC (NUTS). In a mixed diagram the discrete posterior is still an estimate, so tie "exact" to the method, not to the result.

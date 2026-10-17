@@ -47,7 +47,7 @@ Thus, a chance node's function returns a distribution, while a utility node's fu
 
 ## Choosing a distribution
 
-A chance node with the `states` attribute defined is discrete. Its distribution must produce the indices `0`, `1`, ... of those states, as {py:func}`Categorical <numpyro.distributions.discrete.Categorical>` does.
+A chance node with `states` defined uses {py:func}`Categorical <numpyro.distributions.discrete.Categorical>` with one label per category, including those with probability zero, or {py:func}`Bernoulli <numpyro.distributions.discrete.Bernoulli>` with exactly two labels. Both accept probabilities (`probs`) or logits (`logits`). Draws are the indices `0`, `1`, ... of those states.
 
 ```{code-cell} ipython3
 def weather_dist():
@@ -60,7 +60,9 @@ def bookings_dist():
 
 The probabilities follow the same order as the state labels: `"cloudy"` and `"sunny"` for weather, `"normal"` and `"high"` for bookings. Neither node has parents, so these functions take no arguments.
 
-Conversely, a chance node with `states=None` is continuous. We chose a {py:class}`Gamma distribution <numpyro.distributions.continuous.Gamma>` to model `demand` because it is strictly positive and can naturally model quiet days alongside some unusually busy ones. Even though ice creams are counted in whole numbers, we use a continuous distribution to approximate demand. We use `concentration=4.0`, so its standard deviation is half its mean.
+With `states=None`, use a continuous distribution. Count distributions such as Poisson and Binomial are not currently supported.
+
+We chose a {py:class}`Gamma distribution <numpyro.distributions.continuous.Gamma>` to model `demand` because it is strictly positive and can naturally model quiet days alongside some unusually busy ones. Even though ice creams are counted in whole numbers, we use a continuous distribution to approximate demand. We use `concentration=4.0`, so its standard deviation is half its mean.
 
 ### What if demand were Gaussian?
 
