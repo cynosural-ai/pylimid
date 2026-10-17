@@ -9,17 +9,57 @@ import pytest
 from pylimid import Posterior
 
 
-def test_scalar_summaries_keep_float_results():
-    posterior = Posterior(values=[0.0, 2.0, 4.0, 6.0])
+def test_scalar_summaries_return_zero_dimensional_arrays():
+    posterior = Posterior(values=jnp.array([0.0, 2.0, 4.0, 6.0]))
 
     assert posterior.mean() == 3.0
     assert posterior.std() == pytest.approx(sqrt(5))
     assert posterior.hdi(prob=0.75) == (0.0, 4.0)
     assert posterior.hdi(prob=1.0) == (0.0, 6.0)
     assert all(
-        isinstance(value, float)
+        isinstance(value, jax.Array) and value.shape == ()
         for value in (posterior.mean(), posterior.std(), *posterior.hdi())
     )
+
+
+def test_discrete_marginal_includes_states_without_draws():
+    posterior = Posterior(values=jnp.array([0, 1, 1, 3]), states=("a", "b", "c", "d"))
+
+    probabilities = posterior.marginal()
+
+    assert isinstance(probabilities, jax.Array)
+    assert probabilities.shape == (4,)
+    assert probabilities == pytest.approx([0.25, 0.5, 0.0, 0.25])
+
+
+@pytest.mark.parametrize("invalid_index", [-1, 2])
+def test_discrete_marginal_rejects_indices_outside_states(invalid_index):
+    posterior = Posterior(values=jnp.array([0, invalid_index]), states=("a", "b"))
+
+    with pytest.raises(ValueError, match="state indices from 0 to 1"):
+        posterior.marginal()
+
+
+def test_discrete_marginal_does_not_truncate_fractional_indices():
+    posterior = Posterior(values=jnp.array([0.5, 1.0]), states=("a", "b"))
+
+    with pytest.raises(TypeError):
+        posterior.marginal()
+
+
+def test_summaries_preserve_float64_precision():
+    with jax.enable_x64():
+        posterior = Posterior(
+            values=jnp.array([1e9, 1e9 + 2, 1e9 + 4], dtype=jnp.float64)
+        )
+
+        assert posterior.mean().dtype == jnp.float64
+        assert posterior.mean() == 1e9 + 2
+        assert posterior.std() == pytest.approx(sqrt(8 / 3), rel=1e-12)
+        lower, upper = posterior.hdi(prob=1.0)
+        assert lower.dtype == upper.dtype == jnp.float64
+        assert lower == 1e9
+        assert upper == 1e9 + 4
 
 
 def test_vector_mean_and_standard_deviation_are_componentwise():
