@@ -19,6 +19,12 @@ A small shop sells ice cream. Every morning, before opening, the owner checks th
 
 The forecast for today is cloudy with probability 0.7 and sunny with probability 0.3. Demand is uncertain either way, but it is higher when it is sunny: about 40 ice creams on an average cloudy day and 120 on an average sunny one. **How many ice creams should the shop stock?**
 
+```{admonition} Distributions origin
+:class: info
+
+The probabilities and demand distributions below represent the owner's estimates, informed by observations from previous seasons. We use these estimates directly to build the model.
+```
+
 From this definition, we can discern 4 main variables in this problem:
 
 - `weather`: a discrete chance variable with two values cloudy or sunny.
@@ -120,11 +126,60 @@ The shop should stock 60 ice creams on a cloudy day and 200 on a sunny day. This
 
 Both the policy and the expected profit are Monte Carlo estimates, computed by simulating `num_samples` days. More samples give more precise results, and a run is reproducible: the same model and settings always give the same answer.
 
+## Adding a Bayesian prior
+
+The owner's past experience suggests averages of 40 ice creams on cloudy days and 120 on sunny days. The owner expects the coming season to be busier, but is uncertain about how much. A **Bayesian prior** can be used to express that belief
+
+We represent it with an unknown `busyness` multiplier, which can take any positive value. We give it a {py:class}`LogNormal distribution <numpyro.distributions.continuous.LogNormal>` with mean 1.2, representing 20% higher average demand, i.e., 48 ice creams on cloudy days and 144 on sunny days. A log-scale standard deviation of 0.1 puts about 95% of its probability within roughly 20% of the new mean.
+
+```{figure} /_static/figures/quickstart/busyness_prior.png
+:alt: LogNormal density for the busyness multiplier, with mean 1.2 marked by a dotted line and about 95 percent of its probability shaded between 0.96 and 1.44
+:width: 80%
+
+The prior for `busyness`, with about 95% of its probability in the shaded range. Values below 1 describe a quieter season; values above 1 describe a busier one.
+```
+
+We copy the diagram, add `busyness` as a parent of `demand`, and update the demand distribution:
+
+```{code-cell} ipython3
+from copy import deepcopy
+
+BUSYNESS_MEAN = 1.2
+BUSYNESS_LOG_SD = 0.1
+
+prior_diagram = deepcopy(diagram)
+prior_diagram.add_node(
+    ChanceNode(
+        name="busyness",
+        dist=lambda: dist.LogNormal(
+            jnp.log(BUSYNESS_MEAN) - BUSYNESS_LOG_SD**2 / 2, BUSYNESS_LOG_SD
+        ),
+    )
+)
+prior_diagram.add_arc("busyness", "demand")
+
+
+def uncertain_demand_dist(weather, busyness):
+    mean = busyness * DEMAND_MEANS[weather]
+    return dist.Gamma(concentration=4.0, rate=4.0 / mean)
+
+
+prior_diagram.set_dist("demand", uncertain_demand_dist)
+prior_diagram
+```
+
+{py:func}`solve` averages over possible `busyness` values when comparing stock levels:
+
+```{code-cell} ipython3
+prior_solution = solve(prior_diagram, num_samples=50_000)
+
+for info, action in prior_solution.policy["order"].items():
+    print(f"{WEATHER_STATES[info[0]]}: stock {int(ORDERS[action])}")
+print(f"expected profit: {prior_solution.expected_utility:.1f}")
+```
+
+With this belief, the recommended cloudy-day stock rises from 60 to 80 ice creams. The sunny-day order stays at the menu's maximum of 200.
+
 ## Next steps
 
 - The [user guide](../user_guide/building_a_diagram.md) explains how to build a diagram and how to solve it.
-
-<!--
-- The [tutorials](../tutorials/newsvendor.md) build complete models step by step, including a longer version of this one.
-- To compute posteriors rather than decisions, see the [Bayesian networks tutorial](../tutorials/bayesian_networks.md).
--->
