@@ -98,7 +98,7 @@ diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=
 
 ## Validating the model
 
-{py:meth}`~InfluenceDiagram.validate` lists anything that would stop the diagram from being solved, such as a parent that doesn't exist or a cycle. An empty list means the diagram is ready:
+{py:meth}`~InfluenceDiagram.validate` checks the diagram's structure and node configuration, reporting problems such as missing parents, cycles or unconfigured nodes. It does not evaluate the distributions or utility functions though. An empty list means these checks passed:
 
 ```{code-cell} ipython3
 diagram.validate()
@@ -128,7 +128,7 @@ Both the policy and the expected profit are Monte Carlo estimates, computed by s
 
 ## Adding a Bayesian prior
 
-The owner's past experience suggests averages of 40 ice creams on cloudy days and 120 on sunny days. The owner expects the coming season to be busier, but is uncertain about how much. A **Bayesian prior** can be used to express that belief
+The owner's past experience suggests averages of 40 ice creams on cloudy days and 120 on sunny days. The owner expects the coming season to be busier, but is uncertain about how much. A **Bayesian prior** can be used to express that belief.
 
 We represent it with an unknown `busyness` multiplier, which can take any positive value. We give it a {py:class}`LogNormal distribution <numpyro.distributions.continuous.LogNormal>` with mean 1.2, representing 20% higher average demand, i.e., 48 ice creams on cloudy days and 144 on sunny days. A log-scale standard deviation of 0.1 puts about 95% of its probability within roughly 20% of the new mean.
 
