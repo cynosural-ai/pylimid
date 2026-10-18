@@ -23,7 +23,7 @@ These notes explain the reasoning behind the current implementation. Public sign
 
 ## Documentation work
 
-Read the [documentation plan](documentation_plan.md) before changing published pages or the project README. It records the site structure, writing conventions, and remaining review work.
+Read the [documentation maintenance guide](documentation_plan.md) before changing published pages or the project README. It records the site structure, writing conventions, maintenance checks and future additions.
 
 ## Decision records
 
@@ -31,7 +31,7 @@ ADRs preserve decisions in their dated context. Historical API names and package
 
 - [2026-07-16: initial vision](ADR/16_07_2026%20-%20initial%20plan.md).
 - [2026-07-17: mutable workspace](ADR/17_07_2026_mutability_design_decision.md).
-- [2026-07-23: unified inference architecture](ADR/23_07_2026_unified_inference_architecture.md), partly superseded by the NumPyro-only decision. The current package boundaries are recorded in the [documentation plan](documentation_plan.md#earlier-decisions-still-in-force).
+- [2026-07-23: unified inference architecture](ADR/23_07_2026_unified_inference_architecture.md), partly superseded by the NumPyro-only decision. The current package boundaries are recorded in the [contributor guide](../CONTRIBUTING.md#repository-layout).
 - [2026-08-13: typed inference results](ADR/13_08_2026_typed_inference_results.md), superseded by the unified posterior.
 - [2026-08-25: NumPyro-only engine](ADR/25_08_2026_numpyro_only_engine.md).
 - [2026-08-25: unified posterior](ADR/25_08_2026_unified_posterior_result.md).

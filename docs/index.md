@@ -7,6 +7,7 @@ Rather than requiring every chance and utility nodes to be represented as a tabl
 ## Features
 
 - **Flexible distributions.** A chance node is a NumPyro distribution whose parameters can be any JAX expression of its parents, so you are not limited to a conditional probability table.
+- **Bayesian priors.** Represent uncertain model parameters as chance nodes with prior distributions.
 - **Utilities as functions.** A utility is a Python function of its parents written with JAX, so it can express thresholds, nonlinearities, or risk preferences instead of a lookup table.
 - **Mixed inference.** Posteriors are computed by exact enumeration for discrete nodes and by MCMC sampling (NUTS) for continuous ones, so a single diagram can combine both.
 

@@ -2,15 +2,9 @@
 
 Forward plan. The engine work is done (numpyro-only, scan + batched scan + backward induction). The focus now is to finish the discrete-decision story before reaching for continuous decisions.
 
-## 1. Finish discrete decisions
+## Continuous decisions (later)
 
-- **Bayesian priors as a feature.** A parameter of a distribution can itself be a chance node with a prior, which lets a model encode personal experience, such as the ice cream shop owner's belief about tomorrow's weather or their insight on demand. List it under Features in `docs/index.md` and `README.md`, and show it in the docs, for example as an extension of the quickstart. The [working draft](design/bayesian_priors.md) records the verified example and publication checklist. Things to know first:
-  - Scalar priors already work in `solve` and `infer`: a `Beta` prior on the chance of sun, or a `LogNormal` scale on the demand mean, solves and updates correctly after an observation.
-  - Choose the prior to match the story. The quickstart's owner expects a season 20% busier on average, with about 95% of the multiplier's probability within ±20% of that expectation. A LogNormal with mean 1.2 and log-scale standard deviation 0.1 changes the policy from 60/200 to 80/200. This reflects both a higher expected demand and uncertainty about it; do not widen the prior just to force a different action. A prior on weather probabilities alone leaves the policy unchanged, since weather is observed before ordering and conditional demand is unchanged.
-
-## 3. Continuous decisions (afterwards)
-
-Only once 1 and 2 are done. Strategy A — continuous actions and continuous information sets — is the likely next feature. The exploration map (feasibility, difficulty axes, guarantee change, validation plan, scope ladder, and the revisit trigger) lives in `design/continuous_decisions/` (on the unmerged `docs/continuous-decisions` branch, still under the old `docs/` path).
+Strategy A — continuous actions and continuous information sets — is the likely next feature. The exploration map (feasibility, difficulty axes, guarantee change, validation plan, scope ladder, and the revisit trigger) lives in `design/continuous_decisions/` (on the unmerged `docs/continuous-decisions` branch, still under the old `docs/` path).
 
 ## Tutorial extensions (later)
 
@@ -37,7 +31,7 @@ A situation is one combination of a decision's parent states. When no sample lan
 
 ### Documentation
 
-- **Learning from data (future guide).** Introduce uncertainty about model parameters and updating those beliefs from observations separately from the inference guide. A scalar prior such as `busyness` and one observation work already. Repeated datasets and decisions under learned uncertainty can extend the page once those capabilities are available.
+- **Learning from data (future guide).** Introduce uncertainty about model parameters and updating those beliefs from observations separately from the inference guide. A scalar prior such as `busyness` and one observation work already. Use fully observed demand, including unmet requests, to update `busyness`; sales alone do not reveal demand after a stockout. Repeated datasets and decisions under learned uncertainty can extend the page once those capabilities are available.
 - **Remake the oil field tutorial.** Its note on the result when the test isn't run says that with a `no_results` state "`solve()` would fall back to the scan". It doesn't: `auto` picks the solver from the structure alone (`is_solvable`), the diagram is solvable, so backward induction runs and raises, and there is no fallback after an error. The tutorial avoids the case with a 50/50 filler for `result`; once backward induction warns instead of raising, the `no_results` idiom would work as it is.
 
 ### Missing features
