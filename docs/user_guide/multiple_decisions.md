@@ -10,7 +10,7 @@ So far, the shop's owner has faced a single choice: how many ice creams to order
 
 There are now two decisions. First, the owner must choose whether to run the promotion or not. Then, in the morning (when the weather is known), the owner must decide how much stock to order.
 
-This page shows how to represent those choices, read their policies and explore the resulting profits. We keep the weather, bookings and Gamma demand from the previous pages, with the wider order menu from the [Solving](solving.md) guide. Bookings remain unknown at both decisions.
+This page shows how to represent those choices, read their policies and explore the resulting profits. We keep the weather, bookings and {py:class}`Gamma <numpyro.distributions.continuous.Gamma>` demand from the previous pages, with the wider order menu from the [Solving](solving.md) guide. Bookings remain unknown at both decisions.
 
 ## Adding the promotion decision
 

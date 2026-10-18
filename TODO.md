@@ -4,9 +4,9 @@ Forward plan. The engine work is done (numpyro-only, scan + batched scan + backw
 
 ## 1. Finish discrete decisions
 
-- **Bayesian priors as a feature.** A parameter of a distribution can itself be a chance node with a prior, which lets a model encode personal experience, such as the ice cream shop owner's belief about tomorrow's weather or their insight on demand. List it under Features in `docs/index.md` and `README.md`, and show it in the docs, for example as an extension of the quickstart. Things to know first:
+- **Bayesian priors as a feature.** A parameter of a distribution can itself be a chance node with a prior, which lets a model encode personal experience, such as the ice cream shop owner's belief about tomorrow's weather or their insight on demand. List it under Features in `docs/index.md` and `README.md`, and show it in the docs, for example as an extension of the quickstart. The [working draft](design/bayesian_priors.md) records the verified example and publication checklist. Things to know first:
   - Scalar priors already work in `solve` and `infer`: a `Beta` prior on the chance of sun, or a `LogNormal` scale on the demand mean, solves and updates correctly after an observation.
-  - Pick the example carefully. A prior on the weather probabilities alone leaves the quickstart's policy unchanged, since only its mean matters for a single forecast. A prior on demand does change it (a cloudy-day stock of 80 instead of 60), so it is the more convincing demonstration.
+  - Choose the prior to match the story. The quickstart's owner expects a season 20% busier on average, with about 95% of the multiplier's probability within ±20% of that expectation. A LogNormal with mean 1.2 and log-scale standard deviation 0.1 changes the policy from 60/200 to 80/200. This reflects both a higher expected demand and uncertainty about it; do not widen the prior just to force a different action. A prior on weather probabilities alone leaves the policy unchanged, since weather is observed before ordering and conditional demand is unchanged.
 
 ## 3. Continuous decisions (afterwards)
 

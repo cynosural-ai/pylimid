@@ -16,6 +16,7 @@ Rather than requiring every chance and utility node to be represented as a table
 ## Features
 
 - **Flexible distributions.** A chance node is a NumPyro distribution whose parameters can be any JAX expression of its parents, so you are not limited to a conditional probability table.
+- **Bayesian priors.** Represent uncertain model parameters as chance nodes with prior distributions.
 - **Utilities as functions.** A utility is a Python function of its parents written with JAX, so it can express thresholds, nonlinearities, or risk preferences instead of a lookup table.
 - **Mixed inference.** Posteriors are computed by exact enumeration for discrete nodes and by MCMC sampling (NUTS) for continuous ones, so a single diagram can combine both.
 
@@ -41,7 +42,9 @@ pip install "pylimid[cuda13]"  # CUDA 13, for newer drivers
 
 ## Example
 
-A small shop sells ice cream. Every morning the owner checks the weather forecast and decides how many ice creams to stock, from 0 to 200 in steps of 20. Each ice cream costs \$1 and sells for \$10, and anything not sold by the evening is thrown away. The forecast is cloudy with probability 0.7 and sunny with probability 0.3, and demand is uncertain either way: about 40 ice creams on an average cloudy day and 120 on an average sunny one. How many should the shop stock?
+A small shop sells ice cream. Every morning the owner checks the weather forecast and decides how many ice creams to stock, from 0 to 200 in steps of 20. Each ice cream costs \$1 and sells for \$10, and anything not sold by the evening is thrown away. The forecast is cloudy with probability 0.7 and sunny with probability 0.3. Past seasons suggest average demand of 40 ice creams on cloudy days and 120 on sunny days. The owner expects the coming season to be busier, but is uncertain about how much. How many should the shop stock?
+
+We express that belief with a Bayesian prior on a positive `busyness` multiplier. Its LogNormal distribution has mean 1.2, representing 20% higher average demand, and a log-scale standard deviation of 0.1. Demand depends on both the weather and this unknown multiplier.
 
 ```python
 import jax.numpy as jnp
@@ -51,11 +54,14 @@ from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, sol
 
 WEATHER_STATES = ("cloudy", "sunny")
 DEMAND_MEANS = jnp.array([40.0, 120.0])
+BUSYNESS_MEAN = 1.2
+BUSYNESS_LOG_SD = 0.1
 ORDERS = jnp.arange(0, 201, 20)
 
 
-def demand_dist(weather):
-    return dist.Gamma(concentration=4.0, rate=4.0 / DEMAND_MEANS[weather])
+def demand_dist(weather, busyness):
+    mean = busyness * DEMAND_MEANS[weather]
+    return dist.Gamma(concentration=4.0, rate=4.0 / mean)
 
 
 def profit(order, demand):
@@ -71,7 +77,17 @@ diagram.add_node(
         dist=lambda: dist.Categorical(probs=jnp.array([0.7, 0.3])),
     )
 )
-diagram.add_node(ChanceNode(name="demand", parents=("weather",), dist=demand_dist))
+diagram.add_node(
+    ChanceNode(
+        name="busyness",
+        dist=lambda: dist.LogNormal(
+            jnp.log(BUSYNESS_MEAN) - BUSYNESS_LOG_SD**2 / 2, BUSYNESS_LOG_SD
+        ),
+    )
+)
+diagram.add_node(
+    ChanceNode(name="demand", parents=("weather", "busyness"), dist=demand_dist)
+)
 diagram.add_node(
     DecisionNode(
         name="order", parents=("weather",), states=tuple(str(n) for n in ORDERS)
@@ -82,13 +98,13 @@ diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=
 solution = solve(diagram, num_samples=50_000)
 for info, action in solution.policy["order"].items():
     print(f"{WEATHER_STATES[info[0]]}: stock {int(ORDERS[action])}")
-# cloudy: stock 60
+# cloudy: stock 80
 # sunny: stock 200
 ```
 
-`weather` is a discrete chance node, `demand` is a continuous one, `order` is the decision, and `profit` is the utility. The decision's parents are what is known when it is made, so `order` sees the weather but not the demand. Note that `order` is the index of the chosen action, which is why `profit` looks the stock level up in `ORDERS`.
+`weather` is a discrete chance node, `busyness` and `demand` are continuous ones, `order` is the decision, and `profit` is the utility. The decision's parents are what is known when it is made, so `order` sees the weather while `busyness` and `demand` remain unknown. Note that `order` is the index of the chosen action, which is why `profit` looks the stock level up in `ORDERS`.
 
-The shop should stock far more than the average demand: a missed sale loses \$9 of margin, while a leftover ice cream only costs \$1. The [quickstart](https://pylimid.readthedocs.io/en/latest/getting_started/quickstart.html) walks through this example step by step.
+The shop should stock far more than the average demand: a missed sale loses \$9 of margin, while a leftover ice cream only costs \$1. The sunny-day order reaches the maximum possible order of 200. The [quickstart](https://pylimid.readthedocs.io/en/latest/getting_started/quickstart.html) walks through this example step by step.
 
 ## Documentation
 
