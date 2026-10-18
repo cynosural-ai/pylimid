@@ -69,4 +69,39 @@ The `-W` flag turns warnings into errors. Prose pages are Markdown; pages with e
 - Add or update tests for behavior changes. For discrete models, pyAgrum provides the exact reference.
 - Update the docs when the public API or behavior changes.
 
+## Releases
+
+Releases are published by the [Release workflow](.github/workflows/release.yml) when a tag starting with `v` is pushed. The package version comes from Git tags through `hatch-vcs`; there is no version number to update manually in `pyproject.toml` or `pylimid/_version.py`.
+
+1. Merge the intended changes into `main`, then update the local checkout:
+
+   ```bash
+   git switch main
+   git pull --ff-only
+   git status --short
+   ```
+
+   Confirm the working tree is clean and the [checks](#checks) pass on the release commit.
+
+2. Review the README and documentation, and rebuild the site with every example re-executed:
+
+   ```bash
+   uv run sphinx-build -W -E -a -D nb_execution_mode=force docs docs/_build/html
+   ```
+
+   See [docs/README.md](docs/README.md) for build requirements and local preview instructions.
+
+3. Create and push an annotated tag. For version 0.2.0:
+
+   ```bash
+   git tag -a v0.2.0 -m "Release 0.2.0"
+   git push origin v0.2.0
+   ```
+
+   Use a new tag for each release. The `v` prefix is required to trigger publishing.
+
+4. Follow the Release workflow in GitHub Actions. It builds the source distribution and wheel, publishes them to PyPI, then creates a GitHub release with the distribution files and automatically generated release notes. Check that all jobs succeed and review the published release notes.
+
+To test publishing first, manually run the Release workflow from GitHub Actions for the intended branch or tag. A manual run publishes to TestPyPI; production PyPI publishing and GitHub release creation run only on tag pushes.
+
 By contributing, you agree that your contributions are licensed under the Apache License 2.0.
