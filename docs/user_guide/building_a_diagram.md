@@ -14,14 +14,14 @@ We use the ice cream shop example from the [Quickstart](../getting_started/quick
 
 There are three kinds of nodes, and every node has a `name` and a tuple of `parents` (i.e., the nodes where its arcs come from):
 
-- {py:class}`ChanceNode` represents a random variable, like the weather or the demand.
+- {py:class}`ChanceNode` represents a random variable, like the weather, the demand or the `busyness` multiplier.
 - {py:class}`DecisionNode` is a choice, like how many ice creams to stock. Its parents are what is known when the choice is made (i.e., its *information set*).
 - {py:class}`UtilityNode` indicates the resulting payoff, like the shop's profit. A utility node can't have children: nothing in the diagram depends on a payoff.
 
 ```{admonition} What a decision knows
 :class: info
 
-A decision observes exactly its declared parents. In the shop model, `weather` is a parent of `order`, so the owner knows the weather before ordering. Demand is still unknown, so `demand` is not a parent of `order`.
+A decision observes exactly its declared parents. In the shop model, `weather` is a parent of `order`, so the owner knows the weather before ordering. Demand and the actual `busyness` are unknown, so neither is a parent of `order`.
 
 PyLIMID does not automatically make earlier choices or observations available to later decisions. Anything a later decision should remember must also be one of its parents.
 
@@ -37,6 +37,8 @@ import numpyro.distributions as dist
 from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
 
 DEMAND_MEANS = jnp.array([40.0, 120.0])
+BUSYNESS_MEAN = 1.2
+BUSYNESS_LOG_SD = 0.1
 ORDERS = jnp.arange(0, 201, 20)
 
 
@@ -54,7 +56,7 @@ However, some invalid values still raise an error immediately. PyLIMID checks di
 - When we create or edit a node, PyLIMID rejects invalid values such as an empty name or repeated state labels.
 - When we call {py:meth}`~InfluenceDiagram.validate`, PyLIMID checks the whole diagram for missing parents, cycles, unconfigured nodes and functions whose arguments don't match their parents.
 
-For example, we can start with the `order` and `profit` nodes, before adding the `weather` or `demand` nodes:
+For example, we can start with the `order` and `profit` nodes, before adding `weather`, `busyness` or `demand`:
 
 ```{code-cell} ipython3
 diagram = InfluenceDiagram()
@@ -84,7 +86,7 @@ Chance nodes are circles, decision nodes are rectangles, and utility nodes are d
 print(diagram.to_mermaid())
 ```
 
-Now we add the two chance nodes. The `weather` node is complete, but we leave the `demand` node's distribution out for now:
+Now we add the chance nodes. The `weather` and `busyness` nodes are complete, but we leave the `demand` node's distribution out for now:
 
 ```{code-cell} ipython3
 diagram.add_node(
@@ -94,7 +96,15 @@ diagram.add_node(
         dist=lambda: dist.Categorical(probs=jnp.array([0.7, 0.3])),
     )
 )
-diagram.add_node(ChanceNode(name="demand", parents=("weather",)))
+diagram.add_node(
+    ChanceNode(
+        name="busyness",
+        dist=lambda: dist.LogNormal(
+            jnp.log(BUSYNESS_MEAN) - BUSYNESS_LOG_SD**2 / 2, BUSYNESS_LOG_SD
+        ),
+    )
+)
+diagram.add_node(ChanceNode(name="demand", parents=("weather", "busyness")))
 ```
 
 ## Validating the diagram
@@ -110,7 +120,10 @@ for problem in diagram.validate():
 
 ```{code-cell} ipython3
 diagram.set_dist(
-    "demand", lambda weather: dist.Gamma(4.0, 4.0 / DEMAND_MEANS[weather])
+    "demand",
+    lambda weather, busyness: dist.Gamma(
+        4.0, 4.0 / (DEMAND_MEANS[weather] * busyness)
+    ),
 )
 diagram.validate()
 ```
@@ -141,26 +154,30 @@ for problem in diagram.validate():
     print(problem.kind.name, "-", problem.message)
 ```
 
-`demand` is now `STALE`: its distribution is currently a function of `weather` only, so it can't use the new parent. The drawing highlights it in yellow:
+`demand` is now `STALE`: its distribution is currently a function of `weather` and `busyness`, so it can't use the new parent. The drawing highlights it in yellow:
 
 ```{code-cell} ipython3
 diagram
 ```
 
-To fix it, we give `demand` a distribution that considers both parents. As an example, let's say that high hotel bookings multiply the average demand by 1.5:
+To fix it, we give `demand` a distribution that considers all three parents. As an example, let's say that high hotel bookings increase average demand by 15%:
 
 ```{code-cell} ipython3
-BOOKINGS_BOOST = jnp.array([1.0, 1.5])
+BOOKINGS_BOOST = jnp.array([1.0, 1.15])
 
 diagram.set_dist(
     "demand",
-    lambda weather, bookings: dist.Gamma(
-        4.0, 4.0 / (DEMAND_MEANS[weather] * BOOKINGS_BOOST[bookings])
+    lambda weather, busyness, bookings: dist.Gamma(
+        4.0, 4.0 / (DEMAND_MEANS[weather] * busyness * BOOKINGS_BOOST[bookings])
     ),
 )
 diagram.validate()
 ```
 
-PyLIMID matches a function to its parents by the names of its arguments, so `weather` and `bookings` must be spelled exactly like the parent nodes, in any order.
+PyLIMID matches a function to its parents by the names of its arguments, so `weather`, `busyness` and `bookings` must be spelled exactly like the parent nodes, in any order.
+
+```{code-cell} ipython3
+diagram
+```
 
 To remove an arc or node, we can use {py:meth}`~InfluenceDiagram.remove_arc` and {py:meth}`~InfluenceDiagram.remove_node` (which removes a node along with its arcs). These methods do not update the children's functions, so a chance or utility node becomes `STALE` if its function no longer matches its parents.

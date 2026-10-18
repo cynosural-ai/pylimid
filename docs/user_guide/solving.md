@@ -20,7 +20,9 @@ import numpyro.distributions as dist
 from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, solve
 
 DEMAND_MEANS = jnp.array([40.0, 120.0])
-BOOKINGS_BOOST = jnp.array([1.0, 1.5])
+BUSYNESS_MEAN = 1.2
+BUSYNESS_LOG_SD = 0.1
+BOOKINGS_BOOST = jnp.array([1.0, 1.15])
 ORDERS = jnp.arange(0, 201, 20)
 
 
@@ -39,6 +41,14 @@ diagram.add_node(
 )
 diagram.add_node(
     ChanceNode(
+        name="busyness",
+        dist=lambda: dist.LogNormal(
+            jnp.log(BUSYNESS_MEAN) - BUSYNESS_LOG_SD**2 / 2, BUSYNESS_LOG_SD
+        ),
+    )
+)
+diagram.add_node(
+    ChanceNode(
         name="bookings",
         states=("normal", "high"),
         dist=lambda: dist.Categorical(probs=jnp.array([5 / 7, 2 / 7])),
@@ -47,9 +57,9 @@ diagram.add_node(
 diagram.add_node(
     ChanceNode(
         name="demand",
-        parents=("weather", "bookings"),
-        dist=lambda weather, bookings: dist.Gamma(
-            4.0, 4.0 / (DEMAND_MEANS[weather] * BOOKINGS_BOOST[bookings])
+        parents=("weather", "busyness", "bookings"),
+        dist=lambda weather, busyness, bookings: dist.Gamma(
+            4.0, 4.0 / (DEMAND_MEANS[weather] * busyness * BOOKINGS_BOOST[bookings])
         ),
     )
 )
@@ -72,7 +82,7 @@ solution = solve(diagram, num_samples=50_000)
 print(solution.render(diagram))
 ```
 
-The policy tells the owner how many ice creams to order for each kind of weather.
+The policy tells the owner how many ice creams to order for each kind of weather, accounting for uncertainty in `busyness`, bookings and daily demand.
 
 A {py:class}`Solution` has three attributes:
 
@@ -99,7 +109,7 @@ for num_samples in (2_000, 50_000):
         print(f"{num_samples:>6} samples, seed {seed}: stock {orders}, profit {result.expected_utility:.1f}")
 ```
 
-The policy is the same in every run, but the expected profit is not: with 2,000 samples it moves by more than 20 between keys, and with 50,000 by about 3. So if we want a precise expected utility, we need more samples.
+The policy is the same in every run, but the expected profit is not: with 2,000 samples it moves by about 18 between keys, and with 50,000 by about 5. So if we want a precise expected utility, we need more samples.
 
 A good habit before relying on a result is to solve it several times with different `rng_key` values. If the policy changes, either two actions are nearly as good as each other or `num_samples` is too small to tell them apart.
 
@@ -125,7 +135,7 @@ solution = solve(diagram, num_samples=50_000)
 print(solution.render(diagram))
 ```
 
-The best sunny-day order is now 240, so 200 was only the best option within the restricted action space we had defined. Unless the shop cannot stock more than 200, the owner should order 240 instead.
+The best sunny-day order is now 260, so 200 was only the best option within the restricted action space we had defined. Unless the shop cannot stock more than 200, the owner should order 260 instead.
 
 The action space also constrains us in the other direction. The solver only compares the options we list, so with a step of 20 it could never find an optimum of, let's say, 50.
 

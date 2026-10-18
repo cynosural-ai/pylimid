@@ -34,7 +34,9 @@ import numpyro.distributions as dist
 from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, infer, solve
 
 DEMAND_MEANS = jnp.array([40.0, 120.0])
-BOOKINGS_BOOST = jnp.array([1.0, 1.5])
+BUSYNESS_MEAN = 1.2
+BUSYNESS_LOG_SD = 0.1
+BOOKINGS_BOOST = jnp.array([1.0, 1.15])
 ORDERS = jnp.arange(0, 401, 20)
 
 
@@ -53,6 +55,14 @@ diagram.add_node(
 )
 diagram.add_node(
     ChanceNode(
+        name="busyness",
+        dist=lambda: dist.LogNormal(
+            jnp.log(BUSYNESS_MEAN) - BUSYNESS_LOG_SD**2 / 2, BUSYNESS_LOG_SD
+        ),
+    )
+)
+diagram.add_node(
+    ChanceNode(
         name="bookings",
         states=("normal", "high"),
         dist=lambda: dist.Categorical(probs=jnp.array([5 / 7, 2 / 7])),
@@ -61,9 +71,9 @@ diagram.add_node(
 diagram.add_node(
     ChanceNode(
         name="demand",
-        parents=("weather", "bookings"),
-        dist=lambda weather, bookings: dist.Gamma(
-            4.0, 4.0 / (DEMAND_MEANS[weather] * BOOKINGS_BOOST[bookings])
+        parents=("weather", "busyness", "bookings"),
+        dist=lambda weather, busyness, bookings: dist.Gamma(
+            4.0, 4.0 / (DEMAND_MEANS[weather] * busyness * BOOKINGS_BOOST[bookings])
         ),
     )
 )
@@ -98,14 +108,14 @@ recommended_profit = infer(
 round(recommended_profit.mean().item(), 1)
 ```
 
-The result is a {py:class}`Posterior` object whose `values` are a JAX array containing the profit draws. Each draw represents the profit on one possible day (i.e., the model draws values for weather, hotel bookings and demand, and the policy chooses the corresponding order value).
+The result is a {py:class}`Posterior` object whose `values` are a JAX array containing the profit draws. Each draw represents the profit on one possible day (i.e., the model draws values for weather, `busyness`, hotel bookings and demand, and the policy chooses the corresponding order value).
 
 Numerical summaries such as `mean()` also return JAX arrays. For this scalar profit node, the mean is a zero-dimensional array; `.item()` converts it to a Python number for display above.
 
 ```{admonition} Why the estimates differ
 :class: info
 
-Here {py:func}`solve` estimates an expected profit of \$569, while {py:func}`infer` estimates \$571, both under the same policy. This small mismatch comes from using different simulated days.
+Here {py:func}`solve` estimates an expected profit of \$632, while {py:func}`infer` estimates \$634, both under the same policy. This small mismatch comes from using different simulated days.
 ```
 
 If we plot the resulting draws, we get the following long-tailed distribution:
@@ -115,7 +125,7 @@ If we plot the resulting draws, we get the following long-tailed distribution:
 :width: 90%
 ```
 
-The spikes at \$720 and \$2,160 correspond to selling all 80 ice creams on a cloudy day or all 240 ice creams on a sunny day. However, once the shop sells out, higher demand cannot increase that day's profit.
+The spikes at \$720 and \$2,340 correspond to selling all 80 ice creams on a cloudy day or all 260 ice creams on a sunny day. However, once the shop sells out, higher demand cannot increase that day's profit.
 
 ### What if today is sunny and hotel bookings are high?
 
@@ -139,7 +149,7 @@ report_solution = solve(report_diagram, num_samples=50_000)
 print(report_solution.render(report_diagram))
 ```
 
-We can now use {py:func}`infer` to see the distribution of profits for a sunny day with high bookings under that policy. The `observed` argument records these observations using state indices: `1` for sunny weather and `1` for high bookings. Demand remains unobserved:
+We can now use {py:func}`infer` to see the distribution of profits for a sunny day with high bookings under that policy. The `observed` argument records these observations using state indices: `1` for sunny weather and `1` for high bookings. Busyness and demand remain unobserved:
 
 ```{code-cell} ipython3
 sunny_profit = infer(
@@ -152,7 +162,7 @@ sunny_profit = infer(
 round(sunny_profit.mean().item(), 1)
 ```
 
-The new policy recommends ordering 300 ice creams, with an estimated average profit of about \$1,436. We can also see the distribution of profits for that day:
+The new policy recommends ordering 280 ice creams, with an estimated average profit of about \$1,310. We can also see the distribution of profits for that day:
 
 ```{figure} /_static/figures/inference/sunny_policy_profit.png
 :alt: Histogram of profit on a sunny day with high hotel bookings under the policy that uses both variables, with a line marking its mean.
@@ -173,14 +183,14 @@ alternative_profit = infer(
 round(alternative_profit.mean().item(), 1)
 ```
 
-The mean of these draws gives an estimated expected profit of about \$508, compared with \$571 under the recommended policy. We can also compare both distributions, using no observations in either case:
+The mean of these draws gives an estimated expected profit of about \$562, compared with \$634 under the recommended policy. We can also compare both distributions, using no observations in either case:
 
 ```{figure} /_static/figures/inference/policy_comparison.png
 :alt: Histograms comparing profit under the recommended weather-based policy and a fixed order of 160 ice creams, with lines marking their means.
 :width: 90%
 ```
 
-This policy orders more than the recommended 80 ice creams on cloudy days and fewer than the recommended 240 on sunny days. Its spike at \$1,440 corresponds to selling all 160 ice creams, which is the highest profit it can make in a day.
+This policy orders more than the recommended 80 ice creams on cloudy days and fewer than the recommended 260 on sunny days. Its spike at \$1,440 corresponds to selling all 160 ice creams, which is the highest profit it can make in a day.
 
 ## Could the shop run out of stock on a sunny day?
 
@@ -198,7 +208,7 @@ sunny_demand = infer(
 round(sunny_demand.mean().item(), 1)
 ```
 
-We do not pass a policy because, in this model, demand is not affected by what the owner orders. The estimated average demand is about 138 ice creams. Below we show the posterior distribution of `demand` given sunny weather:
+We do not pass a policy because, in this model, demand is not affected by what the owner orders. The estimated average demand is about 150 ice creams. Below we show the posterior distribution of `demand` given sunny weather:
 
 ```{figure} /_static/figures/inference/sunny_demand.png
 :alt: Histogram of demand given sunny weather, with a line marking the available stock of 150 ice creams.

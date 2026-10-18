@@ -16,10 +16,11 @@ import matplotlib.pyplot as plt
 import numpyro.distributions as dist
 
 DEMAND_MEANS = jnp.array([40.0, 120.0])
-BOOKINGS_BOOST = jnp.array([1.0, 1.5])
+BUSYNESS_MEAN = 1.2
+BOOKINGS_BOOST = jnp.array([1.0, 1.15])
 
-# Sunny weather and normal hotel bookings, as in the figure caption.
-mean = DEMAND_MEANS[1] * BOOKINGS_BOOST[0]
+# Sunny weather, normal bookings and busyness fixed at the prior mean.
+mean = DEMAND_MEANS[1] * BUSYNESS_MEAN * BOOKINGS_BOOST[0]
 distributions = [
     (dist.Gamma(concentration=4.0, rate=4.0 / mean), "Gamma", "#4477aa"),
     (
@@ -38,7 +39,10 @@ for distribution, label, color in distributions:
 ax.set(
     xlabel="Demand (ice creams)",
     ylabel="Probability density",
-    title="Demand on a sunny day with normal hotel bookings",
+    title=(
+        "Demand on a sunny day with normal hotel bookings\n"
+        f"Busyness fixed at {BUSYNESS_MEAN:g}"
+    ),
     xlim=(0, 400),
     ylim=(0, None),
 )

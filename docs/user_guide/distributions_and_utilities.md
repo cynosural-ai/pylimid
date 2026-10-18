@@ -6,28 +6,30 @@ kernelspec:
 
 # Distributions and utilities
 
-In [Building a diagram](building_a_diagram.md), we assigned a distribution to each chance node and a utility function to the `profit` node. But why those distributions in particular? Could we, for example, assume that demand is Gaussian instead of Gamma? What would happen if we split the utility function into revenue and cost?
+In [Building a diagram](building_a_diagram.md), we assigned a distribution to each chance node and a utility function to the `profit` node. But why those distributions in particular? Could we, for example, assume that demand is Gaussian instead of {py:class}`Gamma <numpyro.distributions.continuous.Gamma>`? What would happen if we split the utility function into revenue and cost?
 
 This page answers those questions using the same ice cream shop example. It also explains what these functions receive from their parents and how to write them so PyLIMID can run them with JAX.
 
 ## What do the functions receive?
 
-PyLIMID calls each function with one keyword argument per parent, **matched by name**. For example, `demand` has `weather` and `bookings` as parents, which are **discrete chance nodes**, so its distribution function receives their values as state indices:
+PyLIMID calls each function with one keyword argument per parent, **matched by name**. For `demand`, the discrete parents `weather` and `bookings` pass state indices, while the continuous parent `busyness` passes a numerical multiplier:
 
 ```{code-cell} ipython3
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
 DEMAND_MEANS = jnp.array([40.0, 120.0])
-BOOKINGS_BOOST = jnp.array([1.0, 1.5])
+BUSYNESS_MEAN = 1.2
+BUSYNESS_LOG_SD = 0.1
+BOOKINGS_BOOST = jnp.array([1.0, 1.15])
 
 
-def demand_dist(weather, bookings):
-    mean = DEMAND_MEANS[weather] * BOOKINGS_BOOST[bookings]
+def demand_dist(weather, busyness, bookings):
+    mean = DEMAND_MEANS[weather] * busyness * BOOKINGS_BOOST[bookings]
     return dist.Gamma(concentration=4.0, rate=4.0 / mean)
 ```
 
-For `weather`, `0` means `"cloudy"` and `1` means `"sunny"`. For `bookings`, they mean `"normal"` and `"high"`. The function uses those indices to look up the demand mean and the booking multiplier, then returns a [NumPyro distribution](https://num.pyro.ai/en/stable/distributions.html).
+For `weather`, `0` means `"cloudy"` and `1` means `"sunny"`. For `bookings`, they mean `"normal"` and `"high"`. The function uses those indices to look up the demand mean and the booking multiplier, then returns a {py:class}`NumPyro distribution <numpyro.distributions.distribution.Distribution>`.
 
 The `profit` function receives two parent values:
 
@@ -60,26 +62,38 @@ def bookings_dist():
 
 The probabilities follow the same order as the state labels: `"cloudy"` and `"sunny"` for weather, `"normal"` and `"high"` for bookings. Neither node has parents, so these functions take no arguments.
 
-With `states=None`, use a continuous distribution. Count distributions such as Poisson and Binomial are not currently supported.
+With `states=None`, use a continuous distribution. The `busyness` node uses the {py:class}`LogNormal <numpyro.distributions.continuous.LogNormal>` prior:
 
-We chose a {py:class}`Gamma distribution <numpyro.distributions.continuous.Gamma>` to model `demand` because it is strictly positive and can naturally model quiet days alongside some unusually busy ones. Even though ice creams are counted in whole numbers, we use a continuous distribution to approximate demand. We use `concentration=4.0`, so its standard deviation is half its mean.
+```{code-cell} ipython3
+def busyness_dist():
+    return dist.LogNormal(
+        jnp.log(BUSYNESS_MEAN) - BUSYNESS_LOG_SD**2 / 2, BUSYNESS_LOG_SD
+    )
+```
+
+```{admonition} Count distributions
+:class: info
+Count distributions such as {py:class}`Poisson <numpyro.distributions.discrete.Poisson>` and {py:func}`Binomial <numpyro.distributions.discrete.Binomial>` are not currently supported.
+```
+
+We chose a {py:class}`Gamma <numpyro.distributions.continuous.Gamma>` distribution to model `demand` because it is strictly positive and can naturally model quiet days alongside some unusually busy ones. Even though ice creams are counted in whole numbers, we use a continuous distribution to approximate demand. We use `concentration=4.0`, so for fixed parent values its standard deviation is half its mean.
 
 ### What if demand were Gaussian?
 
-Suppose the owner believes that demand is distributed more symmetrically around its mean. A Gaussian distribution could express that assumption, but it could also produce negative values. Since demand cannot be negative, we use [NumPyro's `TruncatedNormal`](https://num.pyro.ai/en/stable/distributions.html#numpyro.distributions.truncated.TruncatedNormal) with a lower bound of zero:
+Suppose the owner believes that demand is distributed more symmetrically around its mean. A Gaussian distribution could express that assumption, but it could also produce negative values. Since demand cannot be negative, we use NumPyro's {py:class}`TruncatedNormal <numpyro.distributions.truncated.TruncatedNormal>` with a lower bound of zero:
 
 ```{code-cell} ipython3
-def nonnegative_demand(weather, bookings):
-    mean = DEMAND_MEANS[weather] * BOOKINGS_BOOST[bookings]
+def nonnegative_demand(weather, busyness, bookings):
+    mean = DEMAND_MEANS[weather] * busyness * BOOKINGS_BOOST[bookings]
     return dist.TruncatedNormal(loc=mean, scale=mean / 2, low=0.0)
 ```
 
 Here `loc` and `scale` are the mean and standard deviation of the Gaussian before truncation. We set `loc` to the mean used in `demand_dist` and `scale` to half of it. Restricting the distribution to nonnegative values raises its actual mean above `loc`, so the two distributions do not have exactly the same average demand.
 
-We can see the difference between these assumptions by plotting both distributions for a sunny day with normal hotel bookings. The Gamma curve has a longer tail towards high demand, while the truncated Gaussian is more symmetric around its peak:
+We can compare both distributions for a sunny day with normal hotel bookings, fixing `busyness` at its prior mean of 1.2. The Gamma curve has a longer tail towards high demand, while the truncated Gaussian is more symmetric around its peak:
 
 ```{figure} /_static/figures/distributions_and_utilities/demand_comparison.png
-:alt: Gamma and truncated Gaussian demand densities for sunny weather and normal hotel bookings. The Gamma curve has a longer right tail.
+:alt: Gamma and truncated Gaussian demand densities for sunny weather, normal hotel bookings and busyness fixed at 1.2. The Gamma curve has a longer right tail.
 :width: 90%
 ```
 
@@ -96,11 +110,14 @@ diagram = InfluenceDiagram()
 diagram.add_node(
     ChanceNode(name="weather", states=("cloudy", "sunny"), dist=weather_dist)
 )
+diagram.add_node(ChanceNode(name="busyness", dist=busyness_dist))
 diagram.add_node(
     ChanceNode(name="bookings", states=("normal", "high"), dist=bookings_dist)
 )
 diagram.add_node(
-    ChanceNode(name="demand", parents=("weather", "bookings"), dist=demand_dist)
+    ChanceNode(
+        name="demand", parents=("weather", "busyness", "bookings"), dist=demand_dist
+    )
 )
 diagram.add_node(
     DecisionNode(
