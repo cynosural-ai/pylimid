@@ -37,8 +37,10 @@ By default, JAX is installed in its CPU-only version. If you have an NVIDIA GPU,
 
 ```bash
 pip install "pylimid[cuda12]"  # CUDA 12
-pip install "pylimid[cuda13]"  # CUDA 13, for newer drivers
+pip install "pylimid[cuda13]"  # CUDA 13
 ```
+
+They do not support native Windows or macOS. See the [JAX installation guide](https://docs.jax.dev/en/latest/installation.html) for GPU and driver requirements.
 
 ## Example
 

@@ -2,7 +2,7 @@
 
 PyLIMID is a Python library built on top of [NumPyro](https://num.pyro.ai) for building and solving *limited-memory influence diagrams* (LIMIDs) whose chance nodes can be discrete, continuous, or both in the same model.
 
-Rather than requiring every chance and utility nodes to be represented as a table, PyLIMID uses [NumPyro](https://num.pyro.ai) distributions, [JAX](https://docs.jax.dev/en/latest/) functions, and sampling. Also, by compiling and vectorising computations with [JAX](https://docs.jax.dev/en/latest/), models can run efficiently on both CPU and GPU.
+Rather than requiring every chance and utility node to be represented as a table, PyLIMID uses [NumPyro](https://num.pyro.ai) distributions, [JAX](https://docs.jax.dev/en/latest/) functions, and sampling. Also, by compiling and vectorising computations with [JAX](https://docs.jax.dev/en/latest/), models can run efficiently on both CPU and GPU.
 
 ## Features
 
