@@ -115,6 +115,12 @@ A good habit before relying on a result is to solve it several times with differ
 
 On a small diagram, compiling the model can take much of the runtime, so increasing `num_samples` does not necessarily increase the runtime in proportion.
 
+### What if a situation never appears?
+
+Backward induction groups simulations by each combination of a decision's parent states. If a combination never appears, it cannot estimate which action is best for it. The solver completes the solve, assigns the first action in the decision's `states` to that combination, and warns with the decision name and affected parent states. Those policy entries have not been optimised.
+
+A missing combination might be impossible. For example, if we decide not to run a test, a successful test result cannot follow. Its action will never be used. But a possible combination can also be absent simply because it is rare. The solver cannot distinguish those cases from the samples alone, so we should check the warning against the model and increase `num_samples` if the combination is possible. More samples cannot make an impossible combination appear.
+
 ## Are the actions the right ones?
 
 The model recommends an order of 200 ice creams on a sunny day, which is the largest order on the menu. Now, when the best action sits at the edge of the action space like this, the true best may lie beyond it.
@@ -192,4 +198,3 @@ Mia should take the beach and Leo the park. Note that the reason backward induct
 
 - **The diagram has no decisions.** In that case there is nothing to optimise, so there is no policy to return.
 - **A decision observes a continuous variable.** A policy is a table with one action per situation, so a decision's parents must be discrete chance or decision nodes. If we want it to react to something continuous, like a temperature reading, we add an intermediate discrete chance node that bins it (say, cold, mild and hot) as the parent.
-- **A situation never comes up in the simulation.** Backward induction needs at least one draw for every combination of a decision's parent states. If a situation is rare, increasing `num_samples` can help. If it is impossible (its probability is 0), more samples cannot help. In that case, we can use `method="scan"` instead. The scan evaluates complete policies, so the action for an impossible situation does not affect the payoff. Such situations still increase the number of policies it needs to try though.

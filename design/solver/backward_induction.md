@@ -28,6 +28,10 @@ For each decision `d`, in reverse order, and each action `k`:
 
 Then `rule(a) = argmax_k Q̂(a, k)`; `d`'s rule is fixed; move to the previous decision.
 
+If an assignment has no samples, its action cannot be estimated. The solver retains a complete policy by assigning the first action (index zero), and warns once per affected decision with the missing parent-state combinations. The same random keys are used for each candidate action, and the target decision cannot affect its own parents, so the group counts are identical across actions. Empty groups receive zero quality for every action, and the first action wins the tie.
+
+Zero samples do not establish impossibility. A structurally impossible combination, such as not running a test followed by a successful result, will never use its fallback action. A possible but rare combination may use it later, and its action was not optimised. More samples may help in that case. Coverage is measured under the decision-estimation simulations, including placeholder rules for earlier decisions, rather than only under the final policy. Scan warnings and policy-space pruning are separate work.
+
 Cost: `Σ_d K_d × num_samples` trajectories — additive in the decisions, versus the scan's `∏_d K_d^|A_d|` policies.
 
 Batching follows the batched scan: the per-action passes are vmapped forward walks, and the group means are segment-means over assignment indices (bincount-style), so one jitted call can cover a decision's whole update. The traceability constraint on `values` callables from the batched scan applies unchanged.
@@ -53,6 +57,7 @@ Adding memory arcs turns a non-solvable diagram into a regular one, but that is 
 - Soluble diagrams: policy and expected utility against pyAgrum's exact solver at Monte-Carlo tolerances (LIMID fixtures).
 - Non-soluble: the error path; when SPU lands, against the scan at MC tolerance — the scan is the only global reference there, since pyAgrum refuses non-soluble LIMIDs.
 - Determinism: a fixed `rng_key` reproduces the same policy.
+- Sampling coverage: impossible combinations retain complete policy entries and warn while reachable combinations remain optimised; rare unsampled combinations also warn and receive a reproducible first-action fallback. Fully sampled information sets and decisions without parents do not warn.
 
 ## Deferred
 

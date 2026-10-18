@@ -113,7 +113,7 @@ The diagram has four nodes plus a utility:
 
 - **Quality** (`quality`): chance, the field's true quality, with the prior $(0.35, 0.45, 0.20)$.
 - **Test** (`test`): decision, *do* or *not do*, with no parents. Nothing is observed before this choice.
-- **Result** (`result`): chance, *pass* or *fail*, depending on `quality` and on whether the test ran.
+- **Result** (`result`): chance, *pass* or *fail* when the test runs, and *no result* when it does not.
 - **Buy** (`buy`): decision, *buy* or *not buy*, observing `result` and remembering `test`.
 - **Utility** (`utility`): the payoff, a function of `quality`, `test`, and `buy`.
 
@@ -125,8 +125,9 @@ The quantitative part is small enough to write as tables. The prior over quality
 
 | P(result \| quality, test) | do, high | do, medium | do, low | not do, high | not do, medium | not do, low |
 | --- | --- | --- | --- | --- | --- | --- |
-| pass | 0.95 | 0.70 | 0.15 | 0.50 | 0.50 | 0.50 |
-| fail | 0.05 | 0.30 | 0.85 | 0.50 | 0.50 | 0.50 |
+| pass | 0.95 | 0.70 | 0.15 | 0 | 0 | 0 |
+| fail | 0.05 | 0.30 | 0.85 | 0 | 0 | 0 |
+| no result | 0 | 0 | 0 | 1 | 1 | 1 |
 
 | test | buy | quality | utility |
 | --- | --- | --- | --- |
@@ -141,12 +142,12 @@ The quantitative part is small enough to write as tables. The prior over quality
 
 ```{admonition} The result when the test isn't run
 :class: note
-A chance node needs a distribution for *every* combination of its parents, so `result` must take a value even when `test = not_do`. We give it the same flat pass/fail filler for every quality — independent of `quality`, so it leaks nothing — and since `buy` observes `test` (the memory arc), it knows the filler is meaningless and ignores it. The chosen action is identical for `pass` and `fail`.
+A chance node needs a distribution for every combination of its parents. We give `result` a third state, `no_result`, which is certain when `test = not_do` and has probability zero when the test runs. This represents the absence of a test result directly.
 
-That full table also keeps all four `(test, result)` information sets reachable. Backward induction estimates one continuation value per information-set cell by forward sampling, and a cell that can never occur leaves it with nothing to estimate. The common pyAgrum idiom — a `no_results` state that is certain when `test = not_do` — makes half the cells impossible, so `solve()` would fall back to the scan. A well-defined filler keeps the automatic path, and the filler's exact probabilities never affect the policy.
+There are six combinations of `test` and `result`, but only three can occur: `(do, pass)`, `(do, fail)`, and `(not_do, no_result)`. Backward induction warns about the three impossible combinations and completes the solve. It assigns the first action to those policy entries, but those actions will never be used. `method="auto"` still selects backward induction from the diagram's structure.
 ```
 
-The whole model is a few lines of `pylimid`. Chance distributions are plain NumPyro callables, and the utility is an ordinary function of its parents:
+We can now build the model in PyLIMID. Chance-node functions return NumPyro distributions, and the utility uses JAX expressions of its parents:
 
 ```{code-cell} ipython3
 import jax.numpy as jnp
@@ -156,10 +157,10 @@ from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, sol
 
 quality_prior = jnp.array([0.35, 0.45, 0.20])
 reward = jnp.array([1250.0, 630.0, 0.0])
-# Rows: test = do, not_do. Columns: quality = high, medium, low.
+# Axes: test (do, not_do), quality (high, medium, low), result (pass, fail, no_result).
 result_probs = jnp.array([
-    [[0.95, 0.05], [0.70, 0.30], [0.15, 0.85]],
-    [[0.50, 0.50], [0.50, 0.50], [0.50, 0.50]],
+    [[0.95, 0.05, 0.0], [0.70, 0.30, 0.0], [0.15, 0.85, 0.0]],
+    [[0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0]],
 ])
 ```
 
@@ -177,7 +178,7 @@ diag.add_node(
     ChanceNode(
         name="result",
         parents=("quality", "test"),
-        states=("pass", "fail"),
+        states=("pass", "fail", "no_result"),
         dist=lambda quality, test: dist.Categorical(probs=result_probs[test, quality]),
     )
 )
@@ -212,12 +213,14 @@ diag
 
 ## Solving it
 
-`solve()` returns the optimal policy and the expected utility it achieves. Because the diagram is *solvable* — every decision can be resolved from its information set once the later decisions are fixed — `solve` automatically uses backward induction rather than enumerating every policy:
+`solve()` estimates a policy and the expected utility it achieves. Because the diagram is *solvable* — every decision can be resolved from its information set once the later decisions are fixed — `solve` automatically uses backward induction:
 
 ```{code-cell} ipython3
 solution = solve(diag, num_samples=20000)
 solution.method
 ```
+
+The solve emits a `UserWarning` for `(do, no_result)`, `(not_do, pass)`, and `(not_do, fail)`. We know from the probability table that these combinations are impossible, so their missing samples are expected. In other models a combination might instead be possible but rare; the warning alone cannot distinguish the two. The [solving guide](../user_guide/solving.md#what-if-a-situation-never-appears) explains that distinction.
 
 The policy maps each decision to an action per information-set assignment, and the expected utility is the value of following it:
 
@@ -229,9 +232,11 @@ solution.policy
 round(solution.expected_utility, 1)
 ```
 
-Reading the policy: the test key `()` is the empty information set, and `1` selects `not_do`. The buy policy is indexed by `(test, result)` in parent order, so `(0, 0)` is "the test ran and passed" and `(1, 0)` is "the test did not run". The recommended strategy is to **skip the test and buy the field**.
+Reading the policy: the test key `()` is the empty information set, and `1` selects `not_do`. The buy policy is indexed by `(test, result)` in parent order, so `(0, 0)` means "the test ran and passed", `(0, 1)` means "the test ran and failed", and `(1, 2)` means "the test did not run, so there is no result". Action `0` means `buy` and action `1` means `not_buy`.
 
-The expected utility is a Monte-Carlo estimate. With the default 2000 samples it lands within roughly ±10 of the truth at this scale, which is why we asked for 20000; here it came out at 716, about 5 below the exact 721. The seed is fixed, so the number is reproducible; the next section computes the exact value.
+The recommended strategy is to **skip the test and buy the field**. The policy also says to buy after a pass and not buy after a fail if the test were run. Its other three entries are the first-action defaults named in the warning, not recommendations for situations that can occur.
+
+The expected utility is a Monte Carlo estimate, so it will differ from the exact value. We use 20,000 samples here, and the default random key makes the run reproducible. The next section computes the exact value so we can compare it with the estimate.
 
 ## Reading the recommendation
 
@@ -255,5 +260,5 @@ Testing has an expected value of **696.95** against **721** for buying outright,
 
 ```{admonition} Next
 :class: seealso
-A follow-up tutorial varies the test's accuracy and cost, and the quality prior, to find the thresholds where testing becomes worthwhile — and shows what the Monte-Carlo error looks like along the way.
+The [solving guide](../user_guide/solving.md) explains solver selection, sampling uncertainty, and warnings for situations that never appear. The [inference guide](../user_guide/inference.md) shows how to query a model under a chosen policy and observed information.
 ```

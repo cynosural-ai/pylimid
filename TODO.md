@@ -25,14 +25,12 @@ Found while writing the user guide. Ordered by how badly they can mislead a user
 
 A situation is one combination of a decision's parent states. When no sample lands in one, the solver can't tell whether it is rare (it can happen, but the simulation missed it) or impossible (its probability is 0, such as "test not run, result positive").
 
-- **Backward induction raises on every unseen situation, including impossible ones.** This blocks valid models: the common `no_results` idiom, a state that is certain when a test isn't run, can't be solved with backward induction. Proposal: finish the solve, give unseen situations an arbitrary action, and warn with the list of them, so the user can ignore impossible ones and re-solve with more samples for rare ones. If a warning is too easy to miss, add a parameter and keep raising by default.
-- **The scan gives unseen situations an arbitrary action without saying so.** Harmless for impossible situations, but a rare one that the simulation missed also gets an arbitrary action, and nothing tells the user. It should warn like backward induction would.
+- **The scan gives unseen situations an arbitrary action without saying so.** Harmless for impossible situations, but a rare one that the simulation missed also gets an arbitrary action, and nothing tells the user. It should warn like backward induction does.
 - **The scan repeats work for impossible situations.** Policies that differ only in the action for an impossible situation get identical scores, so each impossible situation multiplies the number of policies by the decision's number of actions (the `no_results` idiom in the oil field would mean 2³ = 8 times more policies for `buy`). Possible fix: a short pilot simulation finds the situations that never come up, they get one fixed action, and the scan enumerates only the rest.
 
 ### Documentation
 
 - **Learning from data (future guide).** Introduce uncertainty about model parameters and updating those beliefs from observations separately from the inference guide. A scalar prior such as `busyness` and one observation work already. Use fully observed demand, including unmet requests, to update `busyness`; sales alone do not reveal demand after a stockout. Repeated datasets and decisions under learned uncertainty can extend the page once those capabilities are available.
-- **Remake the oil field tutorial.** Its note on the result when the test isn't run says that with a `no_results` state "`solve()` would fall back to the scan". It doesn't: `auto` picks the solver from the structure alone (`is_solvable`), the diagram is solvable, so backward induction runs and raises, and there is no fallback after an error. The tutorial avoids the case with a 50/50 filler for `result`; once backward induction warns instead of raising, the `no_results` idiom would work as it is.
 
 ### Missing features
 

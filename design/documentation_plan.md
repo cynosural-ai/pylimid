@@ -36,7 +36,7 @@ Keep the quickstart and README's order menu at 0–200. The Solving guide delibe
 
 - Check API claims against the implementation and API reference. Explain finite actions and discrete information sets wherever decisions are introduced. Describe supported chance distributions and state labels accurately; keep the full contract in `ChanceNode`.
 - Distributions and utilities must be JAX-traceable. Do not describe them as arbitrary Python code; explain the restrictions on casts and Python control flow where relevant.
-- Both `infer` and `solve` return Monte Carlo estimates. Distinguish exact discrete enumeration as a method from the accuracy of the returned summaries, including in mixed models. Explain sampling reliability where readers use estimates.
+- Both `infer` and `solve` return Monte Carlo estimates. Distinguish exact discrete enumeration as a method from the accuracy of the returned summaries, including in mixed models. Explain sampling reliability where readers use estimates. When documenting unsampled situations, distinguish impossible combinations from rare ones, and explain the warning and unoptimised default actions.
 - Keep performance claims modest. Explain when pyAgrum's exact discrete solving may be a better choice.
 - Every number quoted in prose must come from running the page's code. Re-run and check prose and figures when a model changes. Check whether an optimal action lies at the edge of its menu, and explain intentional boundary examples.
 - Pages show code that teaches PyLIMID. Generate plots separately, store their scripts beside the images in `docs/_static/figures/<page>/`, and embed images with `{figure}` directives. Keep each script's parameters consistent with its page.
@@ -59,7 +59,7 @@ Branding assets live in `docs/_static/branding/`. Preserve the Flush mark, Jost 
 
 ## Future work
 
-- **Tutorials — low priority.** Revisit the existing drafts in `docs/tutorials/`, choose the useful problems and their order, and review or rewrite them before publication. The newsvendor draft overlaps the quickstart. When tutorials are ready, update `exclude_patterns`, the home-page card and toctree, and the quickstart and README links together. Tutorial issues and possible extensions are recorded in [TODO.md](../TODO.md).
+- **Tutorials — low priority.** Revisit the existing drafts in `docs/tutorials/`, choose the useful problems and their order, and review or rewrite them before publication. The newsvendor draft overlaps the quickstart. When tutorials are ready, update `exclude_patterns`, the home-page card and toctree, and the quickstart and README links together. Tutorial issues and possible extensions are recorded in [TODO.md](../TODO.md). The oil field draft now models `no_result` explicitly when no test is run and explains the warnings and default actions for impossible combinations; editorial and source review remains pending.
 - **Further reading — optional, later.** Keep the candidate references below for a possible Resources page, grouped by topic with a short explanation of each source. Create the page when there is a useful selection to publish. Plain links and author–year citations are sufficient; verify bibliographic details before publication.
 
 Future capabilities and related documentation, including learning from data, are tracked in [TODO.md](../TODO.md).
