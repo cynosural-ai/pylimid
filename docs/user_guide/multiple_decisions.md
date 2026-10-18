@@ -10,7 +10,7 @@ So far, the shop's owner has faced a single choice: how many ice creams to order
 
 There are now two decisions. First, the owner must choose whether to run the promotion or not. Then, in the morning (when the weather is known), the owner must decide how much stock to order.
 
-This page shows how to represent those choices, read their policies and explore the resulting profits. We keep the weather, bookings and {py:class}`Gamma <numpyro.distributions.continuous.Gamma>` demand from the previous pages, with the wider order menu from the [Solving](solving.md) guide. Bookings remain unknown at both decisions.
+This page shows how to represent those choices, read their policies and explore the resulting profits. We keep the weather, `busyness` prior, bookings and {py:class}`Gamma <numpyro.distributions.continuous.Gamma>` demand from the previous pages, with the wider order menu from the [Solving](solving.md) guide. Bookings and the actual `busyness` remain unknown at both decisions.
 
 ## Adding the promotion decision
 
@@ -34,14 +34,21 @@ from pylimid import (
 )
 
 DEMAND_MEANS = jnp.array([40.0, 120.0])
-BOOKINGS_BOOST = jnp.array([1.0, 1.5])
+BUSYNESS_MEAN = 1.2
+BUSYNESS_LOG_SD = 0.1
+BOOKINGS_BOOST = jnp.array([1.0, 1.15])
 PROMOTION_BOOST = jnp.array([1.0, 1.2])
 PROMOTION_COST = 80.0
 ORDERS = jnp.arange(0, 401, 20)
 
 
-def demand_dist(weather, bookings, promotion):
-    mean = DEMAND_MEANS[weather] * BOOKINGS_BOOST[bookings] * PROMOTION_BOOST[promotion]
+def demand_dist(weather, busyness, bookings, promotion):
+    mean = (
+        DEMAND_MEANS[weather]
+        * busyness
+        * BOOKINGS_BOOST[bookings]
+        * PROMOTION_BOOST[promotion]
+    )
     return dist.Gamma(concentration=4.0, rate=4.0 / mean)
 
 
@@ -60,6 +67,14 @@ diagram.add_node(
 )
 diagram.add_node(
     ChanceNode(
+        name="busyness",
+        dist=lambda: dist.LogNormal(
+            jnp.log(BUSYNESS_MEAN) - BUSYNESS_LOG_SD**2 / 2, BUSYNESS_LOG_SD
+        ),
+    )
+)
+diagram.add_node(
+    ChanceNode(
         name="bookings",
         states=("normal", "high"),
         dist=lambda: dist.Categorical(probs=jnp.array([5 / 7, 2 / 7])),
@@ -68,7 +83,9 @@ diagram.add_node(
 diagram.add_node(DecisionNode(name="promotion", states=("skip", "run")))
 diagram.add_node(
     ChanceNode(
-        name="demand", parents=("weather", "bookings", "promotion"), dist=demand_dist
+        name="demand",
+        parents=("weather", "busyness", "bookings", "promotion"),
+        dist=demand_dist,
     )
 )
 diagram.add_node(
@@ -102,7 +119,7 @@ solution = solve(diagram, num_samples=50_000)
 print(solution.render(diagram))
 ```
 
-The owner should always run the promotion. After that choice, the recommended order depends on the weather: 100 ice creams on a cloudy day and 280 on a sunny day. The estimated total profit is about \$609.
+The owner should always run the promotion. After that choice, the recommended order depends on the weather: 100 ice creams on a cloudy day and 300 on a sunny day. The estimated total profit is about \$686.
 
 `solution.policy` has one entry for each decision. The `promotion` entry has the single key `()`, because it has no parents. The `order` keys contain two state indices, following its parent order: `(weather, promotion)`. Thus, `(1, 1)` means sunny weather and a promotion that runs.
 
@@ -148,7 +165,7 @@ total_profit = outcomes["profit"].mean() + outcomes["promotion_cost"].mean()
 round(total_profit.item(), 1)
 ```
 
-The estimated average total profit is about \$605 per day, including the promotion cost.
+The estimated average total profit is about \$681 per day, including the promotion cost.
 
 ```{admonition} Reminder: Monte Carlo estimates
 :class: info
