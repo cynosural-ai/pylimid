@@ -58,7 +58,7 @@ print(solution.render(arrivals))
 
 {py:func}`solve` simulates customer counts to compare expected profit for the two actions. The count is unknown when we choose capacity, so it is a parent of `profit` but not of `capacity`. Unbounded counts such as Poisson work in this forward simulation.
 
-A numerical count cannot directly index a decision's policy table: information-set parents still need named finite states. For example, a policy that chooses capacity after observing the exact customer count is not currently supported. See [Solving](solving.md) for how information sets determine which inputs a policy can use.
+A numerical count cannot directly index a decision's policy table: information-set parents still need named finite states. For example, a policy that chooses capacity after observing the exact customer count is not currently supported. See [Solving](../user_guide/solving.md) for how information sets determine which inputs a policy can use.
 
 ## Learning from observed counts
 
@@ -110,4 +110,4 @@ The following cases remain unsupported:
 - **Shifted ranges and batched count latents.** Unknown counts with ranges starting above zero, or multiple counts returned together as a batch, are not supported by posterior inference. Batched scalar-event counts retain component-wise numerical summaries in forward sampling and can be observed as likelihoods.
 - **Vector events.** Distributions such as Multinomial, where a single draw is a vector of related counts, are outside the current support.
 
-NumPyro and JAX report non-static or heterogeneous enumeration bounds directly. See [Inference](inference.md) for querying other variables and evaluating a policy's outcomes.
+NumPyro and JAX report non-static or heterogeneous enumeration bounds directly. See [Inference](../user_guide/inference.md) for querying other variables and evaluating a policy's outcomes.

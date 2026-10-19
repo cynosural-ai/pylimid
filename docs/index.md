@@ -79,7 +79,6 @@ user_guide/distributions_and_utilities
 user_guide/solving
 user_guide/inference
 user_guide/multiple_decisions
-user_guide/count_distributions
 ```
 
 <!--
@@ -101,6 +100,7 @@ tutorials/bayesian_networks
 :maxdepth: 1
 
 resources/common_pitfalls
+resources/count_distributions
 ```
 
 ```{toctree}

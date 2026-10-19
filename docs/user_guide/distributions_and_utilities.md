@@ -62,7 +62,7 @@ def bookings_dist():
 
 The probabilities follow the same order as the state labels: `"cloudy"` and `"sunny"` for weather, `"normal"` and `"high"` for bookings. Neither node has parents, so these functions take no arguments.
 
-With `states=None`, values are numerical. We can use a continuous distribution or a [count distribution](count_distributions.md). The `busyness` node uses the {py:class}`LogNormal <numpyro.distributions.continuous.LogNormal>` prior:
+With `states=None`, values are numerical. We can use a continuous distribution or a [count distribution](../resources/count_distributions.md). The `busyness` node uses the {py:class}`LogNormal <numpyro.distributions.continuous.LogNormal>` prior:
 
 ```{code-cell} ipython3
 def busyness_dist():

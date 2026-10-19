@@ -7,9 +7,9 @@ Maintenance guide for the published documentation in `docs/` and the project `RE
 The published order is **Getting started → User guide → Resources → API reference**. Tutorials will sit between User guide and Resources when ready.
 
 - **Getting started** covers installation and a quickstart: one small problem through build, validate, draw and solve.
-- **User guide** answers how to do something and explains the behaviour where readers encounter it. Its five core pages cover building a diagram, distributions and utilities, solving, inference, and multiple decisions. A separate Count distributions page follows them, collecting count-specific examples and limitations.
+- **User guide** answers how to do something and explains the behaviour where readers encounter it. Its five core pages cover building a diagram, distributions and utilities, solving, inference, and multiple decisions.
 - **Tutorials** tell the story of a complete alternative problem, with figures and interpretation of the results.
-- **Resources** currently contains Common pitfalls, directly under the sidebar heading. Entries are standalone examples with their own context and imports. Background and further reading can be added when useful.
+- **Resources** contains Common pitfalls and Count distributions, directly under the sidebar heading. Entries are standalone examples with their own context and imports. Count distributions collects count-specific examples and limitations. Background and further reading can be added when useful.
 - **API reference** documents public classes, functions and methods, generated from docstrings.
 
 Contributor documentation belongs in `CONTRIBUTING.md`, `AGENTS.md` and `design/`. Explain architecture on the published site only when it helps users understand execution or trust a result. Link to NumPyro for distributions and MCMC; focus PyLIMID explanations on information sets, explicit memory, policies, solver selection, callable parents and decision-modelling patterns. Introduce theory beside the behaviour it explains, with a citation rather than a textbook derivation. Preserve the Solving guide's explanation of the stricter solvability check; its rationale and regression example live in the [solver design](solver/algorithms.md).
