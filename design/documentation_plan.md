@@ -7,7 +7,7 @@ Maintenance guide for the published documentation in `docs/` and the project `RE
 The published order is **Getting started → User guide → Resources → API reference**. Tutorials will sit between User guide and Resources when ready.
 
 - **Getting started** covers installation and a quickstart: one small problem through build, validate, draw and solve.
-- **User guide** answers how to do something and explains the behaviour where readers encounter it. Its five pages cover building a diagram, distributions and utilities, solving, inference, and multiple decisions.
+- **User guide** answers how to do something and explains the behaviour where readers encounter it. Its five core pages cover building a diagram, distributions and utilities, solving, inference, and multiple decisions. A separate Count distributions page follows them, collecting count-specific examples and limitations.
 - **Tutorials** tell the story of a complete alternative problem, with figures and interpretation of the results.
 - **Resources** currently contains Common pitfalls, directly under the sidebar heading. Entries are standalone examples with their own context and imports. Background and further reading can be added when useful.
 - **API reference** documents public classes, functions and methods, generated from docstrings.
@@ -16,7 +16,7 @@ Contributor documentation belongs in `CONTRIBUTING.md`, `AGENTS.md` and `design/
 
 ### Shared example
 
-The quickstart and user guide follow the ice cream shop. The guides extend the quickstart with hotel bookings; the final guide adds a promotion decision. Keep the shared model consistent across pages while preserving intentional variants, such as revealing bookings before ordering in the inference guide.
+The quickstart and user guide follow the ice cream shop. The guides extend the quickstart with hotel bookings; the Multiple decisions guide adds a promotion decision. The Count distributions page uses standalone examples so it does not interrupt this story. Keep the shared model consistent across pages while preserving intentional variants, such as revealing bookings before ordering in the inference guide.
 
 Keep the quickstart and README's order menu at 0–200. The Solving guide deliberately starts with the same menu, then expands it to 400 to teach readers to check boundary answers. Preserve this progression and re-check the results whenever the model changes. Model parameters and numerical outputs live in the pages and their figure scripts.
 

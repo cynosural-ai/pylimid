@@ -45,8 +45,11 @@ class ChanceNode(Node):
     With ``states=None``, values are numerical: continuous distributions and discrete
     distributions with scalar events, such as Poisson and Binomial, are supported.
     Categorical and Bernoulli distributions always require state labels. Numerical
-    counts support forward sampling and observed likelihoods; posterior inference
-    rejects unobserved counts, including finite ones. Counts cannot index tabular
+    counts support forward sampling and observed likelihoods. Scalar count posteriors
+    are supported when NumPyro can enumerate a fixed integer range starting at zero,
+    such as Binomial with a Python integer ``total_count``. The bounds must remain
+    concrete during JAX tracing; parent-dependent bounds are unsupported. Unbounded,
+    shifted and batched count latents remain unsupported. Counts cannot index tabular
     decision policies. Inference and solving check the distribution contract when
     constructing it, including for observed nodes;
     `InfluenceDiagram.validate` checks only the diagram's structure and declarations.

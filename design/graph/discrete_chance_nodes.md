@@ -1,8 +1,19 @@
 # More expressive discrete chance nodes
 
-Status: classification groundwork, forward count simulation and observed-count likelihoods are implemented. Posterior inference with latent numerical counts, numerical information-set domains and independent label metadata remain future work.
+Status: classification separation, forward count simulation, observed-count likelihoods and scalar fixed-range count posteriors are implemented. Numerical information-set domains, parent-dependent enumeration bounds, unbounded count inference and independent label metadata remain future work.
 
-The classification step replaces the label-based `is_discrete` property on nodes and `Posterior` with `is_categorical`. For now, `states` continues to declare categorical semantics as well as labels. Model translation checks support and annotates only categorical sites for enumeration. Posterior dispatch inspects constructed distributions in a seeded model execution, ignores observed and deterministic sites, rejects all latent numerical discrete nodes and reports whether continuous latents remain. It does not evaluate callables with fabricated parent values, infer support from sampled dtypes, or store execution-derived classification on mutable graph nodes.
+The classification step replaces the label-based `is_discrete` property on nodes and `Posterior` with `is_categorical`. For now, `states` continues to declare categorical semantics as well as labels. Model translation annotates discrete sites that advertise NumPyro enumeration support. Posterior dispatch inspects constructed distributions in a seeded model execution, ignores observed and deterministic sites, checks count enumeration requirements and reports whether continuous latents remain. It does not evaluate callables with fabricated parent values, infer support from sampled dtypes, or store execution-derived classification on mutable graph nodes.
+
+Count posterior support currently requires a scalar distribution, NumPyro enumeration capability and an integer interval starting at zero. Binomial and Beta-Binomial posteriors are checked against explicit probability sums. The range must remain concrete during tracing: a Python integer `total_count` works, while a bound constructed with JAX inside the callable can fail even if mathematically constant. NumPyro's existing errors for non-static or heterogeneous bounds propagate directly. A range containing only zero is clamped to that exact value, avoiding the backend's failure to reconstruct singleton enumerated sites. Shifted ranges are rejected because the backend can return enumeration positions instead of original count values. Batched count latents remain unsupported; batched forward draws and observed counts retain their behavior. Neither unbounded support nor a large finite range is silently truncated.
+
+The remaining feature boundaries are:
+
+| Extension | Example | Scope and feasibility |
+| --- | --- | --- |
+| Bounded counts as decision inputs | Observe 0–10 defects, then accept, repair or discard. | Feasible with a shared finite-domain representation, checked policy indexing and updates to all solvers and policy rendering. Larger domains still increase search and sampling costs. |
+| Parent-dependent enumeration bounds | The batch contains either five or ten products, and an alarm gives evidence about its defect count. | Requires a global enumeration range, correct zero-mass handling outside each conditional range and tests for normalization, gradients and joint posterior draws. Native enumeration currently fails. |
+| Unbounded latent inference | A shop sells all its stock; infer its unknown Poisson demand from censored sales. | A separate inference feature requiring a suitable sampling method, an explicit approximation or analytical elimination for a particular model. No arbitrary maximum is added to the distribution. |
+| Policies over unbounded counts | Choose an action after observing an exact Poisson count. | A finite table cannot cover every count. Named finite bands can already feed existing tabular policies; direct numerical rules would require another policy representation. |
 
 ## Motivation
 
@@ -22,12 +33,12 @@ The current implementation gives `states` several responsibilities:
 | Define a finite domain | Valid values are interpreted as indices from zero to `len(states) - 1`. |
 | Supply display labels | `InfluenceDiagram.states_of` and `Solution.render` decode indices using the labels. |
 | Size policy tables | Shared policy helpers and the solvers use the number of states of each information-set parent. |
-| Select posterior inference machinery | Only categorical sites are marked for enumeration. Runtime support identifies numerical counts, which may be forward sampled or observed but cannot remain latent in posterior inference. |
+| Select posterior inference machinery | Distribution enumeration metadata selects discrete sites. Numerical count posteriors additionally require scalar zero-based integer support and concrete enumeration bounds. |
 | Control posterior summaries | `Posterior.is_categorical` distinguishes named categories from numerical values; `marginal()` requires categories, while numerical summaries reject category codes. |
 
 The current runtime contract requires Categorical with one state label per category or Bernoulli with exactly two labels. Both probability and logit parameterizations are supported, and zero-probability outcomes still require labels. With `states=None`, continuous distributions and numerical discrete distributions with scalar events are supported. Batched scalar-event counts retain their array shape; vector discrete events such as Multinomial are rejected. Adding labels to Binomial, Poisson or another numerical count distribution is rejected.
 
-The [shared distribution validator](../../pylimid/_distributions.py) checks the constructed distribution before sampling or emitting a NumPyro sample site. It runs in inference and all three solvers, including for observed chance nodes. It uses concrete categorical classes, static category dimensions, event shape and support metadata rather than sample probes. `InfluenceDiagram.validate()` remains structural and declarative; `infer()` prunes nodes unrelated to its query and evidence before executing distributions. A separate posterior capability check rejects relevant latent counts before either posterior sampling path runs. Tabular policies continue to require named finite states and cannot use count values as indices.
+The [shared distribution validator](../../pylimid/_distributions.py) checks the constructed distribution before sampling or emitting a NumPyro sample site. It runs in inference and all three solvers, including for observed chance nodes. It uses concrete categorical classes, static category dimensions, event shape and support metadata rather than sample probes. `InfluenceDiagram.validate()` remains structural and declarative; `infer()` prunes nodes unrelated to its query and evidence before executing distributions. A separate posterior capability check rejects unbounded, shifted and batched count latents before either posterior sampling path runs. NumPyro performs enumeration and reports unsupported bounds. Tabular policies continue to require named finite states and cannot use count values as indices.
 
 See [the chance-node implementation](../../pylimid/graph/chance_node.py), [policy helpers](../../pylimid/policy.py), [NumPyro translation](../../pylimid/numpyro/model.py), [sampling dispatch](../../pylimid/numpyro/samplers.py), and [posterior summaries](../../pylimid/inference/posterior.py).
 
@@ -35,7 +46,7 @@ These responsibilities need not share one field. In the proposed representation,
 
 ## Examples the representation should accommodate
 
-The count examples below support forward simulation and solving when information sets remain categorical. Observed counts support likelihood evaluation. Latent numerical counts remain unsupported in posterior inference, including bounded counts.
+The count examples below support forward simulation and solving when information sets remain categorical. Observed counts support likelihood evaluation. Scalar Binomial counts with a fixed concrete number of trials support posterior inference without labels; unbounded and parent-dependent count ranges do not.
 
 ### Categories
 
@@ -69,7 +80,7 @@ def defects_dist(batch):
 
 The conditional support is zero through five for one parent value and zero through ten for the other. A fixed global domain of zero through ten covers both. It is a computational envelope, not a claim that every outcome has positive probability in every situation.
 
-Forward simulation of `batch -> defects -> alarm` is supported. Querying defects given an observed alarm raises an explicit unsupported-latent-count error before NumPyro enumeration. Earlier enumeration attempts failed with a JAX `ConcretizationTypeError` at `jnp.arange(total_count + 1)`; NumPyro also rejects enumeration with heterogeneous concrete trial counts. Any future extension must distinguish valid forward simulation from supported posterior enumeration. See [NumPyro's Binomial enumeration implementation](https://num.pyro.ai/en/stable/_modules/numpyro/distributions/discrete.html#BinomialProbs.enumerate_support) and [JAX's explanation of concrete-value requirements](https://docs.jax.dev/en/latest/errors.html#jax.errors.ConcretizationTypeError).
+Forward simulation of `batch -> defects -> alarm` is supported. Querying defects given an observed alarm with the parent-dependent trial count still fails during NumPyro enumeration with a JAX `ConcretizationTypeError` at `jnp.arange(total_count + 1)`; NumPyro also rejects heterogeneous concrete trial counts. The fixed-trial posterior implementation does not supply a global range or reinterpret that failure. See [NumPyro's Binomial enumeration implementation](https://num.pyro.ai/en/stable/_modules/numpyro/distributions/discrete.html#BinomialProbs.enumerate_support) and [JAX's explanation of concrete-value requirements](https://docs.jax.dev/en/latest/errors.html#jax.errors.ConcretizationTypeError).
 
 ## Proposed separation of concerns
 
@@ -145,7 +156,7 @@ Observations should use category codes for categorical variables and actual nume
 
 ## Parent-dependent trial counts and future inference
 
-The first stage does not support every mathematically well-defined posterior query. It preserves forward simulation and observed-count likelihoods, while rejecting every relevant latent numerical count before either posterior path, including a fixed-bound Binomial. Support for finite numerical enumeration remains a separate extension.
+The current implementation does not support every mathematically well-defined posterior query. It supports fixed-trial Binomial posteriors and other compatible scalar zero-based finite distributions, while unbounded, shifted and batched count latents remain rejected. Parent-dependent ranges still fail through NumPyro's existing enumeration errors.
 
 A later investigation could use a fixed global count range for enumeration and assign zero probability to outcomes above the conditional trial count. This needs correct probability masking, normalization, gradients, and handling of NumPyro enumeration dimensions. An adapter that represents those probabilities as a Categorical distribution must preserve numerical count semantics. It should be tested against exact small-model calculations before being exposed.
 
@@ -155,7 +166,7 @@ Unbounded discrete latent inference is a separate feature. NumPyro has additiona
 
 This affects more than `Posterior`. The current assumptions are spread across chance-node classification, graph helpers, inference dispatch, model translation, policy encoding, backward-induction grouping, both scan implementations, and policy rendering. Structural graph algorithms and decision action representation should mostly retain their current roles.
 
-Categorical validation, classification separation, forward numerical counts and observed-count likelihoods are complete. Current tests cover parent-dependent Binomial trial counts through every simulation path, numerical summaries and joint utility draws, Gamma-Poisson and categorical-parent likelihoods, latent-count rejection with and without continuous latents, unrelated-node pruning, and policy-domain rejection. The remaining sequence is:
+Categorical validation, classification separation, forward numerical counts, observed-count likelihoods and scalar fixed-range posteriors are complete. Tests cover exact Binomial and Beta-Binomial posterior masses and moments, categorical-parent updates, mixed continuous/discrete posteriors and preserved joint utility draws. They also check zero-trial counts, zero-probability outcomes, forward parent-dependent trial counts, native rejection of non-static enumeration and rejection of unsupported count domains. The remaining sequence is:
 
 1. Settle categorical versus numerical semantics and finite-domain declarations, including how incomplete nodes and result metadata work. Keep the API small; avoid a distribution registry, general type hierarchy, or new public inference switches without a production use case.
 2. Introduce a shared domain interpretation and migrate policy construction and rendering. Keep explicit finite domains wherever compilation or table allocation requires them.
@@ -167,12 +178,12 @@ The library is experimental, so a coherent breaking change can be preferable to 
 
 ## Acceptance criteria
 
-These criteria cover both implemented behavior and future extensions. Numerical information-set domains, independently editable labels and latent-count inference are not yet implemented.
+These criteria cover both implemented behavior and future extensions. Numerical information-set domains, independently editable labels, parent-dependent enumeration bounds and unbounded latent-count inference are not yet implemented.
 
 - Existing weather-based models retain category probabilities, policy indices, readable labels, and results within the existing sampling tolerances.
 - A fixed-count Binomial variable can be modeled without stringifying every count, and its empirical mean has count semantics.
 - A Poisson variable can feed a numeric utility in forward simulation without a finite list of labels. A suitable count model has an analytical expected utility for a regression reference.
-- Every numerical discrete latent, bounded or unbounded, is rejected by the current posterior paths instead of being routed to continuous NUTS or categorical enumeration. An observed Poisson likelihood with continuous latent parameters is supported.
+- Compatible scalar fixed-range counts are enumerated rather than routed to continuous NUTS. Unbounded, shifted and batched numerical count latents are rejected. Observed Poisson likelihoods with continuous latent parameters remain supported.
 - A count used as a decision parent requires a fixed finite domain. Out-of-domain values cannot be clamped into another policy entry.
 - Explicit domains cover all supported parent configurations; a pilot sample is never treated as proof of the domain or of impossibility.
 - Adding or changing display labels does not change numerical summaries, evidence values, policy meaning, or sampler selection.

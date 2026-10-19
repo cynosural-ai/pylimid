@@ -21,6 +21,7 @@ import jax.numpy as jnp
 from numpyro import handlers
 from numpyro.infer import MCMC, NUTS, Predictive
 
+from pylimid._distributions import _supports_count_enumeration
 from pylimid.errors import InferenceError
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.node import NodeKind
@@ -47,12 +48,14 @@ def samples(
     When ``observed`` holds no chance node (it is empty or only binds
     decisions) the draws come directly from the prior joint (independent,
     one pass). With observed chance nodes they come from the posterior:
-    exact discrete enumeration when every latent node is
-    categorical, NUTS otherwise (``num_warmup`` warmup steps, then
+    exact discrete enumeration when every latent node is categorical or a supported
+    finite count, NUTS otherwise (``num_warmup`` warmup steps, then
     ``num_samples`` draws; discrete latents are enumerated out of NUTS and
     resampled conditioned on the continuous posterior). Numerical counts can be
-    forward sampled or observed as likelihoods. Posterior inference with unobserved
-    numerical counts is unsupported, including finite counts.
+    forward sampled or observed as likelihoods. Count latents require scalar
+    distributions with NumPyro enumeration over a fixed integer range starting at
+    zero. For Binomial, use a Python integer ``total_count``. Non-static bounds,
+    including parent-dependent trial counts, retain NumPyro's or JAX's errors.
 
     Args:
         snapshot: A validated, topologically-ordered view of an influence
@@ -78,7 +81,8 @@ def samples(
     Raises:
         InferenceError: If a policy names a non-decision node, omits an
             information-set assignment, or contains an invalid action. Also raised
-            when posterior inference needs an unobserved numerical discrete node.
+            when a numerical count latent lacks supported enumeration or has a
+            non-scalar batch shape.
         KeyError: If a policy names a node that is not in the snapshot.
         ValueError: If a policy has an information-set parent without named states, or
             a chance distribution conflicts with its ``states``.
@@ -165,7 +169,7 @@ def _has_chance_evidence(snapshot: DiagramSnapshot, observed: dict[str, Any]) ->
 def _validate_posterior_latents(
     snapshot: DiagramSnapshot, model: Callable[[], dict[str, Any]], rng_key: Any
 ) -> bool:
-    """Reject latent counts and report whether continuous latents need sampling."""
+    """Check latent enumeration support and report whether continuous latents remain."""
     trace = handlers.trace(handlers.seed(model, rng_key)).get_trace()
     nodes = dict(snapshot.nodes)
     has_continuous = False
@@ -176,9 +180,17 @@ def _validate_posterior_latents(
         if not fn.support.is_discrete:
             has_continuous = True
         elif not nodes[name].is_categorical:
-            raise InferenceError(
-                f"Posterior inference with unobserved numerical discrete nodes is "
-                f"not supported: {name!r} uses {type(fn).__name__}. Observe this node "
-                "or use forward sampling without chance-node evidence."
-            )
+            if fn.batch_shape:
+                raise InferenceError(
+                    f"Posterior inference for count node {name!r} requires a scalar "
+                    f"distribution; its batch shape is {fn.batch_shape}. Batched "
+                    "numerical counts support forward sampling and observations only."
+                )
+            if not _supports_count_enumeration(fn):
+                raise InferenceError(
+                    "Posterior inference with unobserved numerical discrete nodes "
+                    "requires NumPyro enumeration of a fixed zero-based integer "
+                    f"range: {name!r} uses {type(fn).__name__}. Observe this node "
+                    "or use forward sampling without chance-node evidence."
+                )
     return has_continuous

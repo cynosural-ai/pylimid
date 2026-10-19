@@ -158,15 +158,12 @@ def test_observed_counts_update_categorical_parent(family):
     assert jnp.all(result["count"].values == observed)
 
 
-@pytest.mark.parametrize("family", ["poisson", "binomial"])
 @pytest.mark.parametrize("continuous_parent", [False, True])
-def test_latent_counts_are_rejected_even_when_not_queried(family, continuous_parent):
+def test_unbounded_latent_counts_are_rejected_even_when_not_queried(continuous_parent):
     diagram = InfluenceDiagram()
 
     def distribution(rate):
-        if family == "poisson":
-            return dist.Poisson(rate)
-        return dist.Binomial(total_count=10, probs=rate / (1 + rate))
+        return dist.Poisson(rate)
 
     if continuous_parent:
         diagram.add_node(ChanceNode(name="rate", dist=lambda: dist.Gamma(1.0, 1.0)))
@@ -269,18 +266,26 @@ def test_batched_scalar_counts_keep_component_summaries():
     assert posterior.mean() == pytest.approx([2.0, 5.0], abs=0.15)
 
 
-def test_numerical_counts_are_not_marked_for_enumeration():
+@pytest.mark.parametrize(
+    "distribution,enumerable",
+    [
+        (lambda: dist.Binomial(total_count=10, probs=0.2), True),
+        (lambda: dist.Poisson(3.0), False),
+    ],
+)
+def test_count_enumeration_annotation_follows_distribution(distribution, enumerable):
     diagram = InfluenceDiagram()
-    diagram.add_node(
-        ChanceNode(name="count", dist=lambda: dist.Binomial(total_count=10, probs=0.2))
-    )
+    diagram.add_node(ChanceNode(name="count", dist=distribution))
     model = to_model(diagram.snapshot())
 
     trace = numpyro.handlers.trace(
         numpyro.handlers.seed(model, jax.random.PRNGKey(0))
     ).get_trace()
 
-    assert "enumerate" not in trace["count"]["infer"]
+    if enumerable:
+        assert trace["count"]["infer"]["enumerate"] == "parallel"
+    else:
+        assert "enumerate" not in trace["count"]["infer"]
 
 
 def test_low_level_samples_reject_latent_counts_with_evidence():

@@ -1,7 +1,9 @@
 """Validate chance-node declarations against constructed NumPyro distributions."""
 
 import jax.numpy as jnp
-from numpyro.distributions import Distribution
+import numpy as np
+from jax.core import Tracer
+from numpyro.distributions import Distribution, constraints
 from numpyro.distributions.discrete import (
     BernoulliLogits,
     BernoulliProbs,
@@ -10,6 +12,28 @@ from numpyro.distributions.discrete import (
 )
 
 from pylimid.graph.chance_node import ChanceNode
+
+
+def _supports_count_enumeration(fn: Distribution) -> bool:
+    """Whether a count advertises enumeration over a zero-based integer interval."""
+    support = fn.support
+    return (
+        fn.has_enumerate_support
+        and isinstance(support, constraints.integer_interval)
+        and bool(support.lower_bound == 0)
+    )
+
+
+def _is_zero_count(fn: Distribution) -> bool:
+    """Whether concrete integer support permits only zero in every batch element."""
+    support = fn.support
+    return (
+        isinstance(support, constraints.integer_interval)
+        and not isinstance(support.lower_bound, Tracer)
+        and not isinstance(support.upper_bound, Tracer)
+        and bool(np.all(np.asarray(support.lower_bound) == 0))
+        and bool(np.all(np.asarray(support.upper_bound) == 0))
+    )
 
 
 def _validate_chance_distribution(node: ChanceNode, fn: Distribution) -> None:
