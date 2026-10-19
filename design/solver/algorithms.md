@@ -62,6 +62,10 @@ One-pass backward induction is sound exactly on *soluble* LIMIDs, so the gate is
 - **The divergence is deliberate.** `is_solvable` matches `isSolvable()` on every fixture and structural battery case except the pinned one, where the paper and pyAgrum disagree. A diagram pyAgrum solves that we reject is not a false alarm — it is a diagram on which pyAgrum can silently return a suboptimal policy.
 - **Not implemented from the paper:** the minimal-reduction loop (repeated removal of non-requisite arcs to test the reduced model). That loop explores reduced models and bounds; the correctness gate for solving the diagram as given is the exact-solution ordering above.
 
+## Discrete decisions with continuous information (proposed)
+
+The current tiers all require categorical information sets. Supporting a continuous observation does not require a continuous action: a finite-action decision can instead use a function policy. The [continuous-information proposal](../continuous_information/README.md) describes a separate approximate solver that optimizes those policies by forward simulation and score-function gradients, with finite action enumeration as a possible improvement. It respects the same explicit information sets, but does not inherit the scan's exhaustive-search guarantee or a global-optimality guarantee from structural solubility. This extension can precede continuous-action support and is not implemented.
+
 ## The papers
 
 - **Bellman, R. (1957). Dynamic Programming. Princeton University Press.** — the origin of the backward-induction principle; decision trees have been solved this way since long before influence diagrams existed.

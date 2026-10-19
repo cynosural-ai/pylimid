@@ -18,6 +18,8 @@ A decision is `CONSISTENT` once its action `states` are declared, and `UNCONFIGU
 
 The implemented solvers live in `pylimid.solver`. `solve(method="auto")` selects backward induction when the diagram has a valid solution ordering and the batched policy scan otherwise. Both estimate expected utility by forward simulation and require finite decisions with discrete information sets; chance variables may be discrete, continuous, or both in the same diagram. The [solver algorithms](../solver/algorithms.md) describe the costs, solvability criterion, and validation references.
 
+[Discrete decisions with continuous information](../continuous_information/README.md) are proposed separately from continuous actions. The action `states` and information-arc semantics stay the same; the policy representation and optimization method change. This extension can be implemented first.
+
 ---
 
 ## What "solving a LIMID" means here
@@ -41,7 +43,7 @@ The *graph* and *node definitions* are identical in both strategies — only the
 
 ### Strategy A — policy as parameters (deferred)
 
-In this proposed approach, a decision node would be backed by `numpyro.param()` forming a parameterized policy (e.g. logits over actions, or a continuous policy mean/variance). Utility is pushed into the objective as a log-density factor via `numpyro.factor()`. Solving is gradient ascent on `E[U]` (reparameterization or score function).
+In this proposed approach, the solver owns a parameterized policy: for example, logits over finite actions as a function of continuous information. Continuous-action policies would be a separate extension. Solving optimizes an explicit expected-utility objective with an appropriate estimator: score-function gradients for sampled discrete actions, probability-weighted sums for enumerated actions, or suitable pathwise gradients for continuous actions. NumPyro supplies probabilistic machinery; ordinary SVI or a utility `numpyro.factor()` alone does not establish an equivalent maximum-expected-utility objective. The [continuous-information proposal](../continuous_information/README.md#a-general-approximate-solver) develops the finite-action case.
 
 ### Strategy B — intervention scan
 
@@ -51,7 +53,7 @@ Decisions are discrete action choices. The solver enumerates the policy space �
 
 |                     | A. Policy as params            | B. Intervention scan             |
 | ------------------- | ------------------------------ | -------------------------------- |
-| Best for            | continuous decisions, large action spaces | discrete decisions, small action spaces |
+| Best for            | discrete decisions with continuous information; future continuous actions | finite actions and categorical information sets |
 | Optimizes via       | gradients (fast, scales)       | enumeration / search (exact-ish) |
 | Main difficulty     | gradient of `E[U]` w.r.t. policy — SVI's ELBO framing does not directly fit EU maximization, so a custom loss around `jax.grad` + trace is required | exponential blow-up in (#decisions × action-space) |
 | Verifiability       | hard to tell convergence from correctness | trivially correct — EU measured per action |

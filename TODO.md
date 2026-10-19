@@ -2,9 +2,13 @@
 
 Forward plan. The engine work is done (numpyro-only, scan + batched scan + backward induction). The focus now is to finish the discrete-decision story before reaching for continuous decisions.
 
+## Discrete decisions with continuous information (proposed next)
+
+Allow a finite-action decision to use continuous observations, such as an exact temperature guiding an on/off choice. This extends the policy representation and solver without introducing continuous actions. The [continuous-information proposal](design/continuous_information/README.md) separates evaluating function policies from learning them, describes a general approximate optimizer, and records its validation and result-contract requirements. It can be implemented before continuous decisions; it is not implemented yet.
+
 ## Continuous decisions (later)
 
-Strategy A — continuous actions and continuous information sets — is the likely next feature. The exploration map (feasibility, difficulty axes, guarantee change, validation plan, scope ladder, and the revisit trigger) lives in `design/continuous_decisions/` (on the unmerged `docs/continuous-decisions` branch, still under the old `docs/` path).
+Real-valued actions remain a separate extension, including action domains and suitable gradient estimators. The broader exploration is on the unmerged [`docs/continuous-decisions` draft](https://github.com/cynosural-ai/pylimid/pull/41), under `design/continuous_decisions/`. Its original grouping of continuous actions and continuous information is split by the proposal above; accepting continuous observations for discrete actions does not require continuous-action support.
 
 ## Tutorial extensions (later)
 
