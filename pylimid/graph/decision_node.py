@@ -45,9 +45,11 @@ class DecisionNode(Node):
     """
     A decision variable in an influence diagram.
 
-    A decision chooses among a finite set of actions and can observe only discrete
-    parents. Its ``parents`` are exactly the information available when it acts; earlier
-    observations and decisions are remembered only when included explicitly.
+    A decision chooses among a finite set of actions. Tabular policies require every
+    parent to declare named finite states; numerical counts and continuous parents
+    cannot index these tables. Its ``parents`` are the information available when it
+    acts; earlier observations and decisions are remembered only when included
+    explicitly.
     ``states=None`` leaves the decision unconfigured.
 
     Attributes:

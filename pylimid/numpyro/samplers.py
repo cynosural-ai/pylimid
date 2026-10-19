@@ -21,6 +21,7 @@ import jax.numpy as jnp
 from numpyro import handlers
 from numpyro.infer import MCMC, NUTS, Predictive
 
+from pylimid.errors import InferenceError
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.node import NodeKind
 from pylimid.graph.utility_node import UtilityNode
@@ -47,9 +48,11 @@ def samples(
     decisions) the draws come directly from the prior joint (independent,
     one pass). With observed chance nodes they come from the posterior:
     exact discrete enumeration when every latent node is
-    discrete, NUTS otherwise (``num_warmup`` warmup steps, then
+    categorical, NUTS otherwise (``num_warmup`` warmup steps, then
     ``num_samples`` draws; discrete latents are enumerated out of NUTS and
-    resampled conditioned on the continuous posterior).
+    resampled conditioned on the continuous posterior). Numerical counts can be
+    forward sampled or observed as likelihoods. Posterior inference with unobserved
+    numerical counts is unsupported, including finite counts.
 
     Args:
         snapshot: A validated, topologically-ordered view of an influence
@@ -74,10 +77,11 @@ def samples(
 
     Raises:
         InferenceError: If a policy names a non-decision node, omits an
-            information-set assignment, or contains an invalid action.
+            information-set assignment, or contains an invalid action. Also raised
+            when posterior inference needs an unobserved numerical discrete node.
         KeyError: If a policy names a node that is not in the snapshot.
-        ValueError: If a policy has a continuous information-set parent, or a chance
-            distribution conflicts with its ``states``.
+        ValueError: If a policy has an information-set parent without named states, or
+            a chance distribution conflicts with its ``states``.
     """
     observed = observed or {}
     if rng_key is None:
@@ -130,7 +134,7 @@ def _draw(
     """Run the sampling machinery for ``model`` and return all site draws."""
     if not _has_chance_evidence(snapshot, observed):
         return Predictive(model, num_samples=num_samples)(rng_key)
-    if _has_continuous_latent(model, rng_key):
+    if _validate_posterior_latents(snapshot, model, rng_key):
         mcmc = MCMC(
             NUTS(model),
             num_warmup=num_warmup,
@@ -158,12 +162,23 @@ def _has_chance_evidence(snapshot: DiagramSnapshot, observed: dict[str, Any]) ->
     )
 
 
-def _has_continuous_latent(model: Callable[[], dict[str, Any]], rng_key: Any) -> bool:
-    """Read continuous latent support from distributions in a seeded execution."""
+def _validate_posterior_latents(
+    snapshot: DiagramSnapshot, model: Callable[[], dict[str, Any]], rng_key: Any
+) -> bool:
+    """Reject latent counts and report whether continuous latents need sampling."""
     trace = handlers.trace(handlers.seed(model, rng_key)).get_trace()
-    return any(
-        site["type"] == "sample"
-        and not site["is_observed"]
-        and not site["fn"].support.is_discrete
-        for site in trace.values()
-    )
+    nodes = dict(snapshot.nodes)
+    has_continuous = False
+    for name, site in trace.items():
+        if site["type"] != "sample" or site["is_observed"]:
+            continue
+        fn = site["fn"]
+        if not fn.support.is_discrete:
+            has_continuous = True
+        elif not nodes[name].is_categorical:
+            raise InferenceError(
+                f"Posterior inference with unobserved numerical discrete nodes is "
+                f"not supported: {name!r} uses {type(fn).__name__}. Observe this node "
+                "or use forward sampling without chance-node evidence."
+            )
+    return has_continuous

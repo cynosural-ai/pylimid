@@ -329,7 +329,7 @@ class InfluenceDiagram:
 
     def states_of(self, name: str) -> tuple[str, ...]:
         """
-        Return the state labels of a discrete chance or decision node.
+        Return the state labels of a categorical chance or decision node.
 
         Args:
             name: Name of the node.
@@ -339,13 +339,13 @@ class InfluenceDiagram:
 
         Raises:
             KeyError: If ``name`` is not in the diagram.
-            ValueError: If the node has no state labels — a continuous chance
-                node, an unconfigured decision, or a utility node.
+            ValueError: If the node has no state labels — a numerical chance node,
+                an unconfigured decision, or a utility node.
         """
         node = self._nodes[name]
         if not isinstance(node, (ChanceNode, DecisionNode)) or node.states is None:
             raise ValueError(
-                f"Node {name!r} has no state labels; only discrete chance "
+                f"Node {name!r} has no state labels; only categorical chance "
                 f"and decision nodes do."
             )
         return node.states
@@ -436,25 +436,25 @@ class InfluenceDiagram:
 
     def probe_discrete_parents(self) -> list[DiagramProblem]:
         """
-        Look for discrete parents that have no effect at the tested inputs.
+        Look for categorical parents that have no effect at the tested inputs.
 
-        For each configured chance or utility function, vary each discrete parent across
-        its state indices while setting all other parents to zero, including continuous
-        parents. Compare the returned distribution parameters or scalar utility values.
+        For each configured chance or utility function, vary each categorical parent
+        across its state indices while setting all other parents to zero, including
+        numerical parents. Compare distribution parameters or scalar utility values.
         This can expose mistakes such as a lookup table with only one row for a parent
         with several states.
 
         The check executes the functions and propagates any errors they raise. It runs
         only when called, never automatically through `validate` or `snapshot`.
-        Continuous parents are not varied.
+        Numerical parents are not varied.
 
         Findings are warnings for inspection and do not block inference. A parent may be
         intentionally ignored or have an effect only at other inputs. The check does not
         establish that the model's numerical values are correct.
 
         Returns:
-            One `DiagramProblem` per node and discrete parent whose output is unchanged
-            at the tested inputs. Unconfigured functions are skipped.
+            One `DiagramProblem` per node and categorical parent whose output is
+            unchanged at the tested inputs. Unconfigured functions are skipped.
         """
         problems: list[DiagramProblem] = []
         for name, node in self._nodes.items():
@@ -469,7 +469,7 @@ class InfluenceDiagram:
             for parent in node.parents:
                 parent_node = self._nodes.get(parent)
                 if not isinstance(parent_node, (ChanceNode, DecisionNode)):
-                    continue  # dangling or continuous (no states): out of scope
+                    continue  # dangling or not a chance or decision node
                 states = parent_node.states
                 if states is None:
                     continue

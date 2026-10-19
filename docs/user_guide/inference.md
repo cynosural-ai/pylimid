@@ -221,3 +221,21 @@ To estimate the probability of running out, we count how many demand draws excee
 stockout_probability = (sunny_demand.values > 150).mean()
 f"{stockout_probability:.1%}"
 ```
+
+## Learning from observed counts
+
+Suppose we model arrivals in another shop with a {py:class}`Poisson <numpyro.distributions.discrete.Poisson>` distribution and an unknown arrival rate. We place a {py:class}`Gamma <numpyro.distributions.continuous.Gamma>` prior on that rate. After observing four arrivals in one time period, we can update the rate:
+
+```{code-cell} ipython3
+arrival_model = InfluenceDiagram()
+arrival_model.add_node(ChanceNode(name="rate", dist=lambda: dist.Gamma(1.0, 1.0)))
+arrival_model.add_node(
+    ChanceNode(name="arrivals", parents=("rate",), dist=lambda rate: dist.Poisson(rate))
+)
+arrival_rate = infer(arrival_model, ["rate"], observed={"arrivals": 4})["rate"]
+arrival_rate.mean()
+```
+
+The observation is the actual count, without state labels. Because `arrivals` is known, inference evaluates its likelihood while sampling the continuous rate. Observed counts can also inform categorical parents.
+
+With no evidence, we can forward sample numerical counts and any utilities that depend on them. With evidence, every numerical count remaining unknown in the relevant model currently causes an {py:class}`InferenceError`, including finite Binomial counts. This also applies when the count is only an ancestor of a query or observation. For example, observing a noisy report of arrivals still leaves the arrival count unknown; querying only the rate does not remove that unknown count.

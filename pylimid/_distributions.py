@@ -16,12 +16,19 @@ def _validate_chance_distribution(node: ChanceNode, fn: Distribution) -> None:
     """Check distribution kind and static outcome count before sampling a node."""
     distribution = type(fn).__name__
     if node.states is None:
-        if fn.support.is_discrete:  # ty: ignore[possibly-missing-attribute]
+        if isinstance(
+            fn, (CategoricalProbs, CategoricalLogits, BernoulliProbs, BernoulliLogits)
+        ):
             raise ValueError(
                 f"Chance node {node.name!r} has states=None but returns discrete "
-                f"{distribution}. Unlabeled chance nodes require a continuous "
-                "distribution; use Categorical or Bernoulli with matching states "
-                "for categorical outcomes."
+                f"{distribution}. Categorical and Bernoulli distributions require "
+                "matching states for categorical outcomes."
+            )
+        if fn.support.is_discrete and fn.event_shape:  # ty: ignore[possibly-missing-attribute]
+            raise ValueError(
+                f"Chance node {node.name!r} returns {distribution} with event shape "
+                f"{fn.event_shape}. Numerical discrete distributions require scalar "
+                "events."
             )
         return
 
@@ -35,7 +42,7 @@ def _validate_chance_distribution(node: ChanceNode, fn: Distribution) -> None:
         raise ValueError(
             f"Chance node {node.name!r} declares states but returns {distribution}. "
             "Labeled chance nodes require Categorical or Bernoulli with one label "
-            "per outcome. Continuous distributions require states=None."
+            "per outcome. Numerical distributions require states=None."
         )
 
     if len(node.states) != outcomes:

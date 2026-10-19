@@ -37,9 +37,9 @@ class UtilityNode(Node):
     A utility (payoff) node in an influence diagram.
 
     The utility function receives parent values as keyword arguments and returns a
-    scalar payoff. Discrete parents pass integer state indices; continuous parents pass
-    their numerical values. The function must be JAX-traceable. When a diagram has
-    several utility nodes, `solve` maximises their sum.
+    scalar payoff. Categorical parents pass integer state indices; numerical parents,
+    including counts, pass their actual values. The function must be JAX-traceable.
+    When a diagram has several utility nodes, `solve` maximises their sum.
 
     A utility node cannot have children; `InfluenceDiagram.validate` reports any such
     arcs.

@@ -197,4 +197,4 @@ Mia should take the beach and Leo the park. Note that the reason backward induct
 {py:func}`solve` raises an {py:class}`~pylimid.InferenceError` in these cases:
 
 - **The diagram has no decisions.** In that case there is nothing to optimise, so there is no policy to return.
-- **A decision observes a continuous variable.** A policy is a table with one action per situation, so a decision's parents must be discrete chance or decision nodes. If we want it to react to something continuous, like a temperature reading, we add an intermediate discrete chance node that bins it (say, cold, mild and hot) as the parent.
+- **A decision observes a numerical variable.** A policy is a table with one action per situation, so a decision's parents must declare named finite states. This excludes both continuous measurements and numerical counts. If we want it to react to a temperature reading, we add an intermediate categorical chance node that bins it (say, cold, mild and hot) as the parent. Numerical counts can still feed other chance nodes and utilities in the simulation.

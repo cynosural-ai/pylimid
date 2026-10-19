@@ -207,7 +207,7 @@ def test_solve_no_decisions_raises():
 
 @pytest.mark.parametrize("method", ["auto", "backward_induction", "scan"])
 def test_solve_continuous_information_set_raises(method):
-    with pytest.raises(InferenceError, match="continuous"):
+    with pytest.raises(InferenceError, match="without named states"):
         solve(_continuous_info_diagram(), method=method)
 
 

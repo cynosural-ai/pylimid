@@ -16,7 +16,6 @@ from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import InfluenceDiagram
 from pylimid.numpyro import samples
 from pylimid.numpyro.model import to_model
-from pylimid.numpyro.samplers import _has_continuous_latent
 
 # --- helpers ----------------------------------------------------------------
 
@@ -262,28 +261,6 @@ def test_samples_posterior_mixed_discrete_continuous() -> None:
 
 
 # --- posterior: MCMC ---------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("distribution", "observed", "expected"),
-    [
-        (dist.Poisson(3.0), None, False),
-        (dist.Normal(0.0, 1.0), None, True),
-        (dist.Normal(0.0, 1.0), 0.0, False),
-    ],
-    ids=["latent-count", "latent-continuous", "observed-continuous"],
-)
-def test_latent_classification_uses_distribution_support(
-    distribution, observed, expected
-):
-    """Sampler classification needs support metadata, without category labels."""
-
-    def model():
-        value = numpyro.sample("value", distribution, obs=observed)
-        numpyro.deterministic("twice", 2 * value)
-        return {"value": value}
-
-    assert _has_continuous_latent(model, jax_random_key()) is expected
 
 
 def test_samples_posterior_continuous_hierarchical() -> None:

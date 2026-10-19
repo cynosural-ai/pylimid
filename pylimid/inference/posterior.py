@@ -31,6 +31,11 @@ class Posterior:
     kind. For array-valued variables, summaries are computed separately for each
     component and retain the variable's shape.
 
+    Counts are numerical values, so their mean, standard deviation and interval are
+    meaningful. A count interval can include values absent from the draws and need
+    not be a smallest credible set. Estimate event probabilities directly from the
+    draws; `marginal` requires named categories.
+
     Attributes:
         values: JAX array with shape ``(num_samples, *node_shape)``. Scalar nodes have
             shape ``(num_samples,)``. Posteriors returned by the same `infer` call share
