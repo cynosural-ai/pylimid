@@ -40,9 +40,14 @@ def infer(
     evidence. Utilities never affect the posterior of other variables.
 
     With no observed chance node, draws come from forward sampling. With evidence,
-    NumPyro uses exact enumeration when every unobserved chance variable is discrete,
-    and NUTS when some are continuous. Returned draws and their summaries are Monte
-    Carlo estimates in all cases.
+    NumPyro uses exact enumeration for categorical variables and supported finite
+    counts, and NUTS when continuous latents remain. Scalar count latents require
+    NumPyro enumeration of a fixed integer range starting at zero. For Binomial, use a
+    Python integer ``total_count``; probabilities may depend on other variables.
+    Unbounded, shifted and batched count latents remain unsupported. NumPyro and JAX
+    report errors if enumeration bounds are non-static, including parent-dependent
+    trial counts. Counts with only one possible value, zero, are clamped exactly.
+    Returned draws and their summaries are Monte Carlo estimates in all cases.
 
     The whole diagram is validated before selecting the relevant nodes. Chance
     distributions and utility functions must be JAX-traceable.
@@ -52,7 +57,8 @@ def infer(
         query: Names of chance and utility nodes whose posteriors are requested.
             Chance nodes may have scalar or array-valued draws; utilities are scalar.
         observed: Map from chance node name to its observed value: an integer state
-            index for a discrete variable, a real value for a continuous one.
+            index for a categorical variable, an actual count for a numerical discrete
+            variable, or a real value for a continuous one.
         policy: Map from decision names to fixed integer actions or contingent
             action tables in the format returned by `solve`. A table maps each
             tuple of parent-state indices, in the decision's ``parents`` order, to an
@@ -67,8 +73,8 @@ def infer(
     Returns:
         One `Posterior` per query variable, keyed by its name. Entries at the same
         position in each posterior's ``values`` belong to the same joint draw. Use
-        `Posterior.marginal` for discrete probabilities, and `Posterior.mean`,
-        `Posterior.std` or `Posterior.hdi` for continuous variables and utilities.
+        `Posterior.marginal` for category probabilities, and `Posterior.mean`,
+        `Posterior.std` or `Posterior.hdi` for numerical variables and utilities.
         Draws and numerical summaries are JAX arrays. Summaries have the node's shape,
         including zero-dimensional arrays for scalar nodes.
 
@@ -77,12 +83,13 @@ def infer(
             evidence is unbound, if *policy* names a node that is not a
             decision or contains an incomplete or invalid action table, if
             *query* names a decision, or if *observed* names a node that is
-            not a chance node.
+            not a chance node, or if a numerical count latent lacks supported
+            enumeration or has a non-scalar batch shape.
         KeyError: If *query* or *observed* names a node that is not in the
             diagram.
         ValueError: If the diagram fails `InfluenceDiagram.validate`, or a table policy
-            has a continuous information-set parent, or a relevant chance distribution
-            conflicts with its ``states``.
+            has an information-set parent without named states, or a relevant chance
+            distribution conflicts with its ``states``.
     """
     observed = observed or {}
     policy = policy or {}

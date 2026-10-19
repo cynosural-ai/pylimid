@@ -27,16 +27,16 @@ def _info_assignments(
     Every assignment of the decision's information set, in parent order.
 
     Raises:
-        ValueError: If an information-set parent is continuous.
+        ValueError: If an information-set parent has no named states.
     """
     cards: list[int] = []
     for parent in decision.parents:
         states = node_map[parent].states
         if states is None:
             raise ValueError(
-                f"Decision {decision.name!r} has continuous parent "
-                f"{parent!r} in its information set; the solvers "
-                f"require discrete information sets."
+                f"Decision {decision.name!r} has parent {parent!r} without named "
+                "states in its information set; tabular policies require finite "
+                "categorical information sets."
             )
         cards.append(len(states))
     return list(product(*[range(c) for c in cards]))
@@ -51,7 +51,7 @@ def _policy_array(
     cards: list[int] = []
     for parent in decision.parents:
         states = node_map[parent].states
-        assert states is not None  # _info_assignments rejected continuous info
+        assert states is not None  # _info_assignments requires named states
         cards.append(len(states))
     arr = jnp.zeros(tuple(cards), dtype=jnp.int32)
     for assignment, action in sub_policy.items():

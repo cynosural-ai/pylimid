@@ -133,7 +133,7 @@ def test_discrete_prior():
     result = infer(_rain_wet_grass(), ["rain"])
     assert isinstance(result["rain"], Posterior)
     assert result["rain"].states == ("no", "yes")
-    assert result["rain"].is_discrete
+    assert result["rain"].is_categorical
     assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
 
 
@@ -171,7 +171,7 @@ def test_continuous_posterior_keeps_raw_draws():
     result = infer(_continuous_diagram(), ["x"])
     assert isinstance(result["x"], Posterior)
     assert result["x"].states is None
-    assert not result["x"].is_discrete
+    assert not result["x"].is_categorical
     assert isinstance(result["x"].values, jax.Array)
     assert result["x"].values.shape == (2000,)
     assert jnp.issubdtype(result["x"].values.dtype, jnp.floating)
@@ -217,7 +217,7 @@ def test_dirichlet_prior_can_be_queried_with_a_scalar_child():
     weights = result["weights"]
 
     assert weights.states is None
-    assert not weights.is_discrete
+    assert not weights.is_categorical
     assert isinstance(weights.values, jax.Array)
     assert weights.values.shape == (1000, 3)
     assert jnp.allclose(weights.values.sum(axis=1), 1.0)
@@ -302,7 +302,7 @@ def test_array_queries_preserve_event_dimensions(node_shape):
 
 
 def test_mixed_result_shape_follows_variable_type():
-    """One Posterior type; states distinguish discrete from continuous."""
+    """One Posterior type; states distinguish categories from numerical values."""
     result = infer(_mixed_diagram(), ["rain", "temp"])
     assert isinstance(result["rain"], Posterior)
     assert result["rain"].states == ("no", "yes")
@@ -322,17 +322,17 @@ def test_discrete_posterior_stores_state_index_draws():
     assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
 
 
-def test_summaries_on_discrete_raise():
-    """Index draws are not moments: mean/std/hdi refuse discrete posteriors."""
+def test_summaries_on_categorical_raise():
+    """Index draws are not moments: mean/std/hdi refuse categorical posteriors."""
     result = infer(_rain_wet_grass(), ["rain"])
     for method in ("mean", "std", "hdi"):
-        with pytest.raises(ValueError, match="requires a continuous"):
+        with pytest.raises(ValueError, match="requires a numerical"):
             getattr(result["rain"], method)()
 
 
 def test_marginal_on_continuous_raises():
     result = infer(_continuous_diagram(), ["x"])
-    with pytest.raises(ValueError, match="marginal\\(\\) requires a discrete"):
+    with pytest.raises(ValueError, match="marginal\\(\\) requires a categorical"):
         result["x"].marginal()
 
 

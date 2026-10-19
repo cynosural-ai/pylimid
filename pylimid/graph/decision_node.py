@@ -45,9 +45,11 @@ class DecisionNode(Node):
     """
     A decision variable in an influence diagram.
 
-    A decision chooses among a finite set of actions and can observe only discrete
-    parents. Its ``parents`` are exactly the information available when it acts; earlier
-    observations and decisions are remembered only when included explicitly.
+    A decision chooses among a finite set of actions. Tabular policies require every
+    parent to declare named finite states; numerical counts and continuous parents
+    cannot index these tables. Its ``parents`` are the information available when it
+    acts; earlier observations and decisions are remembered only when included
+    explicitly.
     ``states=None`` leaves the decision unconfigured.
 
     Attributes:
@@ -76,13 +78,12 @@ class DecisionNode(Node):
         return NodeKind.DECISION
 
     @property
-    def is_discrete(self) -> bool:
+    def is_categorical(self) -> bool:
         """
-        Whether the decision has a declared, enumerable action space.
+        Whether the decision declares named actions through ``states``.
 
-        ``True`` when ``states`` is set (a discrete decision, the kind the
-        solvers handle). ``False`` when ``states`` is ``None``, which marks
-        the decision as not-yet-configured.
+        ``False`` when ``states`` is ``None``, which marks the decision as
+        not-yet-configured.
         """
         return self.states is not None
 

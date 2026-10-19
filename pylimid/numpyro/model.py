@@ -5,10 +5,12 @@ NumPyro model factory — translate a validated snapshot into a NumPyro model.
 the caller feeds to ``numpyro.infer``
 (e.g. ``Predictive``, ``MCMC``, ``SVI``).
 
-Unobserved discrete nodes are detected automatically via ``node.is_discrete``
+Unobserved discrete nodes with NumPyro enumeration support are detected automatically
 and annotated with ``infer={"enumerate": "parallel"}`` so that NumPyro's NUTS
-and SVI engines can marginalise them out. Observed discrete nodes skip
-enumeration (the value is clamped).
+and SVI engines can marginalise them out. `samples` checks that numerical count
+latents are scalar and have zero-based integer support. NumPyro requires concrete
+enumeration bounds during JAX tracing. Observed nodes skip enumeration; numerical
+distributions permitting only zero are clamped to that value.
 
 Fixed decisions become degenerate observed sites; contingent decisions are
 deterministic functions of their information sets. Utility nodes are skipped
@@ -24,10 +26,11 @@ from collections.abc import Callable
 from typing import Any
 
 import jax
+import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
 
-from pylimid._distributions import _validate_chance_distribution
+from pylimid._distributions import _is_zero_count, _validate_chance_distribution
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
@@ -50,10 +53,15 @@ def to_model(
     parents by name against the upstream sampled values, and emits one
     ``numpyro.sample`` site per chance node.
 
-    Unobserved discrete chance nodes are auto-detected and annotated with
+    Unobserved discrete chance nodes with NumPyro enumeration support are annotated with
     ``infer={"enumerate": "parallel"}`` so that NUTS and SVI can marginalise
     them out. Observed nodes skip enumeration and are clamped via ``obs=``.
-    Continuous nodes are left for the inference engine.
+    Continuous nodes and counts without enumeration support are left for the inference
+    engine. Numerical distributions permitting only zero are clamped exactly.
+    `samples` accepts only scalar numerical count latents with a fixed zero-based
+    integer range, such as Binomial with a Python integer ``total_count``. Callers
+    using this model directly with NumPyro must respect those enumeration limits;
+    support metadata alone does not establish compatible bounds or returned values.
 
     A fixed decision becomes a degenerate observed site. A state-dependent
     decision policy is evaluated from its information-set parents as the
@@ -83,8 +91,8 @@ def to_model(
         InferenceError: If a policy names a non-decision node, omits an
             information-set assignment, or contains an invalid action.
         KeyError: If a policy names a node that is not in the snapshot.
-        ValueError: If a policy has a continuous information-set parent, or a chance
-            distribution conflicts with its ``states`` when the model is executed.
+        ValueError: If a policy has an information-set parent without named states, or
+            a chance distribution conflicts with its ``states`` when the model executes.
     """
     return _to_model(snapshot, observed or {}, _policy_tables(snapshot, policy or {}))
 
@@ -109,6 +117,7 @@ def _to_model(
                     value = table[parent_values] if parent_values else table
                     values[name] = numpyro.deterministic(name, value)
                 else:
+                    # A fixed decision has all its probability at the supplied action.
                     value = observed[name]
                     values[name] = numpyro.sample(name, dist.Delta(value), obs=value)
                 continue
@@ -119,7 +128,15 @@ def _to_model(
             _validate_chance_distribution(node, fn)
             if name in observed:
                 values[name] = numpyro.sample(name, fn, obs=observed[name])
-            elif node.is_discrete:
+            elif not node.is_categorical and _is_zero_count(fn):
+                # Counts such as Binomial(total_count=0) can only be zero. Clamp
+                # that guaranteed value because NumPyro cannot recover enumerated
+                # counts with a single possible outcome. This adds no new evidence.
+                value = jnp.zeros(fn.batch_shape, dtype=jnp.int32)
+                values[name] = numpyro.sample(name, fn, obs=value)
+            elif fn.support.is_discrete and fn.has_enumerate_support:
+                # Ask inference to sum over the possible values of this unknown node.
+                # Forward sampling ignores this annotation and draws normally.
                 values[name] = numpyro.sample(name, fn, infer={"enumerate": "parallel"})
             else:
                 values[name] = numpyro.sample(name, fn)

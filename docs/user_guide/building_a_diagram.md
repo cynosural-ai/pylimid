@@ -25,7 +25,7 @@ A decision observes exactly its declared parents. In the shop model, `weather` i
 
 PyLIMID does not automatically make earlier choices or observations available to later decisions. Anything a later decision should remember must also be one of its parents.
 
-Decisions choose from a finite set of actions and can only observe discrete variables.
+Decisions choose from a finite set of actions. Their tabular policies require parents with named finite states, so numerical counts and continuous variables cannot directly index a decision table.
 ```
 
 We start with the numbers and the `profit` function from the quickstart:

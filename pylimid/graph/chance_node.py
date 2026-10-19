@@ -35,15 +35,23 @@ class ChanceNode(Node):
     ``dist`` and ``parents`` is checked separately through `Node.consistency` or
     `InfluenceDiagram.validate`.
 
-    The distribution function receives parent values as keyword arguments. Discrete
-    parents pass integer state indices; continuous parents pass their numerical values.
+    The distribution function receives parent values as keyword arguments. Categorical
+    parents pass integer state indices; numerical parents pass their actual values.
     The function must be JAX-traceable and return a NumPyro distribution.
 
     With ``states``, the distribution must be Categorical with one label per category,
     or Bernoulli with exactly two labels. Both probability and logit parameterizations
     are supported, and zero-probability outcomes still need labels.
-    ``states=None`` requires continuous support. Inference and solving check this
-    contract when constructing the distribution, including for observed nodes;
+    With ``states=None``, values are numerical: continuous distributions and discrete
+    distributions with scalar events, such as Poisson and Binomial, are supported.
+    Categorical and Bernoulli distributions always require state labels. Numerical
+    counts support forward sampling and observed likelihoods. Scalar count posteriors
+    are supported when NumPyro can enumerate a fixed integer range starting at zero,
+    such as Binomial with a Python integer ``total_count``. The bounds must remain
+    concrete during JAX tracing; parent-dependent bounds are unsupported. Unbounded,
+    shifted and batched count latents remain unsupported. Counts cannot index tabular
+    decision policies. Inference and solving check the distribution contract when
+    constructing it, including for observed nodes;
     `InfluenceDiagram.validate` checks only the diagram's structure and declarations.
 
     Attributes:
@@ -55,7 +63,8 @@ class ChanceNode(Node):
             not-yet-configured.
         states: Unique, non-empty labels for the outcomes of a Categorical or Bernoulli
             distribution. Draws are integer indices into this tuple. ``None`` requires
-            a distribution with continuous support.
+            a numerical distribution. Discrete numerical distributions require scalar
+            events, and their values are counts rather than state indices.
     """
 
     dist: DistFactory | None = field(default=None, kw_only=True)
@@ -77,8 +86,13 @@ class ChanceNode(Node):
         return NodeKind.CHANCE
 
     @property
-    def is_discrete(self) -> bool:
-        """Whether the node has a declared set of discrete states."""
+    def is_categorical(self) -> bool:
+        """
+        Whether the node declares named categories through ``states``.
+
+        This check does not call ``dist``. A node without categories may be
+        unconfigured; its distribution's discreteness is known only when constructed.
+        """
         return self.states is not None
 
     # --- consistency --------------------------------------------------------

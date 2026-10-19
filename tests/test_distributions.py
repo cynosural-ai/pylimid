@@ -213,19 +213,17 @@ def test_supported_discrete_distributions_require_labels(
 
 
 @pytest.mark.parametrize(
-    "states", [None, ("low", "high")], ids=["unlabeled", "labeled"]
-)
-@pytest.mark.parametrize(
     "distribution",
     [lambda: dist.Poisson(3.0), lambda: dist.Binomial(total_count=1, probs=0.5)],
     ids=["poisson", "binomial"],
 )
-def test_count_distributions_are_unsupported(distribution, states):
-    """Neither finite labels nor their absence enables count-variable support."""
+def test_count_distributions_cannot_declare_categories(distribution):
+    """State labels cannot turn numerical counts into categorical outcomes."""
     diagram = InfluenceDiagram()
-    diagram.add_node(ChanceNode(name="count", states=states, dist=distribution))
-    message = "require Categorical or Bernoulli" if states else "require a continuous"
-    with pytest.raises(ValueError, match=f"count.*{message}"):
+    diagram.add_node(
+        ChanceNode(name="count", states=("low", "high"), dist=distribution)
+    )
+    with pytest.raises(ValueError, match="count.*require Categorical or Bernoulli"):
         infer(diagram, ["count"], num_samples=10)
 
 
@@ -235,7 +233,7 @@ def test_continuous_distribution_cannot_have_state_labels():
         ChanceNode(name="x", states=("low", "high"), dist=lambda: dist.Normal(0.0, 1.0))
     )
     with pytest.raises(
-        ValueError, match="x.*Normal.*Continuous distributions require states=None"
+        ValueError, match="x.*Normal.*Numerical distributions require states=None"
     ):
         infer(diagram, ["x"], num_samples=10)
 
@@ -278,7 +276,11 @@ def test_public_solve_uses_existing_inference_error_convention(method):
 def test_invalid_unrelated_distribution_remains_pruned():
     diagram = InfluenceDiagram()
     diagram.add_node(ChanceNode(name="x", dist=lambda: dist.Normal(0.0, 1.0)))
-    diagram.add_node(ChanceNode(name="unused", dist=lambda: dist.Poisson(3.0)))
+    diagram.add_node(
+        ChanceNode(
+            name="unused", dist=lambda: dist.Categorical(probs=jnp.array([0.5, 0.5]))
+        )
+    )
     assert infer(diagram, ["x"], num_samples=10)["x"].values.shape == (10,)
-    with pytest.raises(ValueError, match="unused.*Poisson"):
+    with pytest.raises(ValueError, match="unused.*Categorical"):
         infer(diagram, ["unused"], num_samples=10)

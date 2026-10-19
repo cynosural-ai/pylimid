@@ -18,11 +18,12 @@ Rather than requiring every chance and utility node to be represented as a table
 - **Flexible distributions.** A chance node is a NumPyro distribution whose parameters can be any JAX expression of its parents, so you are not limited to a conditional probability table.
 - **Bayesian priors.** Represent uncertain model parameters as chance nodes with prior distributions.
 - **Utilities as functions.** A utility is a Python function of its parents written with JAX, so it can express thresholds, nonlinearities, or risk preferences instead of a lookup table.
-- **Mixed inference.** Posteriors are computed by exact enumeration for discrete nodes and by MCMC sampling (NUTS) for continuous ones, so a single diagram can combine both.
+- **Mixed inference.** Posteriors use exact enumeration for categorical nodes and supported finite counts, and MCMC sampling (NUTS) for continuous ones. Numerical counts also support forward simulation and observed likelihoods.
 
 ## Limitations
 
-- **Decisions are discrete.** A decision node must choose among a finite set of actions (continuous decisions are not *yet* supported).
+- **Decisions are discrete.** A decision node must choose among a finite set of actions, and tabular policies require information-set parents with named finite states. Continuous decisions and numerical counts as policy-table inputs are not yet supported.
+- **Count posteriors need fixed enumerable support.** Scalar Binomial counts with a concrete number of trials are supported. Unknown unbounded counts, shifted ranges and batched counts remain unsupported. Parent-dependent bounds do not have a supported enumeration path.
 - **Results are approximate.** Inference and solving both return Monte Carlo estimates rather than exact answers, and they get more precise with more samples. For purely discrete diagrams, an exact solver like [pyAgrum](https://pyagrum.readthedocs.io) is the better choice.
 
 ## Installation

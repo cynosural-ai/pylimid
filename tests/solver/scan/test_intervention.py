@@ -124,7 +124,7 @@ def test_continuous_information_set_raises():
             values=lambda x, d: float(x) * float(d),
         )
     )
-    with pytest.raises(ValueError, match="continuous"):
+    with pytest.raises(ValueError, match="without named states"):
         solve(diag.snapshot())
 
 

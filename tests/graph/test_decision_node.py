@@ -14,7 +14,7 @@ def test_minimal_decision_is_unconfigured() -> None:
     assert d.parents == ()
     assert d.states is None
     assert d.consistency is Consistency.UNCONFIGURED
-    assert d.is_discrete is False
+    assert d.is_categorical is False
     assert d.kind is NodeKind.DECISION
     assert d.is_sink is False
 
@@ -24,7 +24,7 @@ def test_decision_with_states_is_consistent() -> None:
 
     assert d.states == ("buy", "hold", "sell")
     assert d.consistency is Consistency.CONSISTENT
-    assert d.is_discrete is True
+    assert d.is_categorical is True
 
 
 def test_decision_has_no_dist_field() -> None:

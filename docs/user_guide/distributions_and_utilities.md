@@ -62,18 +62,13 @@ def bookings_dist():
 
 The probabilities follow the same order as the state labels: `"cloudy"` and `"sunny"` for weather, `"normal"` and `"high"` for bookings. Neither node has parents, so these functions take no arguments.
 
-With `states=None`, use a continuous distribution. The `busyness` node uses the {py:class}`LogNormal <numpyro.distributions.continuous.LogNormal>` prior:
+With `states=None`, values are numerical. We can use a continuous distribution or a [count distribution](../resources/count_distributions.md). The `busyness` node uses the {py:class}`LogNormal <numpyro.distributions.continuous.LogNormal>` prior:
 
 ```{code-cell} ipython3
 def busyness_dist():
     return dist.LogNormal(
         jnp.log(BUSYNESS_MEAN) - BUSYNESS_LOG_SD**2 / 2, BUSYNESS_LOG_SD
     )
-```
-
-```{admonition} Count distributions
-:class: info
-Count distributions such as {py:class}`Poisson <numpyro.distributions.discrete.Poisson>` and {py:func}`Binomial <numpyro.distributions.discrete.Binomial>` are not currently supported.
 ```
 
 We chose a {py:class}`Gamma <numpyro.distributions.continuous.Gamma>` distribution to model `demand` because it is strictly positive and can naturally model quiet days alongside some unusually busy ones. Even though ice creams are counted in whole numbers, we use a continuous distribution to approximate demand. We use `concentration=4.0`, so for fixed parent values its standard deviation is half its mean.

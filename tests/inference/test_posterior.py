@@ -9,6 +9,15 @@ import pytest
 from pylimid import Posterior
 
 
+def test_integer_numerical_draws_are_not_categories():
+    posterior = Posterior(values=jnp.array([0, 2, 4, 6]))
+
+    assert not posterior.is_categorical
+    assert posterior.mean() == 3.0
+    with pytest.raises(ValueError, match="requires a categorical"):
+        posterior.marginal()
+
+
 def test_scalar_summaries_return_zero_dimensional_arrays():
     posterior = Posterior(values=jnp.array([0.0, 2.0, 4.0, 6.0]))
 

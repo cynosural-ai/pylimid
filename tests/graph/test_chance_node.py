@@ -32,7 +32,7 @@ def test_minimal_node_has_only_name() -> None:
     assert node.dist is None
     assert node.states is None
     assert node.consistency is Consistency.UNCONFIGURED
-    assert node.is_discrete is False
+    assert node.is_categorical is False
 
 
 def test_full_node_round_trips_fields() -> None:
@@ -48,7 +48,7 @@ def test_full_node_round_trips_fields() -> None:
     assert node.dist is _dist_taking_rain
     assert node.states == ("dry", "wet")
     assert node.consistency is Consistency.CONSISTENT
-    assert node.is_discrete is True
+    assert node.is_categorical is True
 
 
 # --- field validation on construction ---------------------------------------
@@ -274,9 +274,18 @@ def test_validate_silent_on_consistent() -> None:
     node.validate()  # no exception
 
 
-# --- is_discrete ------------------------------------------------------------
+# --- categorical declarations -----------------------------------------------
 
 
-def test_is_discrete_follows_states() -> None:
-    assert ChanceNode(name="x").is_discrete is False
-    assert ChanceNode(name="x", states=("a",)).is_discrete is True
+def test_categorical_declaration_does_not_evaluate_distribution() -> None:
+    def unevaluated_dist() -> object:
+        raise AssertionError("Categorical declarations must not execute distributions.")
+
+    node = ChanceNode(name="x", dist=unevaluated_dist)
+    assert node.is_categorical is False
+
+    node.states = ("a", "b")
+    assert node.is_categorical is True
+
+    node.states = None
+    assert node.is_categorical is False

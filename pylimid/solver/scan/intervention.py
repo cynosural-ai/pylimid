@@ -16,9 +16,9 @@ deterministic function of the realized information-set values. Utility
 nodes are evaluated on the sampled values after the walk; their average
 over the samples is the expected-utility estimate.
 
-Scope: decisions and their information sets must be discrete (a
-continuous information set cannot be tabulated). Chance nodes may be
-discrete or continuous. The policy space is exponential in the number of
+Scope: decisions and their information sets must have named finite states.
+Numerical counts and continuous variables cannot index policy tables, but may feed
+chance nodes and utilities. The policy space is exponential in the number of
 decision rules, so this engine suits diagrams with small decision spaces.
 
 References:
@@ -76,8 +76,8 @@ def solve(
     of policies grows exponentially with the number of action-table entries.
 
     Args:
-        snapshot: A validated snapshot from `InfluenceDiagram.snapshot`, with discrete
-            decisions and information sets.
+        snapshot: A validated snapshot from `InfluenceDiagram.snapshot`, with finite
+            decisions and categorical information sets.
         num_samples: Forward samples per candidate policy.
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``.
 
@@ -87,9 +87,8 @@ def solve(
         estimate.
 
     Raises:
-        ValueError: If a decision's information set contains a continuous
-            variable (a continuous information set cannot be tabulated), or a chance
-            distribution conflicts with its ``states``.
+        ValueError: If a decision's information set contains a parent without named
+            states, or a chance distribution conflicts with its ``states``.
     """
     if rng_key is None:
         rng_key = jax.random.PRNGKey(0)
