@@ -4,7 +4,7 @@ Forward plan. The engine work is done (numpyro-only, scan + batched scan + backw
 
 ## Continuous decisions (later)
 
-Strategy A — continuous actions and continuous information sets — is the likely next feature. The exploration map (feasibility, difficulty axes, guarantee change, validation plan, scope ladder, and the revisit trigger) lives in `design/continuous_decisions/` (on the unmerged `docs/continuous-decisions` branch, still under the old `docs/` path).
+Strategy A — continuous actions and continuous information sets — is the likely next feature. The [exploration map](design/continuous_decisions/README.md) preserves the feasibility survey, difficulty axes, guarantee change, validation plan, scope ladder, and revisit trigger. Implementation remains deferred until the discrete-decision scope, examples, documentation, and code layout are settled.
 
 ## Tutorial extensions (later)
 
@@ -34,6 +34,7 @@ A situation is one combination of a decision's parent states. When no sample lan
 
 ### Missing features
 
+- **Single policy updating (later).** Iterate per-decision updates for non-soluble LIMIDs until no rule changes, yielding a local optimum. The current fallback is the exhaustive scan; backward induction still requires the solvability gate. The [backward-induction estimator design](design/solver/backward_induction.md) records the sampling, grouping, variance, and validation considerations for this extension.
 - **Numerical discrete chance nodes (future proposal).** Chance nodes currently support labeled Categorical and Bernoulli distributions; runtime validation rejects incompatible distributions or category counts before sampling. Binomial and Poisson remain unsupported, with or without labels. The [discrete chance-node proposal](design/graph/discrete_chance_nodes.md) covers numerical count semantics, finite domains for policy tables, and operation-specific inference requirements. The public API is still to be agreed.
 - **Sampler diagnostics and controls.** Expose configurable NUTS warmup through `infer` and return diagnostics that help users assess sampling reliability, including divergences and effective sample sizes. Support multiple chains for convergence checks and report R-hat only when applicable. Forward sampling and discrete enumeration should distinguish diagnostics that do not apply.
 - **Dataset fitting (later).** Define how repeated observations share model parameters, rather than relying on broadcasting alone. A fitting tutorial should cover learning shared parameters and predicting new observations; keep this out of the inference-guide rewrite.

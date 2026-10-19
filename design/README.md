@@ -18,6 +18,7 @@ These notes explain the reasoning behind the current implementation. Public sign
 
 ## Proposals
 
+- [Continuous decisions](continuous_decisions/README.md): deferred exploration of parameterized policies, gradient estimators, utility requirements, validation, and the trigger for revisiting implementation. Companion notes cover [solver methods](continuous_decisions/solver_methods.md), the [utility contract](continuous_decisions/utility_contract.md), and the [literature](continuous_decisions/literature.md).
 - [More expressive discrete chance nodes](graph/discrete_chance_nodes.md): a future proposal separating categorical and numerical semantics, finite computational domains, and display labels.
 - [Ride-hailing retention](proposals/ride_hailing.md): a future benchmark for continuous decisions and learning under uncertainty.
 
