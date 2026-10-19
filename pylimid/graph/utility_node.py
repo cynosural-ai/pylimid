@@ -73,7 +73,7 @@ class UtilityNode(Node):
         return True
 
     @property
-    def is_discrete(self) -> bool:
+    def is_categorical(self) -> bool:
         """``False`` — a utility is a deterministic payoff with no state labels."""
         return False
 

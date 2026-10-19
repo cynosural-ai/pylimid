@@ -7,6 +7,8 @@ The node classes and `InfluenceDiagram` are also available directly from ``pylim
 
 Posterior inference and its result types are also available from ``pylimid.inference``. Solver selection and solution results are available from ``pylimid.solver``. ``pylimid.policy`` defines the shared policy type, and ``pylimid.errors`` defines the error shared by inference and solving.
 
+``Posterior.is_categorical`` replaces ``Posterior.is_discrete``. It distinguishes named categories, summarised with ``marginal()``, from numerical values, summarised with ``mean()``, ``std()`` or ``hdi()``. It does not infer mathematical discreteness from the draws' dtype.
+
 .. currentmodule:: pylimid
 
 .. autosummary::

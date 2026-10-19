@@ -77,8 +77,13 @@ class ChanceNode(Node):
         return NodeKind.CHANCE
 
     @property
-    def is_discrete(self) -> bool:
-        """Whether the node has a declared set of discrete states."""
+    def is_categorical(self) -> bool:
+        """
+        Whether the node declares named categories through ``states``.
+
+        This check does not call ``dist``. A node without categories may be
+        unconfigured; its distribution's discreteness is known only when constructed.
+        """
         return self.states is not None
 
     # --- consistency --------------------------------------------------------

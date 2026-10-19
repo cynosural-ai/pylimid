@@ -18,6 +18,7 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
+from numpyro import handlers
 from numpyro.infer import MCMC, NUTS, Predictive
 
 from pylimid.graph.diagram import DiagramSnapshot
@@ -129,7 +130,7 @@ def _draw(
     """Run the sampling machinery for ``model`` and return all site draws."""
     if not _has_chance_evidence(snapshot, observed):
         return Predictive(model, num_samples=num_samples)(rng_key)
-    if _has_continuous_latent(snapshot, observed):
+    if _has_continuous_latent(model, rng_key):
         mcmc = MCMC(
             NUTS(model),
             num_warmup=num_warmup,
@@ -157,11 +158,12 @@ def _has_chance_evidence(snapshot: DiagramSnapshot, observed: dict[str, Any]) ->
     )
 
 
-def _has_continuous_latent(snapshot: DiagramSnapshot, observed: dict[str, Any]) -> bool:
-    """Whether any unobserved chance node is continuous."""
-    for name, node in snapshot.nodes:
-        if name in observed:
-            continue
-        if node.kind is NodeKind.CHANCE and not node.is_discrete:
-            return True
-    return False
+def _has_continuous_latent(model: Callable[[], dict[str, Any]], rng_key: Any) -> bool:
+    """Read continuous latent support from distributions in a seeded execution."""
+    trace = handlers.trace(handlers.seed(model, rng_key)).get_trace()
+    return any(
+        site["type"] == "sample"
+        and not site["is_observed"]
+        and not site["fn"].support.is_discrete
+        for site in trace.values()
+    )

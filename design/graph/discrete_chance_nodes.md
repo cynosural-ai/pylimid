@@ -1,6 +1,8 @@
 # More expressive discrete chance nodes
 
-Status: proposal for a future change. Categorical distribution validation is implemented. This proposal describes the broader API and implementation work still needed for numerical discrete variables.
+Status: classification groundwork and categorical distribution validation are implemented. Numerical count distributions remain unsupported. This proposal describes the broader API and implementation work still needed for numerical discrete variables.
+
+The classification step replaces the label-based `is_discrete` property on nodes and `Posterior` with `is_categorical`. For now, `states` continues to declare categorical semantics as well as labels; independent label metadata and numerical domains remain future work. Model translation reads mathematical discreteness from the constructed NumPyro distribution's support. Posterior dispatch inspects distributions from a seeded model execution, ignoring observed and deterministic sites. It does not evaluate callables with fabricated parent values, infer support from sampled dtypes, or store execution-derived classification on mutable graph nodes. The existing validator still rejects numerical count distributions in every execution path.
 
 ## Motivation
 
@@ -16,12 +18,12 @@ The current implementation gives `states` several responsibilities:
 
 | Responsibility | Current implementation |
 | --- | --- |
-| Decide whether a chance node is discrete | `ChanceNode.is_discrete` checks whether `states` is present. |
+| Declare categorical semantics | `ChanceNode.is_categorical` checks whether `states` is present, without executing the distribution. |
 | Define a finite domain | Valid values are interpreted as indices from zero to `len(states) - 1`. |
 | Supply display labels | `InfluenceDiagram.states_of` and `Solution.render` decode indices using the labels. |
 | Size policy tables | Shared policy helpers and the solvers use the number of states of each information-set parent. |
-| Select posterior inference machinery | Model translation enables enumeration for labeled nodes; sampling dispatch treats unlabeled latent chance nodes as continuous, and runtime validation rejects discrete distributions returned by those nodes. |
-| Control posterior summaries | `Posterior` permits `marginal()` for labeled variables and numerical summaries for unlabeled variables. |
+| Select posterior inference machinery | Distribution support determines enumeration and whether a continuous latent remains. Runtime validation still rejects numerical count distributions, regardless of labels. |
+| Control posterior summaries | `Posterior.is_categorical` distinguishes named categories from numerical values; `marginal()` requires categories, while numerical summaries reject category codes. |
 
 The current runtime contract requires Categorical with one state label per category or Bernoulli with exactly two labels. Both probability and logit parameterizations are supported, and zero-probability outcomes still require labels. With `states=None`, the distribution must have continuous support. Adding labels does not make Binomial, Poisson, or other discrete distributions supported.
 
@@ -125,7 +127,7 @@ Keep `InfluenceDiagram.validate()` focused on structural and declarative consist
 
 Execution paths already share the categorical contract check when constructing distributions. The broader implementation should extend this into a shared interpretation of support, shape, value semantics, and finite domains rather than rebuilding classification rules in the translator and each solver. Its first version can reject distributions whose mathematical kind or output shape changes with parent values, and domains whose compatibility cannot be established safely for an indexing operation.
 
-Do not infer discreteness from the presence of labels or from the dtype of one sampled value. Incomplete nodes need an unresolved classification rather than being classified as continuous by default. Resolving the existing graph-level `is_discrete` property is part of this API change.
+Do not infer discreteness from the presence of labels or from the dtype of one sampled value. The graph-level `is_categorical` property describes declarations only. Mathematical discreteness is resolved from distributions during execution; incomplete nodes are not classified as continuous by default.
 
 The graph layer need not import NumPyro to inspect a distribution it has not constructed. User declarations can remain on the nodes; execution-derived properties belong to the execution that resolved them. As diagrams are mutable, resolved domain information must not be written back as an indefinitely valid fact about the node or reused after relevant edits.
 

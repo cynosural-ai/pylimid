@@ -76,13 +76,12 @@ class DecisionNode(Node):
         return NodeKind.DECISION
 
     @property
-    def is_discrete(self) -> bool:
+    def is_categorical(self) -> bool:
         """
-        Whether the decision has a declared, enumerable action space.
+        Whether the decision declares named actions through ``states``.
 
-        ``True`` when ``states`` is set (a discrete decision, the kind the
-        solvers handle). ``False`` when ``states`` is ``None``, which marks
-        the decision as not-yet-configured.
+        ``False`` when ``states`` is ``None``, which marks the decision as
+        not-yet-configured.
         """
         return self.states is not None
 

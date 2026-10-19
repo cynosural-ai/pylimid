@@ -5,7 +5,7 @@ NumPyro model factory — translate a validated snapshot into a NumPyro model.
 the caller feeds to ``numpyro.infer``
 (e.g. ``Predictive``, ``MCMC``, ``SVI``).
 
-Unobserved discrete nodes are detected automatically via ``node.is_discrete``
+Unobserved discrete nodes are detected from the constructed distribution's support
 and annotated with ``infer={"enumerate": "parallel"}`` so that NumPyro's NUTS
 and SVI engines can marginalise them out. Observed discrete nodes skip
 enumeration (the value is clamped).
@@ -119,7 +119,7 @@ def _to_model(
             _validate_chance_distribution(node, fn)
             if name in observed:
                 values[name] = numpyro.sample(name, fn, obs=observed[name])
-            elif node.is_discrete:
+            elif fn.support.is_discrete:
                 values[name] = numpyro.sample(name, fn, infer={"enumerate": "parallel"})
             else:
                 values[name] = numpyro.sample(name, fn)

@@ -67,8 +67,8 @@ def infer(
     Returns:
         One `Posterior` per query variable, keyed by its name. Entries at the same
         position in each posterior's ``values`` belong to the same joint draw. Use
-        `Posterior.marginal` for discrete probabilities, and `Posterior.mean`,
-        `Posterior.std` or `Posterior.hdi` for continuous variables and utilities.
+        `Posterior.marginal` for category probabilities, and `Posterior.mean`,
+        `Posterior.std` or `Posterior.hdi` for numerical variables and utilities.
         Draws and numerical summaries are JAX arrays. Summaries have the node's shape,
         including zero-dimensional arrays for scalar nodes.
 
