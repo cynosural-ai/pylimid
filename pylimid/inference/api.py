@@ -40,11 +40,14 @@ def infer(
     evidence. Utilities never affect the posterior of other variables.
 
     With no observed chance node, draws come from forward sampling. With evidence,
-    NumPyro uses exact enumeration when every unobserved chance variable is categorical,
-    and NUTS when some are continuous. Numerical counts can be observed as likelihoods,
-    but an unobserved count in the relevant nodes is unsupported, including finite
-    counts such as Binomial. Returned draws and their summaries are Monte Carlo
-    estimates in all cases.
+    NumPyro uses exact enumeration for categorical variables and supported finite
+    counts, and NUTS when continuous latents remain. Scalar count latents require
+    NumPyro enumeration of a fixed integer range starting at zero. For Binomial, use a
+    Python integer ``total_count``; probabilities may depend on other variables.
+    Unbounded, shifted and batched count latents remain unsupported. NumPyro and JAX
+    report errors if enumeration bounds are non-static, including parent-dependent
+    trial counts. Counts with only one possible value, zero, are clamped exactly.
+    Returned draws and their summaries are Monte Carlo estimates in all cases.
 
     The whole diagram is validated before selecting the relevant nodes. Chance
     distributions and utility functions must be JAX-traceable.
@@ -80,8 +83,8 @@ def infer(
             evidence is unbound, if *policy* names a node that is not a
             decision or contains an incomplete or invalid action table, if
             *query* names a decision, or if *observed* names a node that is
-            not a chance node, or if posterior inference needs an unobserved numerical
-            discrete node.
+            not a chance node, or if a numerical count latent lacks supported
+            enumeration or has a non-scalar batch shape.
         KeyError: If *query* or *observed* names a node that is not in the
             diagram.
         ValueError: If the diagram fails `InfluenceDiagram.validate`, or a table policy
