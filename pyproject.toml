@@ -1,27 +1,57 @@
 [project]
-name = "decisionpy"
-version = "0.1.0"
-description = "A library for mixed-type limited-memory influence diagrams."
+name = "pylimid"
+dynamic = ["version"]
+description = "Mixed-type limited-memory influence diagrams on NumPyro."
 readme = "README.md"
-requires-python = ">=3.12"
-# The inference engines (NumPyro, and VE's distribution extraction) build on
-# numpyro/jax; previously an optional extra, now a plain runtime dependency.
+requires-python = ">=3.12,<3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE.md"]
+authors = [{ name = "pylimid developers" }]
+keywords = [
+    "influence diagrams",
+    "LIMID",
+    "decision theory",
+    "Bayesian networks",
+    "probabilistic programming",
+    "NumPyro",
+    "JAX",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Operating System :: OS Independent",
+    "Typing :: Typed",
+]
+# Model translation, sampling, and policy simulation use NumPyro and JAX.
 dependencies = [
     "numpyro>=0.15",
     "jax>=0.4",
     "funsor>=0.4",
 ]
 
+[project.optional-dependencies]
+# The default jax/jaxlib wheels are CPU-only, so the GPU extras pull the CUDA
+# plugin. ``gpu`` tracks the currently recommended CUDA major.
+gpu = ["jax[cuda12]"]
+cuda12 = ["jax[cuda12]"]
+cuda13 = ["jax[cuda13]"]
+
+[project.urls]
+Homepage = "https://github.com/cynosural-ai/pylimid"
+Repository = "https://github.com/cynosural-ai/pylimid"
+Issues = "https://github.com/cynosural-ai/pylimid/issues"
+Changelog = "https://github.com/cynosural-ai/pylimid/releases"
+Documentation = "https://pylimid.readthedocs.io/"
+
 [dependency-groups]
 dev = [
     "pre-commit>=3.1.1",
     "ruff==0.16.0",
     "ty==0.0.14",
-    "jupyterlab>=4.1",
-    "jupytext>=1.16",
-    "ipywidgets>=8.0",
-    # The examples build the same models in pyAgrum as the exact reference.
-    "pyagrum>=1.12",
 ]
 test = [
     "pytest>=8.4.0",
@@ -29,16 +59,39 @@ test = [
     # pyagrum.clg imports pandas at module load without declaring it.
     "pandas>=2.0",
 ]
+docs = [
+    # myst-parser 5.1 is not yet compatible with Sphinx 9.
+    "sphinx>=8.2,<9",
+    "myst-parser>=4",
+    "myst-nb>=1.2",
+    "sphinx-rtd-theme>=3",
+    "sphinx-copybutton>=0.5",
+    "sphinx-design>=0.6",
+    # myst-nb executes the guide snippets in a Jupyter kernel.
+    "ipykernel>=6",
+    # The logistics tutorial draws the score densities and the sensitivity plot.
+    "matplotlib>=3.8",
+]
 
 [tool.uv]
-default-groups = ["dev", "test"]
+default-groups = ["dev", "test", "docs"]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+local_scheme = "no-local-version"
+fallback_version = "0.0.0"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "pylimid/_version.py"
+
 [tool.hatch.build.targets.wheel]
-packages = ["decisionpy"]
+packages = ["pylimid"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

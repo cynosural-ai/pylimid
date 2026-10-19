@@ -1,11 +1,11 @@
-"""Tests for :mod:`decisionpy.graph.chance_node`."""
+"""Tests for :mod:`pylimid.graph.chance_node`."""
 
 from typing import Any
 
 import pytest
 
-from decisionpy.graph.chance_node import ChanceNode
-from decisionpy.graph.node import Consistency
+from pylimid.graph.chance_node import ChanceNode
+from pylimid.graph.node import Consistency
 
 # --- helpers ----------------------------------------------------------------
 

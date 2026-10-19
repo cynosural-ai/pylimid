@@ -1,5 +1,5 @@
 """
-Tests for the shared :class:`~decisionpy.graph.node.Node` base.
+Tests for the shared :class:`~pylimid.graph.node.Node` base.
 
 The base owns the contract every node type inherits — shared ``name`` /
 ``parents`` field validation and the consistency gate machinery. These tests
@@ -11,10 +11,10 @@ from typing import Any
 
 import pytest
 
-from decisionpy.graph.chance_node import ChanceNode
-from decisionpy.graph.decision_node import DecisionNode
-from decisionpy.graph.node import Consistency, NodeKind
-from decisionpy.graph.utility_node import UtilityNode
+from pylimid.graph.chance_node import ChanceNode
+from pylimid.graph.decision_node import DecisionNode
+from pylimid.graph.node import Consistency, NodeKind
+from pylimid.graph.utility_node import UtilityNode
 
 # --- shared field validation is inherited -----------------------------------
 
@@ -90,7 +90,7 @@ def test_each_node_type_reports_its_kind() -> None:
 
 
 def test_only_utility_is_a_sink() -> None:
-    """`is_sink` is the structural property the diagram's edge check reads."""
+    """`is_sink` is the structural property `validate` reads for a sink."""
     assert ChanceNode(name="c").is_sink is False
     assert DecisionNode(name="d").is_sink is False
     assert UtilityNode(name="u").is_sink is True

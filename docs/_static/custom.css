@@ -1,0 +1,10 @@
+/* Center standalone figures and executed-notebook output images. */
+figure {
+    text-align: center;
+}
+
+.cell_output img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}

@@ -84,14 +84,16 @@ TEST*.xml
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# pyenv
-.python-version
-
 # mypy
 .mypy_cache/
 
 # Project specific
 .cursor/
+pylimid/_version.py
+
+# Sphinx
+docs/_build/
+docs/api/generated/
 
 # Translations
 *.mo
