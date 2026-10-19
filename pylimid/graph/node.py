@@ -178,14 +178,15 @@ class Node:
         return False
 
     @property
-    def is_discrete(self) -> bool:
+    def is_categorical(self) -> bool:
         """
-        Whether this node is defined over a finite, enumerable domain.
+        Whether this node declares named categories or actions.
 
+        This describes the node's declarations, not its distribution's support.
         Subclasses override. The base definition is abstract.
         """
         raise NotImplementedError(
-            f"{type(self).__name__} must declare `is_discrete` by overriding it."
+            f"{type(self).__name__} must declare `is_categorical` by overriding it."
         )
 
     # --- consistency --------------------------------------------------------

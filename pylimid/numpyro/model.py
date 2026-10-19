@@ -5,10 +5,11 @@ NumPyro model factory — translate a validated snapshot into a NumPyro model.
 the caller feeds to ``numpyro.infer``
 (e.g. ``Predictive``, ``MCMC``, ``SVI``).
 
-Unobserved discrete nodes are detected automatically via ``node.is_discrete``
+Unobserved categorical nodes are checked against the distribution's discrete support
 and annotated with ``infer={"enumerate": "parallel"}`` so that NumPyro's NUTS
-and SVI engines can marginalise them out. Observed discrete nodes skip
-enumeration (the value is clamped).
+and SVI engines can marginalise them out. Numerical counts are left unannotated;
+`samples` supports them in forward sampling and rejects them as posterior latents.
+Observed nodes skip enumeration (the value is clamped).
 
 Fixed decisions become degenerate observed sites; contingent decisions are
 deterministic functions of their information sets. Utility nodes are skipped
@@ -50,10 +51,13 @@ def to_model(
     parents by name against the upstream sampled values, and emits one
     ``numpyro.sample`` site per chance node.
 
-    Unobserved discrete chance nodes are auto-detected and annotated with
+    Unobserved categorical chance nodes are annotated with
     ``infer={"enumerate": "parallel"}`` so that NUTS and SVI can marginalise
     them out. Observed nodes skip enumeration and are clamped via ``obs=``.
-    Continuous nodes are left for the inference engine.
+    Continuous nodes and numerical counts are left for the inference engine.
+    Counts work with forward ``Predictive`` sampling. Callers using other NumPyro
+    inference methods must handle any latent counts themselves; `samples` rejects
+    posterior inference with unobserved counts.
 
     A fixed decision becomes a degenerate observed site. A state-dependent
     decision policy is evaluated from its information-set parents as the
@@ -83,8 +87,8 @@ def to_model(
         InferenceError: If a policy names a non-decision node, omits an
             information-set assignment, or contains an invalid action.
         KeyError: If a policy names a node that is not in the snapshot.
-        ValueError: If a policy has a continuous information-set parent, or a chance
-            distribution conflicts with its ``states`` when the model is executed.
+        ValueError: If a policy has an information-set parent without named states, or
+            a chance distribution conflicts with its ``states`` when the model executes.
     """
     return _to_model(snapshot, observed or {}, _policy_tables(snapshot, policy or {}))
 
@@ -119,7 +123,7 @@ def _to_model(
             _validate_chance_distribution(node, fn)
             if name in observed:
                 values[name] = numpyro.sample(name, fn, obs=observed[name])
-            elif node.is_discrete:
+            elif fn.support.is_discrete and node.is_categorical:
                 values[name] = numpyro.sample(name, fn, infer={"enumerate": "parallel"})
             else:
                 values[name] = numpyro.sample(name, fn)

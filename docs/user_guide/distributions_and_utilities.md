@@ -62,7 +62,7 @@ def bookings_dist():
 
 The probabilities follow the same order as the state labels: `"cloudy"` and `"sunny"` for weather, `"normal"` and `"high"` for bookings. Neither node has parents, so these functions take no arguments.
 
-With `states=None`, use a continuous distribution. The `busyness` node uses the {py:class}`LogNormal <numpyro.distributions.continuous.LogNormal>` prior:
+With `states=None`, values are numerical. We can use a continuous distribution or a numerical count distribution. The `busyness` node uses the {py:class}`LogNormal <numpyro.distributions.continuous.LogNormal>` prior:
 
 ```{code-cell} ipython3
 def busyness_dist():
@@ -71,12 +71,24 @@ def busyness_dist():
     )
 ```
 
-```{admonition} Count distributions
-:class: info
-Count distributions such as {py:class}`Poisson <numpyro.distributions.discrete.Poisson>` and {py:func}`Binomial <numpyro.distributions.discrete.Binomial>` are not currently supported.
+We chose a {py:class}`Gamma <numpyro.distributions.continuous.Gamma>` distribution to model `demand` because it is strictly positive and can naturally model quiet days alongside some unusually busy ones. Even though ice creams are counted in whole numbers, we use a continuous distribution to approximate demand. We use `concentration=4.0`, so for fixed parent values its standard deviation is half its mean.
+
+### Numerical counts
+
+For whole-number quantities, we can use distributions such as {py:class}`Poisson <numpyro.distributions.discrete.Poisson>`, {py:func}`Binomial <numpyro.distributions.discrete.Binomial>` or {py:class}`NegativeBinomial2 <numpyro.distributions.conjugate.NegativeBinomial2>` without state labels. Their draws are actual counts. For example, we can simulate customer arrivals in a separate diagram:
+
+```{code-cell} ipython3
+from pylimid import ChanceNode, InfluenceDiagram, infer
+
+arrivals = InfluenceDiagram()
+arrivals.add_node(ChanceNode(name="customers", dist=lambda: dist.Poisson(12.0)))
+customers = infer(arrivals, ["customers"])["customers"]
+customers.mean()
 ```
 
-We chose a {py:class}`Gamma <numpyro.distributions.continuous.Gamma>` distribution to model `demand` because it is strictly positive and can naturally model quiet days alongside some unusually busy ones. Even though ice creams are counted in whole numbers, we use a continuous distribution to approximate demand. We use `concentration=4.0`, so for fixed parent values its standard deviation is half its mean.
+Counts pass their numerical values to downstream distributions and utilities. We can use `mean()`, `std()` and `hdi()` to summarise their draws, or estimate an event probability with `jnp.mean(customers.values >= 20)`. `marginal()` requires named categories. Count intervals can include unsampled values and are not necessarily smallest credible sets.
+
+Forward simulation and expected-utility solving support these counts. Observed counts can also inform other variables, as described in [Inference](inference.md). Posterior inference with an unknown numerical count is currently unsupported, even for a finite Binomial distribution. A count cannot directly index a decision's policy table; information-set parents still need named finite states. Discrete distributions with vector events, such as Multinomial, are outside this support; batched scalar-event counts retain component-wise numerical summaries.
 
 ### What if demand were Gaussian?
 

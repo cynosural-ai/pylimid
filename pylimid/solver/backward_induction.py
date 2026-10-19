@@ -75,7 +75,7 @@ def solve(
 
     Args:
         snapshot: A validated, solvable snapshot from `InfluenceDiagram.snapshot`, with
-            discrete decisions and information sets.
+            finite decisions and categorical information sets.
         num_samples: Forward trajectories per action per decision.
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``.
 
@@ -87,7 +87,7 @@ def solve(
     Raises:
         ValueError: If the diagram is not solvable (no backward-induction
             order — use the scan), or if a decision's information set is
-            continuous. Also raised if a chance
+            missing named states. Also raised if a chance
             distribution conflicts with its ``states``.
 
     Warns:
@@ -151,7 +151,7 @@ def _resolve_decision(
     parent_states: dict[str, tuple[str, ...]] = {}
     for parent in decision.parents:
         states = node_map[parent].states
-        assert states is not None  # info_assignments rejected continuous info
+        assert states is not None  # info_assignments requires named states
         parent_states[parent] = states
     cards = [len(states) for states in parent_states.values()]
     assert decision.states is not None  # decisions always declare states
@@ -265,7 +265,7 @@ def _trajectory(
         parent_cards: list[int] = []
         for parent in parents:
             states = node_map[parent].states
-            assert states is not None  # decisions only observe discrete nodes
+            assert states is not None  # tabular policies require named states
             parent_cards.append(len(states))
         cards = tuple(parent_cards)
 

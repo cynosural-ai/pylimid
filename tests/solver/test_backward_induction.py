@@ -97,7 +97,7 @@ def test_higher_level_unobserved_influence_scan_finds_the_optimum():
 
 
 def test_continuous_information_set_raises():
-    with pytest.raises(ValueError, match="continuous"):
+    with pytest.raises(ValueError, match="without named states"):
         backward_induction_solve(_continuous_info_diagram().snapshot())
 
 

@@ -30,9 +30,10 @@ def solve(
     """
     Find a policy that maximises expected total utility.
 
-    Two Monte Carlo solvers are available, both for discrete decisions with discrete
-    information sets. Chance nodes may be discrete, continuous, or both in the same
-    diagram. The total utility is the sum of all utility nodes.
+    Two Monte Carlo solvers are available, both for finite decisions with categorical
+    information sets. Numerical counts and continuous chance nodes may feed other
+    chance nodes and utilities, but cannot index decision tables. The total utility
+    is the sum of all utility nodes.
 
     - ``"backward_induction"`` resolves one decision at a time, from the
       last to the first, estimating each action's expected utility per
@@ -42,7 +43,7 @@ def solve(
       finds the optimal policy up to sampling noise.
     - ``"scan"`` enumerates every policy and estimates each one's expected
       utility by forward sampling, keeping the best. It handles any
-      diagram with discrete decisions and information sets, but the number of policies
+      diagram with finite decisions and categorical information sets. Its policy count
       grows exponentially with the number of action-table entries.
     - ``"auto"`` uses backward induction when the diagram is solvable and
       the scan otherwise.
@@ -73,7 +74,7 @@ def solve(
 
     Raises:
         InferenceError: If the diagram has no decision nodes, if a
-            decision's information set is not discrete, if
+            decision's information set lacks named states, if
             ``method="backward_induction"`` is asked for on a diagram that is
             not solvable. Also raised if
             a chance distribution conflicts with its ``states``.

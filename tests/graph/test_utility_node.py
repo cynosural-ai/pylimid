@@ -30,7 +30,7 @@ def test_minimal_utility_is_unconfigured() -> None:
     assert u.values is None
     assert u.consistency is Consistency.UNCONFIGURED
     assert u.is_sink is True
-    assert u.is_discrete is False
+    assert u.is_categorical is False
     assert u.kind is NodeKind.UTILITY
 
 
