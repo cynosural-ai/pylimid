@@ -2,9 +2,9 @@
 
 Forward plan. The engine work is done (numpyro-only, scan + batched scan + backward induction). The focus now is to finish the discrete-decision story before reaching for continuous decisions.
 
-## Discrete decisions with continuous information (proposed next)
+## Discrete decisions with continuous information (single decision implemented)
 
-Forward evaluation now accepts complete deterministic function rules alongside tables, allowing continuous observations to guide finite actions. Next, let the creator choose each decision's policy family and have the solver fit its parameters and return a reusable policy. The [continuous-information proposal](design/continuous_information/README.md) separates the implemented evaluation step from the proposed family declarations and optimizer. Continuous actions remain a separate extension.
+Forward evaluation accepts deterministic functions and fitted stochastic rules alongside tables. For exactly one decision, the creator can now declare `policy_family=LinearSoftmax()` and fit it through `solve(method="policy_gradient")`. Next, extend the validated score estimator to multiple decisions and richer families. The [continuous-information design](design/continuous_information/README.md) records the implementation boundary, tests and remaining proposal. Continuous actions remain a separate extension.
 
 ## Continuous decisions (later)
 

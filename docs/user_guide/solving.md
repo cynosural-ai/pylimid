@@ -141,10 +141,10 @@ The action space also constrains us in the other direction. The solver only comp
 
 ## How does solve() find the policy?
 
-So far we haven't had to think about how {py:func}`solve` finds the best policy, because the default, `method="auto"`, picks the solver method for us. There are two:
+So far we haven't had to think about how {py:func}`solve` finds the best policy, because the default, `method="auto"`, picks the solver method for us. It chooses between two table methods:
 
 - `backward_induction` resolves one decision at a time, from the last to the first. It finds the best policy when the decisions can be resolved one after the other. PyLIMID checks this with {py:func}`~pylimid.solver.is_solvable` when we select `auto`. A diagram with a single decision, like ours, always qualifies.
-- `scan` follows a brute-force approach. It simulates every possible policy in the action space and keeps the best one. It works on any diagram but, since the number of policies grows exponentially with the number of situations a decision can face, it quickly becomes impractical. In our problem, `order` has 21 actions and 2 situations (`cloudy` and `sunny`), so there are $21^2 = 441$ policies, each simulated `num_samples` times. If the owner also had a report showing whether hotel bookings are normal or high for that day, there would be 4 situations and $21^4 = 194,481$ policies. If we add another two-state parent variable the scan is no longer an option, even though the diagram itself is still small.
+- `scan` follows a brute-force approach. It simulates every possible policy in the action space and keeps the best one. It works on any diagram with categorical information sets but, since the number of policies grows exponentially with the number of situations a decision can face, it quickly becomes impractical. In our problem, `order` has 21 actions and 2 situations (`cloudy` and `sunny`), so there are $21^2 = 441$ policies, each simulated `num_samples` times. If the owner also had a report showing whether hotel bookings are normal or high for that day, there would be 4 situations and $21^4 = 194,481$ policies. If we add another two-state parent variable the scan is no longer an option, even though the diagram itself is still small.
 
 ### Example: when we can't use backward induction
 
@@ -192,9 +192,78 @@ print(solve(carts).render(carts))
 
 Mia should take the beach and Leo the park. Note that the reason backward induction fails is that each decision's best option depends on a choice the other can't see, **which leaves no order in which to resolve them**.
 
+## Fitting a policy with continuous information
+
+A decision with a continuous parent still chooses among its finite actions, but a table cannot list every possible observation. We choose the form of the rule when defining the diagram, and the solver fits its parameters. This choice is part of modeling the decision; the solver does not select an architecture for us.
+
+The first supported family is {py:class}`LinearSoftmax`: linear scores followed by softmax probabilities over the actions. Numerical parents supply raw values (arrays are flattened); categorical parents supply one-hot features in their declared state order. There is no automatic scaling. This family is useful when a linear boundary can describe the action choice; neural networks and custom trainable families are not implemented.
+
+For a small example, suppose we observe a signal uniformly distributed between −1 and 1. Taking action `on` earns the signal's value; `off` earns zero. We declare the family on the decision and select the optimizer explicitly:
+
+```{code-cell} ipython3
+from pylimid import LinearSoftmax
+
+signal_diagram = InfluenceDiagram()
+signal_diagram.add_node(
+    ChanceNode("signal", dist=lambda: dist.Uniform(-1.0, 1.0))
+)
+signal_diagram.add_node(
+    DecisionNode(
+        "action",
+        parents=("signal",),
+        states=("off", "on"),
+        policy_family=LinearSoftmax(),
+    )
+)
+signal_diagram.add_node(
+    UtilityNode(
+        "payoff",
+        parents=("signal", "action"),
+        values=lambda signal, action: signal * action,
+    )
+)
+fit = solve(
+    signal_diagram,
+    method="policy_gradient",
+    num_steps=300,
+    num_samples=2000,
+    learning_rate=0.05,
+    rng_key=jax.random.PRNGKey(0),
+)
+print(fit.render(signal_diagram))
+rule = fit.policy["action"]
+print("Action probabilities at signal=0.8:", rule.probabilities(signal=jnp.array(0.8)))
+```
+
+The returned {py:class}`SoftmaxPolicy` keeps the family, weights, biases, parent bindings and action labels. It remains stochastic: `probabilities` returns probabilities in `states` order, and `sample` takes an explicit random key. Replacing it with the largest-probability action would define a different policy.
+
+The optimizer samples complete scenarios, estimates how changing the action probabilities changes expected utility, and updates the parameters with Adam. NumPyro supplies distributions; PyLIMID constructs the expected-utility gradient with JAX. Utilities and chance distributions must be JAX-traceable, but need not be differentiable with respect to a sampled integer action.
+
+`num_samples` controls the batch size per update and the final evaluation size; `num_steps` controls the training budget. The reported utility uses fresh simulations independent of training. We can also evaluate the fitted policy with a new key:
+
+```{code-cell} ipython3
+from pylimid import infer
+
+payoff = infer(
+    signal_diagram,
+    ["payoff"],
+    policy=fit.policy,
+    num_samples=10000,
+    rng_key=jax.random.PRNGKey(22),
+)["payoff"]
+print("Fresh expected utility:", payoff.mean())
+```
+
+This is an approximate optimization result, with no global or local optimality guarantee, even within the selected family. Compare different training keys and budgets as well as independent utility estimates. More evaluation samples reduce estimation noise, but cannot fix an unsuitable family or incomplete optimization.
+
+Training currently supports **exactly one decision** with `LinearSoftmax`. `method="auto"` continues to choose table solvers and rejects a declared family; use `method="policy_gradient"` explicitly. Fitted rules support forward evaluation without observed chance-node evidence. Multiple-decision training, other trainable families and posterior reuse remain future work.
+
 ## When does solve() fail?
 
-{py:func}`solve` raises an {py:class}`~pylimid.InferenceError` in these cases:
+{py:func}`solve` reports these unsupported cases:
 
 - **The diagram has no decisions.** In that case there is nothing to optimise, so there is no policy to return.
-- **A decision observes a numerical variable.** Current solvers produce tables with one action per situation, so the decision's parents must declare named finite states. This excludes both continuous measurements and numerical counts. To use these solvers with temperature, we add an intermediate categorical chance node that bins the reading (say, cold, mild and hot) as the parent. Supplied function policies can react directly to continuous observations during forward evaluation with {py:func}`infer`, but `solve` does not learn those rules yet. Numerical counts can still feed other chance nodes and utilities in the simulation.
+- **A table solver receives numerical information.** Tables require named finite parent states, so they cannot directly use continuous measurements or numerical counts. We can bin the reading into categories, or use the single-decision policy-gradient method above. Numerical variables can still feed other chance nodes and utilities in any solver.
+- **The selected solver cannot fit the declared family.** Table solvers reject declared families. Policy-gradient training requires exactly one decision with `LinearSoftmax`; it rejects missing families and multiple decisions.
+
+Diagrams without decisions and incompatible table-solver inputs raise {py:class}`~pylimid.InferenceError`. Policy-gradient training raises `ValueError` for a missing family or invalid optimizer settings, and `NotImplementedError` for multiple decisions.

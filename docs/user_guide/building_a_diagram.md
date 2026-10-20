@@ -27,7 +27,7 @@ PyLIMID does not automatically make earlier choices or observations available to
 
 Decisions choose from a finite set of actions. Their tabular policies require parents with named finite states, so numerical counts and continuous variables cannot directly index a decision table.
 
-Supplied deterministic function policies can use continuous observations for forward evaluation with {py:func}`infer`. The current solvers still require categorical information sets. See {py:data}`Policy` for the function contract and its evaluation limits.
+Supplied deterministic function policies can use continuous observations for forward evaluation with {py:func}`infer`. Table solvers still require categorical information sets. For one decision, we can instead declare a {py:class}`LinearSoftmax` family and fit it with `solve(method="policy_gradient")`; see [Solving a diagram](solving.md#fitting-a-policy-with-continuous-information). See {py:data}`Policy` for the rule contracts and evaluation limits.
 ```
 
 We start with the numbers and the `profit` function from the quickstart:

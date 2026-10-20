@@ -12,8 +12,9 @@ latents are scalar and have zero-based integer support. NumPyro requires concret
 enumeration bounds during JAX tracing. Observed nodes skip enumeration; numerical
 distributions permitting only zero are clamped to that value.
 
-Fixed decisions become degenerate observed sites; contingent decisions are
-deterministic functions of their information sets. Utility nodes are skipped
+Fixed decisions become degenerate observed sites. Contingent tables and functions
+produce deterministic sites; fitted `SoftmaxPolicy` rules produce categorical
+sample sites from their information sets. Utility nodes are skipped
 — a payoff is never sampled and is never a parent.
 
 Forward / prior-predictive sampling: pass ``observed=None`` (the default) and
@@ -36,6 +37,7 @@ from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
 from pylimid.policy import Policy, _policy_rules
+from pylimid.policy_family import SoftmaxPolicy
 
 __all__ = ["to_model"]
 
@@ -83,9 +85,10 @@ def to_model(
         policy: Decision names mapped to complete action tables or deterministic
             functions. Functions accept declared information parents by keyword and
             return a scalar integer action index in the decision's ``states``.
-            They must be JAX-traceable and currently support forward evaluation only.
-            `samples` additionally checks sampled function actions against the action
-            space; direct NumPyro callers must respect that output contract.
+            Functions must be JAX-traceable. Fitted `SoftmaxPolicy` rules sample actions
+            from their learned probabilities. Functions and fitted rules support
+            forward evaluation only. `samples` checks function actions against the
+            action space; direct NumPyro callers must respect that output contract.
 
     Returns:
         A NumPyro model function taking no arguments, returning a
@@ -97,7 +100,7 @@ def to_model(
         KeyError: If a policy names a node that is not in the snapshot.
         ValueError: If a policy has an information-set parent without named states, or
             a chance distribution conflicts with its ``states`` when the model executes.
-        NotImplementedError: If function policies are combined with chance-node
+        NotImplementedError: If function or fitted stochastic policies use chance-node
             evidence.
     """
     observed = observed or {}
@@ -108,7 +111,7 @@ def to_model(
 def _to_model(
     snapshot: DiagramSnapshot,
     observed: dict[str, Any],
-    policy_rules: dict[str, Callable[..., jax.Array]],
+    policy_rules: dict[str, Callable[..., jax.Array] | SoftmaxPolicy],
 ) -> Callable[[], dict[str, Any]]:
     """Build a model using already validated decision rules."""
     nodes = snapshot.nodes
@@ -121,8 +124,14 @@ def _to_model(
             if isinstance(node, DecisionNode):
                 if name in policy_rules:
                     parent_values = {parent: values[parent] for parent in node.parents}
-                    value = policy_rules[name](**parent_values)
-                    values[name] = numpyro.deterministic(name, value)
+                    rule = policy_rules[name]
+                    if isinstance(rule, SoftmaxPolicy):
+                        values[name] = numpyro.sample(
+                            name, rule._distribution(parent_values)
+                        )
+                    else:
+                        value = rule(**parent_values)
+                        values[name] = numpyro.deterministic(name, value)
                 else:
                     # A fixed decision has all its probability at the supplied action.
                     value = observed[name]

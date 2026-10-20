@@ -12,13 +12,14 @@ Design note covering how a `DecisionNode` should be represented under the hood i
 
 - **`parents`** — the **information set**: the variables observed when the decision is made. *Not* a causal dependency. This is the standard influence-diagram convention; the field name is reused from chance/utility nodes so the container's shared bookkeeping (validation, topological ordering, cycle detection) applies unchanged.
 - **`states`** — the available actions (labels). `None` marks the decision as not-yet-configured (or, forward-looking, continuous — to be owned by the solver).
-- **No `dist`.** The decision's value is chosen, not sampled.
+- **`policy_family`** — optional creator-selected `LinearSoftmax` family for single-decision policy-gradient training.
+- **No `dist`.** A policy controls the action; a fitted stochastic rule may sample it.
 
 A decision is `CONSISTENT` once its action `states` are declared, and `UNCONFIGURED` before. There is **no STALE state** for a decision: the action space does not depend on the information set's size, so adding or removing an information parent never invalidates it.
 
-The implemented solvers live in `pylimid.solver`. `solve(method="auto")` selects backward induction when the diagram has a valid solution ordering and the batched policy scan otherwise. Both estimate expected utility by forward simulation and require finite decisions with discrete information sets; chance variables may be discrete, continuous, or both in the same diagram. The [solver algorithms](../solver/algorithms.md) describe the costs, solvability criterion, and validation references.
+The implemented solvers live in `pylimid.solver`. `solve(method="auto")` selects backward induction when the diagram has a valid solution ordering and the batched policy scan otherwise. Both estimate expected utility by forward simulation and require finite decisions with categorical information sets; chance variables may be discrete, continuous, or both in the same diagram. The [solver algorithms](../solver/algorithms.md) describe the costs, solvability criterion, and validation references.
 
-[Discrete decisions with continuous information](../continuous_information/README.md) are proposed separately from continuous actions. The action `states` and information-arc semantics stay the same. The creator additionally declares each decision's policy family, and the solver fits its parameters. Tables and functions share one policy abstraction. This extension can be implemented first; the exact family-declaration API remains open.
+[Discrete decisions with continuous information](../continuous_information/README.md) are supported for one declared `LinearSoftmax` decision through `solve(method="policy_gradient")`. The action `states` and information-arc semantics stay the same. The creator declares `DecisionNode.policy_family`, and the solver returns a fitted stochastic `SoftmaxPolicy`. Tables, functions and fitted rules share one policy abstraction. Multiple-decision training and custom families remain future work; continuous actions are a separate extension.
 
 ---
 
@@ -39,11 +40,11 @@ where the expectation is over chance variables, whose distributions depend on th
 
 ## Two strategies
 
-Both strategies use the same action spaces and information-arc semantics. In the proposed parameterized approach, the creator also declares the policy family to fit for each decision.
+Both strategies use the same action spaces and information-arc semantics. In the parameterized approach, the creator also declares the policy family to fit for each decision.
 
-### Strategy A — policy as parameters (deferred)
+### Strategy A — policy as parameters (single linear-softmax decision implemented)
 
-The creator chooses the form of each decision's policy: for example, linear scores followed by softmax, or a neural network followed by softmax. The solver fits weights and biases to maximize expected utility within that family and returns the fitted rule. Choosing a family does not mean supplying the final strategy. A complete function supplied by the creator can instead be evaluated without optimization.
+The creator chooses the form of each decision's policy: currently linear scores followed by softmax; a neural network followed by softmax is a possible future family. The solver fits weights and biases to maximize expected utility within that family and returns the fitted rule. Choosing a family does not mean supplying the final strategy. A complete function supplied by the creator can instead be evaluated without optimization.
 
 Solving uses an explicit expected-utility objective with an appropriate estimator: score-function gradients for sampled discrete actions or probability-weighted sums for enumerated actions. Continuous-action policies and their estimators remain a separate extension. NumPyro supplies probabilistic machinery; ordinary SVI or a utility `numpyro.factor()` alone does not establish an equivalent maximum-expected-utility objective. The [continuous-information proposal](../continuous_information/README.md#a-general-approximate-solver) develops the finite-action case.
 

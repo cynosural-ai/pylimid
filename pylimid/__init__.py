@@ -23,6 +23,7 @@ from pylimid.graph import (
 )
 from pylimid.inference import InferenceResult, Posterior, infer
 from pylimid.policy import Policy
+from pylimid.policy_family import LinearSoftmax, SoftmaxPolicy
 from pylimid.solver import Solution, SolveMethod, SolverName, solve
 
 __all__ = [
@@ -32,6 +33,8 @@ __all__ = [
     "InferenceResult",
     "InfluenceDiagram",
     "Policy",
+    "LinearSoftmax",
+    "SoftmaxPolicy",
     "Posterior",
     "Solution",
     "SolveMethod",

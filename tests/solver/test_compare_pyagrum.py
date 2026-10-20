@@ -11,6 +11,8 @@ Expected runtime: ~5-10 seconds (pyAgrum import + policy scans).
 
 from __future__ import annotations
 
+from typing import cast
+
 import pyagrum as gum
 import pytest
 
@@ -103,9 +105,9 @@ def test_nested_two_decisions():
     meu, policy = NestedTwoDecisions.pyagrum_solution()
     assert solution.expected_utility == pytest.approx(meu, abs=5.0)
     assert solution.policy["D1"] == policy["D1"]
-    assert not callable(solution.policy["D2"])
+    rule = cast(dict[tuple[int, ...], int], solution.policy["D2"])
     for assignment in ((0, 1), (1, 0)):
-        assert solution.policy["D2"][assignment] == policy["D2"][assignment]
+        assert rule[assignment] == policy["D2"][assignment]
 
 
 @pytest.mark.parametrize(

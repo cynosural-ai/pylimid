@@ -49,7 +49,13 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.policy import Policy, _info_assignments, _policy_array, _TablePolicy
+from pylimid.policy import (
+    Policy,
+    _info_assignments,
+    _policy_array,
+    _require_tabular_families,
+    _TablePolicy,
+)
 from pylimid.solver.scan._policy import (
     Rule,
     policy_space,
@@ -90,8 +96,10 @@ def solve(
 
     Raises:
         ValueError: If a decision's information set contains a parent without named
-            states, or a chance distribution conflicts with its ``states``.
+            states, a decision declares a policy family, or a chance distribution
+            conflicts with its ``states``.
     """
+    _require_tabular_families(snapshot)
     if rng_key is None:
         rng_key = jax.random.PRNGKey(0)
 

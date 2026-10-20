@@ -29,6 +29,7 @@ from pylimid.graph.node import NodeKind
 from pylimid.graph.utility_node import UtilityNode
 from pylimid.numpyro.model import _to_model
 from pylimid.policy import Policy, _policy_rules
+from pylimid.policy_family import SoftmaxPolicy
 
 __all__ = ["samples"]
 
@@ -75,7 +76,8 @@ def samples(
         policy: Decision names mapped to complete action tables or JAX-traceable
             deterministic functions. Functions receive only declared information
             parents as keyword arguments and return a scalar integer action index.
-            Function policies currently support forward evaluation only.
+            Fitted `SoftmaxPolicy` rules sample actions from their learned
+            probabilities. Functions and fitted rules support forward evaluation only.
 
     Returns:
         Dict mapping node name to a JAX array with shape
@@ -89,7 +91,7 @@ def samples(
         KeyError: If a policy names a node that is not in the snapshot.
         ValueError: If a policy has an information-set parent without named states, or
             a chance distribution conflicts with its ``states``.
-        NotImplementedError: If function policies are combined with chance-node
+        NotImplementedError: If function or fitted stochastic policies use chance-node
             evidence.
     """
     observed = observed or {}
@@ -107,6 +109,8 @@ def samples(
             continue
         assert isinstance(node, DecisionNode)
         rule = policy_rules[name]
+        if isinstance(rule, SoftmaxPolicy):
+            continue
         if node.parents:
             draws[name] = jax.vmap(rule)(
                 **{parent: draws[parent] for parent in node.parents}

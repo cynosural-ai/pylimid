@@ -1,7 +1,7 @@
 """
 Decision node — a variable the agent controls.
 
-A decision node has **no distribution**: its value is chosen, not sampled. What
+A decision node has **no chance distribution**: a policy controls its action. What
 it does carry is:
 
 - an **information set** (the ``parents`` field — the variables observed when
@@ -38,6 +38,7 @@ from pylimid.graph.node import (
     Node,
     NodeKind,
 )
+from pylimid.policy_family import LinearSoftmax
 
 
 @dataclass
@@ -47,12 +48,12 @@ class DecisionNode(Node):
 
     A decision chooses among a finite set of actions. Tabular policies require every
     parent to declare named finite states; numerical counts and continuous parents
-    cannot index these tables. Supplied deterministic function policies accepted by
-    `infer` can use continuous observations for forward evaluation; the current
-    solvers still require tabular policies. Its ``parents`` are the information
-    available when it
-    acts; earlier observations and decisions are remembered only when included
-    explicitly.
+    cannot index these tables. Supplied deterministic functions and fitted
+    `SoftmaxPolicy` rules can use continuous observations during forward evaluation
+    with `infer`. Declare `LinearSoftmax` to fit one decision through
+    ``solve(method="policy_gradient")``. Its ``parents`` are the information available
+    when it acts; earlier observations and decisions are remembered only when
+    included explicitly.
     ``states=None`` leaves the decision unconfigured.
 
     Attributes:
@@ -63,14 +64,24 @@ class DecisionNode(Node):
         states: Labels for the available actions. ``None`` (the default) marks
             the decision as not-yet-configured. Values flowing through the
             graph are integer indices into this tuple.
+        policy_family: Optional creator-selected `LinearSoftmax` family. Use
+            ``solve(method="policy_gradient")`` to fit it for a single decision.
+            ``None`` retains the existing tabular solver behavior.
     """
 
     states: tuple[str, ...] | None = field(default=None, kw_only=True)
+    policy_family: LinearSoftmax | None = field(default=None, kw_only=True)
 
     def __setattr__(self, key: str, value: Any) -> None:
-        """Validate ``states`` (decision-specific) then defer to base."""
+        """Validate decision-specific fields, then defer to the base node."""
         if key == "states":
             _validate_states(value)
+        elif (
+            key == "policy_family"
+            and value is not None
+            and not isinstance(value, LinearSoftmax)
+        ):
+            raise TypeError("`policy_family` must be a LinearSoftmax instance or None.")
         super().__setattr__(key, value)
 
     # --- kind / structure ---------------------------------------------------

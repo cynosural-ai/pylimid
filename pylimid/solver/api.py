@@ -10,6 +10,7 @@ from pylimid.errors import InferenceError
 from pylimid.graph.diagram import InfluenceDiagram
 from pylimid.graph.node import NodeKind
 from pylimid.solver.backward_induction import solve as backward_induction_solve
+from pylimid.solver.policy_gradient import solve as policy_gradient_solve
 from pylimid.solver.regularity import is_solvable
 from pylimid.solver.scan.batched import solve as batched_solve
 from pylimid.solver.solution import Solution
@@ -17,7 +18,7 @@ from pylimid.solver.solution import Solution
 __all__ = ["SolveMethod", "solve"]
 
 #: Solver selection for solve().
-SolveMethod = Literal["auto", "backward_induction", "scan"]
+SolveMethod = Literal["auto", "backward_induction", "scan", "policy_gradient"]
 
 
 def solve(
@@ -25,15 +26,17 @@ def solve(
     *,
     method: SolveMethod = "auto",
     num_samples: int = 2000,
+    num_steps: int | None = None,
+    learning_rate: float | None = None,
     rng_key: jax.Array | None = None,
 ) -> Solution:
     """
     Find a policy that maximises expected total utility.
 
-    Two Monte Carlo solvers are available, both for finite decisions with categorical
-    information sets. Numerical counts and continuous chance nodes may feed other
-    chance nodes and utilities, but cannot index decision tables. The total utility
-    is the sum of all utility nodes.
+    All methods estimate the sum of all utility nodes by Monte Carlo simulation.
+    Table solvers require finite decisions with categorical information sets.
+    The policy-gradient solver fits one finite decision with numerical, categorical,
+    or mixed information parents and a declared `LinearSoftmax` family.
 
     - ``"backward_induction"`` resolves one decision at a time, from the
       last to the first, estimating each action's expected utility per
@@ -45,8 +48,13 @@ def solve(
       utility by forward sampling, keeping the best. It handles any
       diagram with finite decisions and categorical information sets. Its policy count
       grows exponentially with the number of action-table entries.
-    - ``"auto"`` uses backward induction when the diagram is solvable and
-      the scan otherwise.
+    - ``"policy_gradient"`` fits exactly one decision declaring
+      ``policy_family=LinearSoftmax()`` using sampled-action score gradients and Adam.
+      It returns a stochastic `SoftmaxPolicy`, evaluated on fresh simulations.
+      Training has no global or local optimality guarantee, even within the family.
+    - ``"auto"`` selects between the two table solvers only: backward induction when
+      the diagram is solvable and the scan otherwise. Table solvers reject declared
+      policy families; select ``"policy_gradient"`` explicitly to fit one.
 
     Chance distributions and utility functions must be JAX-traceable: use ``jnp``
     operations on parent values, without ``float()`` or ``int()`` conversions or Python
@@ -62,24 +70,33 @@ def solve(
             automatically.
         method: Which solver to run.
         num_samples: Forward samples per evaluation: per candidate policy
-            for the scan, per action per decision for backward induction.
+            for the scan, per action per decision for backward induction, and per
+            training update and final evaluation for policy gradients.
+        num_steps: Optimizer updates for ``method="policy_gradient"``; defaults
+            to 500 for that method. Must be omitted for table solvers.
+        learning_rate: Adam step size for ``method="policy_gradient"``; defaults
+            to 0.05 for that method. Must be omitted for table solvers.
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``, so
             repeated calls return the same estimate.
 
     Returns:
-        A `Solution` with the optimal per-decision policy (decision name to
-        information-set assignment to chosen action), the expected total
-        utility (a Monte-Carlo estimate), and the solver that ran
-        (`Solution.method`, never ``"auto"``).
+        A `Solution` containing action tables or a fitted stochastic rule, estimated
+        expected total utility, and the solver that ran (`Solution.method`, never
+        ``"auto"``). Policy-gradient utility is estimated independently of training.
 
     Raises:
         InferenceError: If the diagram has no decision nodes, if a
             decision's information set lacks named states, if
             ``method="backward_induction"`` is asked for on a diagram that is
             not solvable. Also raised if
-            a chance distribution conflicts with its ``states``.
-        ValueError: If the diagram fails `InfluenceDiagram.validate`, or *method* is not
-            one of the supported names.
+            a chance distribution conflicts with its ``states``, or a table solver
+            is selected for a decision with a declared policy family.
+        ValueError: If the diagram fails `InfluenceDiagram.validate`, *method* is
+            unsupported, optimizer settings are invalid or supplied to a table solver,
+            the policy-gradient decision lacks a family, or training/evaluation
+            produces non-finite results.
+        NotImplementedError: If policy-gradient training is requested for multiple
+            decisions.
 
     Warns:
         UserWarning: If backward induction never samples an information-set assignment.
@@ -87,10 +104,10 @@ def solve(
             can help with rare assignments, but impossible assignments cannot be
             sampled.
     """
-    if method not in ("auto", "backward_induction", "scan"):
+    if method not in ("auto", "backward_induction", "scan", "policy_gradient"):
         raise ValueError(
             f"Unknown method {method!r}; expected 'auto', "
-            "'backward_induction' or 'scan'."
+            "'backward_induction', 'scan' or 'policy_gradient'."
         )
 
     snapshot = diagram.snapshot()
@@ -101,6 +118,18 @@ def solve(
             "node; this diagram has none. Use infer() for Bayesian networks."
         )
 
+    if method == "policy_gradient":
+        return policy_gradient_solve(
+            snapshot,
+            num_samples=num_samples,
+            num_steps=500 if num_steps is None else num_steps,
+            learning_rate=0.05 if learning_rate is None else learning_rate,
+            rng_key=rng_key,
+        )
+    if num_steps is not None or learning_rate is not None:
+        raise ValueError(
+            "num_steps and learning_rate require method='policy_gradient'."
+        )
     if method == "auto":
         method = "backward_induction" if is_solvable(snapshot) else "scan"
     solver = (

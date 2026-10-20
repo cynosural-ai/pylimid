@@ -1,4 +1,4 @@
-"""Decision policies represented by tables or deterministic functions."""
+"""Decision policies represented by tables, functions, or fitted stochastic rules."""
 
 from __future__ import annotations
 
@@ -14,15 +14,16 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.node import _signature_matches
+from pylimid.policy_family import SoftmaxPolicy
 
 __all__ = ["Policy"]
 
-#: Decision names mapped to action tables or JAX-traceable deterministic functions.
+#: Decision names mapped to action tables, deterministic functions, or fitted rules.
 #: Tables map parent-state tuples to action indices. Functions accept information
-#: parents by keyword and return a scalar integer action index. Function policies
-#: currently support forward evaluation only.
+#: parents by keyword and return a scalar integer action index. Functions and fitted
+#: stochastic rules currently support forward evaluation only.
 Policy: TypeAlias = dict[
-    str, dict[tuple[int, ...], int] | Callable[..., int | jax.Array]
+    str, dict[tuple[int, ...], int] | Callable[..., int | jax.Array] | SoftmaxPolicy
 ]
 
 _TablePolicy: TypeAlias = dict[str, dict[tuple[int, ...], int]]
@@ -72,7 +73,7 @@ def _policy_rules(
     snapshot: DiagramSnapshot,
     policy: Policy,
     observed: Mapping[str, object],
-) -> dict[str, Callable[..., jax.Array]]:
+) -> dict[str, Callable[..., jax.Array] | SoftmaxPolicy]:
     """Validate rules and bind tables and functions to one evaluation interface."""
     nodes = dict(snapshot.nodes)
     node_map = {
@@ -89,6 +90,27 @@ def _policy_rules(
         decision = nodes[name]
         if not isinstance(decision, DecisionNode):
             raise InferenceError(f"Policy for {name!r} must bind a decision node.")
+        if isinstance(rule, SoftmaxPolicy):
+            if (
+                set(rule.parents) != set(decision.parents)
+                or rule.states != decision.states
+                or any(
+                    states != node_map[parent].states
+                    for parent, states in zip(
+                        rule.parents, rule.parent_states, strict=True
+                    )
+                )
+            ):
+                raise InferenceError(
+                    f"Policy for {name!r} has incompatible information "
+                    "or action states."
+                )
+            if has_chance_evidence:
+                raise NotImplementedError(
+                    "Softmax policies support forward evaluation only."
+                )
+            rules[name] = rule
+            continue
         if not isinstance(rule, dict):
             if not _signature_matches(rule, decision.parents):
                 raise InferenceError(
@@ -117,6 +139,16 @@ def _policy_rules(
             _policy_array(decision, rule, node_map), decision.parents
         )
     return rules
+
+
+def _require_tabular_families(snapshot: DiagramSnapshot) -> None:
+    """Require table solvers to preserve creator-declared policy families."""
+    for name, node in snapshot.nodes:
+        if isinstance(node, DecisionNode) and node.policy_family is not None:
+            raise ValueError(
+                f"Decision {name!r} declares a policy family; table solvers cannot "
+                "fit it. Use method='policy_gradient'."
+            )
 
 
 def _table_rule(table: jax.Array, parents: tuple[str, ...]) -> Callable[..., jax.Array]:

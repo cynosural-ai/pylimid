@@ -13,6 +13,7 @@ from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.node import NodeKind
 from pylimid.inference.posterior import InferenceResult, Posterior
 from pylimid.numpyro import samples
+from pylimid.policy_family import SoftmaxPolicy
 
 __all__ = ["infer"]
 
@@ -23,7 +24,11 @@ def infer(
     *,
     observed: dict[str, int | float] | None = None,
     policy: Mapping[
-        str, int | dict[tuple[int, ...], int] | Callable[..., int | jax.Array]
+        str,
+        int
+        | dict[tuple[int, ...], int]
+        | Callable[..., int | jax.Array]
+        | SoftmaxPolicy,
     ]
     | None = None,
     num_samples: int = 2000,
@@ -37,8 +42,10 @@ def infer(
     A decision among those ancestors must be bound by *policy*. A fixed
     integer action clamps it, while a table policy selects an action from its
     information-set assignment. A deterministic function can select an action from
-    continuous or mixed observations during forward evaluation. A decision outside
-    the relevant ancestors needs no policy.
+    continuous or mixed observations during forward evaluation. A fitted
+    `SoftmaxPolicy` samples actions using its learned probabilities. Functions and
+    fitted stochastic rules support forward evaluation only. A decision outside the
+    relevant ancestors needs no policy.
 
     A utility in *query* is computed from its parents in every draw, which
     gives the distribution of the payoff under the bound actions and the
@@ -66,9 +73,10 @@ def infer(
             variable, or a real value for a continuous one.
         policy: Map from decision names to fixed integer actions, contingent
             action tables in the format returned by `solve`, or JAX-traceable
-            deterministic functions. Functions accept information parents by keyword
-            and return a scalar integer action index; they support forward evaluation
-            only, without observed chance nodes. A table maps each
+            deterministic functions, or fitted `SoftmaxPolicy` rules. Functions accept
+            information parents by keyword and return a scalar integer action index.
+            Functions and fitted rules support forward evaluation only, without
+            observed chance nodes. A table maps each
             tuple of parent-state indices, in the decision's ``parents`` order, to an
             action index in its ``states``. A decision with no parents uses ``()`` as
             its table key. Every decision that is an ancestor of a query or observed
@@ -98,8 +106,8 @@ def infer(
         ValueError: If the diagram fails `InfluenceDiagram.validate`, or a table policy
             has an information-set parent without named states, or a relevant chance
             distribution conflicts with its ``states``.
-        NotImplementedError: If a relevant function policy is combined with chance-node
-            evidence.
+        NotImplementedError: If a relevant function or fitted stochastic policy uses
+            chance-node evidence.
     """
     observed = observed or {}
     policy = policy or {}
@@ -129,13 +137,13 @@ def infer(
         nodes=tuple((name, node) for name, node in snapshot.nodes if name in relevant)
     )
     contingent_policy: dict[
-        str, dict[tuple[int, ...], int] | Callable[..., int | jax.Array]
+        str, dict[tuple[int, ...], int] | Callable[..., int | jax.Array] | SoftmaxPolicy
     ] = {}
     bound: dict[str, int] = {}
     for name, rule in policy.items():
         if name not in relevant:
             continue
-        if isinstance(rule, dict):
+        if isinstance(rule, (dict, SoftmaxPolicy)):
             contingent_policy[name] = rule
         elif callable(rule):
             contingent_policy[name] = cast(Callable[..., int | jax.Array], rule)

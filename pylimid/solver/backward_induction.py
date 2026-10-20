@@ -46,7 +46,12 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.policy import Policy, _info_assignments, _TablePolicy
+from pylimid.policy import (
+    Policy,
+    _info_assignments,
+    _require_tabular_families,
+    _TablePolicy,
+)
 from pylimid.solver.regularity import solvability_order
 from pylimid.solver.solution import Solution
 
@@ -88,14 +93,15 @@ def solve(
     Raises:
         ValueError: If the diagram is not solvable (no backward-induction
             order — use the scan), or if a decision's information set is
-            missing named states. Also raised if a chance
-            distribution conflicts with its ``states``.
+            missing named states. Also raised if a decision declares a policy family
+            or a chance distribution conflicts with its ``states``.
 
     Warns:
         UserWarning: If an information-set assignment never appeared in the samples.
             Its action defaults to the first in ``states``. Increasing ``num_samples``
             can help with rare assignments; impossible assignments cannot be sampled.
     """
+    _require_tabular_families(snapshot)
     if rng_key is None:
         rng_key = jax.random.PRNGKey(0)
 

@@ -1,6 +1,6 @@
 # Discrete decisions with continuous information
 
-**Status:** deterministic function policies support forward evaluation. Policy-family declarations and optimization remain proposals. This is a separate extension from continuous actions. Every decision in scope still declares a finite tuple of action `states`; what changes is the policy's ability to use continuous observations.
+**Status:** stages 1 and 2 are implemented: deterministic function evaluation, and explicit linear-softmax training for exactly one decision with stochastic forward reuse. Multiple-decision optimization and custom trainable families remain proposals. This is a separate extension from continuous actions. Every decision in scope still declares a finite tuple of action `states`; what changes is the policy's ability to use continuous observations.
 
 The diagram creator chooses each decision's policy family: the form of the rule connecting its observations to its actions. The solver fits that family's parameters to maximize expected utility and returns the fitted policy. Tables and functions are supported representations under one policy abstraction; a neural network is optional.
 
@@ -11,14 +11,14 @@ An action space and an information set are different parts of a decision problem
 | Actions | Observations | Policy representation | Status |
 | --- | --- | --- | --- |
 | Discrete | Finite categorical states | Table from parent-state assignments to action indices | Implemented |
-| Discrete | Continuous, or mixed categorical and continuous | Function from observed values to action indices or action probabilities | Deterministic forward evaluation implemented; training and randomized rules proposed |
+| Discrete | Continuous, or mixed categorical and continuous | Function from observed values to action indices or action probabilities | Deterministic and fitted stochastic forward evaluation implemented; linear-softmax training implemented for one decision |
 | Continuous | Categorical, continuous, or mixed | Function returning a real-valued action | Separate continuous-action proposal |
 
 Observing an exact temperature and choosing **fan on/off** belongs to this proposal. Observing temperature and choosing **heater power** requires continuous actions. Continuous chance variables elsewhere in the graph are already supported and do not by themselves require either extension.
 
 The existing [continuous-decision draft](https://github.com/cynosural-ai/pylimid/pull/41) groups both missing capabilities into a wider exploration. This note separates the discrete-action case so its policy representation, optimizer, and validation can be reviewed and implemented without declaring continuous decisions, action bounds, or differentiable action-to-utility paths.
 
-Suggested order: support evaluating policies that accept continuous information, add an approximate solver for those policies, then revisit continuous actions. This is a proposed order, not a claim that the two action types use the same gradient estimator.
+Stages 1 and 2 establish evaluation and single-decision training. Next extend training to several decisions, then revisit continuous actions. The two action types need not use the same gradient estimator.
 
 ## Influence-diagram semantics
 
@@ -32,15 +32,17 @@ Information constraints remain explicit. A policy may not inspect an unobserved 
 
 ## Current implementation boundary
 
-Table solvers still require categorical information sets. Supplied deterministic function rules can now use continuous observations during forward evaluation:
+Table solvers still require categorical information sets. Supplied deterministic functions and fitted linear-softmax rules can use continuous observations during forward evaluation:
 
 - [`DecisionNode`](../../pylimid/graph/decision_node.py) is configured by its action `states`. A configured discrete decision can have a continuous information parent; adding that parent does not turn it into a continuous decision or leave it unconfigured. `states=None` still means unconfigured.
-- [`Policy`](../../pylimid/policy.py) accepts action tables and JAX-traceable deterministic functions. Table compilation and `_info_assignments` still require named finite parent states and materialize their Cartesian product. Function rules receive raw parent values by keyword and return scalar integer action indices.
+- [`Policy`](../../pylimid/policy.py) accepts action tables, JAX-traceable deterministic functions, and fitted `SoftmaxPolicy` rules. Table compilation and `_info_assignments` still require named finite parent states and materialize their Cartesian product. Function rules receive raw parent values by keyword and return scalar integer action indices.
 - [The scan](../../pylimid/solver/scan/batched.py) and [backward induction](../../pylimid/solver/backward_induction.py) consume those tables. Their continuous chance-node support does not extend to continuous information sets.
-- [`Solution`](../../pylimid/solver/solution.py) accepts table and function rules and renders functions without enumerating their observations. Current solvers still return tables.
-- [`infer(policy=...)`](../../pylimid/inference/api.py) accepts fixed integer actions, tables, and deterministic functions. [`to_model`](../../pylimid/numpyro/model.py) evaluates contingent rules through one interface. Function rules combined with chance-node evidence raise `NotImplementedError`; existing table posterior inference is unchanged. Forward sampling checks function outputs against the action space.
+- [`Solution`](../../pylimid/solver/solution.py) accepts table and function rules and renders functions without enumerating their observations. Table solvers return tables; policy-gradient training returns a fitted stochastic rule.
+- [`infer(policy=...)`](../../pylimid/inference/api.py) accepts fixed integer actions, tables, deterministic functions, and fitted stochastic rules. [`to_model`](../../pylimid/numpyro/model.py) evaluates contingent rules through one interface. Function or fitted stochastic rules combined with chance-node evidence raise `NotImplementedError`; existing table posterior inference is unchanged. Forward sampling checks function outputs against the action space.
 
-The implemented step evaluates complete supplied rules; it does not declare or train policy families. Existing solver behavior and guarantees remain the reference for categorical information sets.
+[`DecisionNode.policy_family`](../../pylimid/graph/decision_node.py) accepts `LinearSoftmax()`. [`solve(method="policy_gradient")`](../../pylimid/solver/policy_gradient.py) fits exactly one such decision using sampled-action score gradients and Adam, then evaluates the final stochastic policy on independent scenarios. Numerical parents supply raw flattened features; categorical parents supply one-hot features. The fitted rule preserves feature order, parent shapes, categorical states and action labels. No scaling is fitted automatically.
+
+`num_steps` and `learning_rate` configure training; `num_samples` is the batch size and final evaluation size. The previous batch's mean return supplies an independent baseline for the next update. The first baseline is zero. The solver returns the final iterate without candidate selection or convergence diagnostics. `method="auto"` still selects table solvers; those reject declared families rather than silently replacing them. Existing table behavior and guarantees remain the reference for categorical information sets.
 
 ## What can still be enumerated
 
@@ -54,7 +56,7 @@ Learning a reusable policy over the observation space is a different task. This 
 
 When defining a decision, the creator declares its available actions, information parents, and policy family. The library should provide built-in families so choosing a representation does not require writing an optimizer. Custom families must meet the selected solver's contract. The solver fits parameters within the declared family; it does not choose a different architecture.
 
-For example, an oil-drilling decision might be specified as follows. This describes the proposed contract, not an implemented Python API:
+For example, an oil-drilling decision can declare `policy_family=LinearSoftmax()`. The neural-network alternative below illustrates a future family, not an implemented API:
 
 | Part of the decision | Creator chooses | Solver determines |
 | --- | --- | --- |
@@ -72,7 +74,7 @@ logits(h; theta) = W features(h) + b
 pi_theta(a | h) = softmax(logits(h; theta))[a]
 ```
 
-The creator can instead choose nonlinear features or a neural network to produce the logits. A more expressive family permits more complex strategies and can require more optimization and samples. The solver searches the selected family; it cannot recover a strategy that family cannot represent.
+A future extension could let the creator choose nonlinear features or a neural network to produce the logits. A more expressive family permits more complex strategies and can require more optimization and samples. The solver searches the selected family; it cannot recover a strategy that family cannot represent.
 
 ### One policy abstraction
 
@@ -82,7 +84,7 @@ The result contains each fitted rule together with its family, parameter values,
 
 A supplied function with fixed parameters is already a complete policy: it can be evaluated without solving. A trainable family additionally exposes parameters and the operations required by its optimizer. For example, a deterministic threshold can be evaluated using the existing JAX-traceable simulation contract, but optimizing its cutoff requires a compatible search method. A sampled threshold objective can have zero derivatives almost everywhere, so it is not automatically supported by the score-function solver below.
 
-The ownership is settled: the creator chooses the family, the solver fits it, and the result preserves it. Exact class names, where the family is attached in the decision-definition API, and method signatures remain open.
+The creator chooses the family on `DecisionNode.policy_family`; `LinearSoftmax` is implemented and `SoftmaxPolicy` preserves the fitted rule. The solver fits parameters and does not choose another representation. Contracts for additional custom families and optimizer diagnostics remain open.
 
 ## A general approximate solver
 
@@ -172,7 +174,7 @@ Taking the largest logit produces a deterministic policy, but changes the policy
 
 ## Validation plan
 
-These are requirements for a future implementation, not tests added by this documentation proposal:
+The single-decision tests in `tests/solver/test_policy_gradient.py` cover the analytic and action-enumerated gradient oracle, learned utility, mixed categorical/vector observations, hidden non-parent information, discrete descendants, stochastic action/descendant correlation, reproducibility, policy reuse and unsupported solver selections. The broader validation plan below also includes future stages:
 
 - **Analytic oracle.** Recover the signal example's utility within stated tolerances and sample budgets. At known parameters, compare Monte Carlo score gradients to `(1/12, 0)` and to action-enumerated gradients.
 - **Categorical overlap.** On small existing categorical fixtures, compare against the exhaustive scan, which supplies a finite-policy reference. Include a table-logit policy family capable of approximating each deterministic table; an affine classifier alone may not represent that reference. An approximate optimizer is not required to reach the reference on every run.
@@ -193,12 +195,12 @@ The existing scan's exhaustive finite-policy search guarantee does not carry ove
 ## Proposed implementation stages and open decisions
 
 1. **Evaluate supplied function policies (implemented).** Keep finite action `states`; use one policy abstraction with table and deterministic function rules evaluated only from declared information parents. Support forward evaluation and rendering, preserving the existing table input format. No optimizer is needed to evaluate a supplied rule. Randomized rules and posterior inference through functions remain outside this step.
-2. **Optimize one discrete decision.** Let the creator declare a built-in linear-softmax family for the decision, and return the fitted family and parameters. Establish the expected-utility objective and analytic oracle, then implement score gradients and compare with finite action enumeration. Keep optimization settings explicit.
+2. **Optimize one discrete decision (implemented).** Declare `DecisionNode.policy_family=LinearSoftmax()` and select `method="policy_gradient"`. Fit score gradients with Adam, a previous-batch baseline, and explicit budgets; evaluate the final stochastic policy on fresh simulations. Analytic and action-enumerated gradients validate the estimator. The returned `SoftmaxPolicy` supports stochastic forward reuse. Multi-decision training and other trainable families are rejected.
 3. **Optimize several decisions.** Extend the validated estimator to full trajectories with mixed information sets and explicit LIMID memory. Add baselines and report candidate selection and evaluation separately. This is the general solver milestone; one-decision support alone is not sufficient.
 4. **Improve efficiency.** Investigate conditional action enumeration, richer policy families, or learned action-value policies where benchmarks justify them.
 5. **Revisit continuous actions independently.** Reuse policy binding and evaluation infrastructure where appropriate, while adding action domains and suitable pathwise or other estimators as separate work.
 
-Before implementation, decide the exact public syntax for declaring families and storing fitted rules under the shared policy abstraction, action sampling and random-key contracts, and which optimizer diagnostics belong in the result. Fixed actions, tables, and function policies need unambiguous dispatch. The creator's choice of family is part of the decision specification. A new solver should initially be explicit; extending `method="auto"` must preserve that choice and requires an agreed approximation and result contract.
+Before extending training, decide the custom-family contract and which optimizer diagnostics belong in the result. Fixed actions, tables, deterministic functions and fitted stochastic rules already have separate dispatch. The creator's family is part of the decision specification. Extending `method="auto"` must preserve that choice and requires an agreed approximation and result contract.
 
 Forward evaluation should be supported before promising posterior reuse through `infer(policy=...)`. Conditioning with a threshold policy can introduce discontinuities in continuous latent variables, so accepting a callable does not automatically make the current NUTS path reliable. Posterior inference compatibility needs its own documented support boundary.
 
