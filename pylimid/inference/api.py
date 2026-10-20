@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from typing import cast
 
 import jax
 
@@ -12,7 +13,6 @@ from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.node import NodeKind
 from pylimid.inference.posterior import InferenceResult, Posterior
 from pylimid.numpyro import samples
-from pylimid.policy import Policy
 
 __all__ = ["infer"]
 
@@ -22,7 +22,10 @@ def infer(
     query: list[str],
     *,
     observed: dict[str, int | float] | None = None,
-    policy: Mapping[str, int | dict[tuple[int, ...], int]] | None = None,
+    policy: Mapping[
+        str, int | dict[tuple[int, ...], int] | Callable[..., int | jax.Array]
+    ]
+    | None = None,
     num_samples: int = 2000,
     rng_key: jax.Array | None = None,
 ) -> InferenceResult:
@@ -33,7 +36,9 @@ def infer(
     inference: any other node cannot change the posterior, so it is left out.
     A decision among those ancestors must be bound by *policy*. A fixed
     integer action clamps it, while a table policy selects an action from its
-    information-set assignment. A decision outside them needs no policy.
+    information-set assignment. A deterministic function can select an action from
+    continuous or mixed observations during forward evaluation. A decision outside
+    the relevant ancestors needs no policy.
 
     A utility in *query* is computed from its parents in every draw, which
     gives the distribution of the payoff under the bound actions and the
@@ -59,8 +64,11 @@ def infer(
         observed: Map from chance node name to its observed value: an integer state
             index for a categorical variable, an actual count for a numerical discrete
             variable, or a real value for a continuous one.
-        policy: Map from decision names to fixed integer actions or contingent
-            action tables in the format returned by `solve`. A table maps each
+        policy: Map from decision names to fixed integer actions, contingent
+            action tables in the format returned by `solve`, or JAX-traceable
+            deterministic functions. Functions accept information parents by keyword
+            and return a scalar integer action index; they support forward evaluation
+            only, without observed chance nodes. A table maps each
             tuple of parent-state indices, in the decision's ``parents`` order, to an
             action index in its ``states``. A decision with no parents uses ``()`` as
             its table key. Every decision that is an ancestor of a query or observed
@@ -90,6 +98,8 @@ def infer(
         ValueError: If the diagram fails `InfluenceDiagram.validate`, or a table policy
             has an information-set parent without named states, or a relevant chance
             distribution conflicts with its ``states``.
+        NotImplementedError: If a relevant function policy is combined with chance-node
+            evidence.
     """
     observed = observed or {}
     policy = policy or {}
@@ -118,13 +128,17 @@ def infer(
     pruned = DiagramSnapshot(
         nodes=tuple((name, node) for name, node in snapshot.nodes if name in relevant)
     )
-    table_policy: Policy = {}
+    contingent_policy: dict[
+        str, dict[tuple[int, ...], int] | Callable[..., int | jax.Array]
+    ] = {}
     bound: dict[str, int] = {}
     for name, rule in policy.items():
         if name not in relevant:
             continue
         if isinstance(rule, dict):
-            table_policy[name] = rule
+            contingent_policy[name] = rule
+        elif callable(rule):
+            contingent_policy[name] = cast(Callable[..., int | jax.Array], rule)
         else:
             bound[name] = rule
     draws = samples(
@@ -133,7 +147,7 @@ def infer(
         query=query,
         num_samples=num_samples,
         rng_key=rng_key,
-        policy=table_policy,
+        policy=contingent_policy,
     )
     nodes = dict(pruned.nodes)
     result: InferenceResult = {}

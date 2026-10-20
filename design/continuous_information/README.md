@@ -1,6 +1,6 @@
 # Discrete decisions with continuous information
 
-**Status:** proposal, not implemented. This is a separate extension from continuous actions and can be implemented first. Every decision in scope still declares a finite tuple of action `states`; what changes is the policy's ability to use continuous observations.
+**Status:** deterministic function policies support forward evaluation. Policy-family declarations and optimization remain proposals. This is a separate extension from continuous actions. Every decision in scope still declares a finite tuple of action `states`; what changes is the policy's ability to use continuous observations.
 
 The diagram creator chooses each decision's policy family: the form of the rule connecting its observations to its actions. The solver fits that family's parameters to maximize expected utility and returns the fitted policy. Tables and functions are supported representations under one policy abstraction; a neural network is optional.
 
@@ -11,7 +11,7 @@ An action space and an information set are different parts of a decision problem
 | Actions | Observations | Policy representation | Status |
 | --- | --- | --- | --- |
 | Discrete | Finite categorical states | Table from parent-state assignments to action indices | Implemented |
-| Discrete | Continuous, or mixed categorical and continuous | Function from observed values to action indices or action probabilities | This proposal |
+| Discrete | Continuous, or mixed categorical and continuous | Function from observed values to action indices or action probabilities | Deterministic forward evaluation implemented; training and randomized rules proposed |
 | Continuous | Categorical, continuous, or mixed | Function returning a real-valued action | Separate continuous-action proposal |
 
 Observing an exact temperature and choosing **fan on/off** belongs to this proposal. Observing temperature and choosing **heater power** requires continuous actions. Continuous chance variables elsewhere in the graph are already supported and do not by themselves require either extension.
@@ -32,15 +32,15 @@ Information constraints remain explicit. A policy may not inspect an unobserved 
 
 ## Current implementation boundary
 
-The restriction is in the table representation, not a mathematical prohibition on continuous information or a NumPyro distribution limitation:
+Table solvers still require categorical information sets. Supplied deterministic function rules can now use continuous observations during forward evaluation:
 
 - [`DecisionNode`](../../pylimid/graph/decision_node.py) is configured by its action `states`. A configured discrete decision can have a continuous information parent; adding that parent does not turn it into a continuous decision or leave it unconfigured. `states=None` still means unconfigured.
-- [`Policy` and `_info_assignments`](../../pylimid/policy.py) require named finite parent states and materialize their Cartesian product. A continuous parent has no such table index. Numerical count parents without named states also fail this check, but their public support is a separate scope decision.
+- [`Policy`](../../pylimid/policy.py) accepts action tables and JAX-traceable deterministic functions. Table compilation and `_info_assignments` still require named finite parent states and materialize their Cartesian product. Function rules receive raw parent values by keyword and return scalar integer action indices.
 - [The scan](../../pylimid/solver/scan/batched.py) and [backward induction](../../pylimid/solver/backward_induction.py) consume those tables. Their continuous chance-node support does not extend to continuous information sets.
-- [`Solution`](../../pylimid/solver/solution.py) stores integer action tables and renders every row. A function over continuous observations cannot be returned or printed using that contract alone.
-- [`infer(policy=...)`](../../pylimid/inference/api.py) accepts fixed integer actions and action tables. [`to_model`](../../pylimid/numpyro/model.py) resolves contingent decisions by indexing those tables, and skips utility nodes. A policy optimizer needs utility evaluation as well as a more general policy binding.
+- [`Solution`](../../pylimid/solver/solution.py) accepts table and function rules and renders functions without enumerating their observations. Current solvers still return tables.
+- [`infer(policy=...)`](../../pylimid/inference/api.py) accepts fixed integer actions, tables, and deterministic functions. [`to_model`](../../pylimid/numpyro/model.py) evaluates contingent rules through one interface. Function rules combined with chance-node evidence raise `NotImplementedError`; existing table posterior inference is unchanged. Forward sampling checks function outputs against the action space.
 
-This proposal does not implement any of these changes. Existing behavior and solver guarantees remain the reference for categorical information sets.
+The implemented step evaluates complete supplied rules; it does not declare or train policy families. Existing solver behavior and guarantees remain the reference for categorical information sets.
 
 ## What can still be enumerated
 
@@ -192,7 +192,7 @@ The existing scan's exhaustive finite-policy search guarantee does not carry ove
 
 ## Proposed implementation stages and open decisions
 
-1. **Evaluate supplied function policies.** Keep finite action `states`; establish one policy abstraction with table and function rules evaluated only from declared information parents. Define forward evaluation and rendering without pretending the observation space is a finite table. Preserve the existing table input format. No optimizer is needed to evaluate a supplied rule.
+1. **Evaluate supplied function policies (implemented).** Keep finite action `states`; use one policy abstraction with table and deterministic function rules evaluated only from declared information parents. Support forward evaluation and rendering, preserving the existing table input format. No optimizer is needed to evaluate a supplied rule. Randomized rules and posterior inference through functions remain outside this step.
 2. **Optimize one discrete decision.** Let the creator declare a built-in linear-softmax family for the decision, and return the fitted family and parameters. Establish the expected-utility objective and analytic oracle, then implement score gradients and compare with finite action enumeration. Keep optimization settings explicit.
 3. **Optimize several decisions.** Extend the validated estimator to full trajectories with mixed information sets and explicit LIMID memory. Add baselines and report candidate selection and evaluation separately. This is the general solver milestone; one-decision support alone is not sufficient.
 4. **Improve efficiency.** Investigate conditional action enumeration, richer policy families, or learned action-value policies where benchmarks justify them.

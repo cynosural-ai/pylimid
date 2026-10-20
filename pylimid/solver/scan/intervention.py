@@ -40,6 +40,8 @@ References:
 
 from __future__ import annotations
 
+from typing import cast
+
 import jax
 
 from pylimid._distributions import _validate_chance_distribution
@@ -47,7 +49,7 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.policy import Policy, _info_assignments, _policy_array
+from pylimid.policy import Policy, _info_assignments, _policy_array, _TablePolicy
 from pylimid.solver.scan._policy import (
     Rule,
     policy_space,
@@ -107,7 +109,7 @@ def solve(
         assignments = _info_assignments(node, node_map)
         rules.append((name, node, assignments))
 
-    best: tuple[float, Policy] | None = None
+    best: tuple[float, _TablePolicy] | None = None
     for policy in policy_space(rules):
         expected_utility = _estimate_eu(
             snapshot, policy, num_samples, rng_key, node_map
@@ -116,7 +118,9 @@ def solve(
             best = (expected_utility, policy)
 
     assert best is not None
-    return Solution(policy=best[1], expected_utility=best[0], method="scan")
+    return Solution(
+        policy=cast(Policy, best[1]), expected_utility=best[0], method="scan"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +130,7 @@ def solve(
 
 def _estimate_eu(
     snapshot: DiagramSnapshot,
-    policy: Policy,
+    policy: _TablePolicy,
     num_samples: int,
     rng_key: jax.Array,
     node_map: dict[str, ChanceNode | DecisionNode],

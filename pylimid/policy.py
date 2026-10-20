@@ -1,9 +1,10 @@
-"""Policies and their shared state-indexed array representation."""
+"""Decision policies represented by tables or deterministic functions."""
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from itertools import product
-from typing import TypeAlias
+from typing import TypeAlias, cast
 
 import jax
 import jax.numpy as jnp
@@ -12,11 +13,19 @@ from pylimid.errors import InferenceError
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
+from pylimid.graph.node import _signature_matches
 
 __all__ = ["Policy"]
 
-#: Policy tables: decision name -> {parent-state indices: action index}.
-Policy: TypeAlias = dict[str, dict[tuple[int, ...], int]]
+#: Decision names mapped to action tables or JAX-traceable deterministic functions.
+#: Tables map parent-state tuples to action indices. Functions accept information
+#: parents by keyword and return a scalar integer action index. Function policies
+#: currently support forward evaluation only.
+Policy: TypeAlias = dict[
+    str, dict[tuple[int, ...], int] | Callable[..., int | jax.Array]
+]
+
+_TablePolicy: TypeAlias = dict[str, dict[tuple[int, ...], int]]
 
 
 def _info_assignments(
@@ -59,19 +68,41 @@ def _policy_array(
     return arr
 
 
-def _policy_tables(snapshot: DiagramSnapshot, policy: Policy) -> dict[str, jax.Array]:
-    """Validate contingent rules and encode them as state-indexed arrays."""
+def _policy_rules(
+    snapshot: DiagramSnapshot,
+    policy: Policy,
+    observed: Mapping[str, object],
+) -> dict[str, Callable[..., jax.Array]]:
+    """Validate rules and bind tables and functions to one evaluation interface."""
     nodes = dict(snapshot.nodes)
     node_map = {
         name: node
         for name, node in snapshot.nodes
         if isinstance(node, (ChanceNode, DecisionNode))
     }
-    tables = {}
+    has_chance_evidence = any(
+        name in observed and isinstance(node, ChanceNode)
+        for name, node in snapshot.nodes
+    )
+    rules = {}
     for name, rule in policy.items():
         decision = nodes[name]
         if not isinstance(decision, DecisionNode):
             raise InferenceError(f"Policy for {name!r} must bind a decision node.")
+        if not isinstance(rule, dict):
+            if not _signature_matches(rule, decision.parents):
+                raise InferenceError(
+                    f"Policy for {name!r} must accept its information parents "
+                    f"{decision.parents!r} as named keyword arguments."
+                )
+            if has_chance_evidence:
+                raise NotImplementedError(
+                    "Function policies support forward evaluation only; "
+                    "conditioning on chance-node evidence is not supported."
+                )
+            rules[name] = _function_rule(name, rule)
+            continue
+        rule = cast(dict[tuple[int, ...], int], rule)
         if set(rule) != set(_info_assignments(decision, node_map)):
             raise InferenceError(
                 f"Policy for {name!r} must define every information-set assignment."
@@ -82,5 +113,33 @@ def _policy_tables(snapshot: DiagramSnapshot, policy: Policy) -> dict[str, jax.A
             for action in rule.values()
         ):
             raise InferenceError(f"Policy for {name!r} contains an invalid action.")
-        tables[name] = _policy_array(decision, rule, node_map)
-    return tables
+        rules[name] = _table_rule(
+            _policy_array(decision, rule, node_map), decision.parents
+        )
+    return rules
+
+
+def _table_rule(table: jax.Array, parents: tuple[str, ...]) -> Callable[..., jax.Array]:
+    """Wrap a compiled action table as a function of named parent values."""
+
+    def evaluate(**parent_values: jax.Array) -> jax.Array:
+        return table[tuple(parent_values[parent] for parent in parents)]
+
+    return evaluate
+
+
+def _function_rule(
+    name: str, function: Callable[..., int | jax.Array]
+) -> Callable[..., jax.Array]:
+    """Require a function rule to return a scalar integer action."""
+
+    def evaluate(**parent_values: jax.Array) -> jax.Array:
+        action = jnp.asarray(function(**parent_values))
+        if action.shape != () or not jnp.issubdtype(action.dtype, jnp.integer):
+            raise InferenceError(
+                f"Policy for {name!r} must return a scalar integer action index; "
+                f"got shape {action.shape} and dtype {action.dtype}."
+            )
+        return action
+
+    return evaluate

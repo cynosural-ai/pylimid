@@ -34,7 +34,7 @@ Keep the quickstart and README's order menu at 0–200. The Solving guide delibe
 
 ### Accuracy and examples
 
-- Check API claims against the implementation and API reference. Explain finite actions and discrete information sets wherever decisions are introduced. Describe supported chance distributions and state labels accurately; keep the full contract in `ChanceNode`.
+- Check API claims against the implementation and API reference. Explain finite actions and categorical information sets for current solvers wherever solving is introduced. Supplied deterministic function policies can use continuous information during forward evaluation; family training and posterior inference through functions remain unsupported. Describe supported chance distributions and state labels accurately; keep the full contract in `ChanceNode`.
 - Distributions and utilities must be JAX-traceable. Do not describe them as arbitrary Python code; explain the restrictions on casts and Python control flow where relevant.
 - Both `infer` and `solve` return Monte Carlo estimates. Distinguish exact discrete enumeration as a method from the accuracy of the returned summaries, including in mixed models. Explain sampling reliability where readers use estimates. When documenting unsampled situations, distinguish impossible combinations from rare ones, and explain the warning and unoptimised default actions.
 - Keep performance claims modest. Explain when pyAgrum's exact discrete solving may be a better choice.

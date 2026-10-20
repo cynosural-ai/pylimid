@@ -4,7 +4,7 @@ Forward plan. The engine work is done (numpyro-only, scan + batched scan + backw
 
 ## Discrete decisions with continuous information (proposed next)
 
-Allow a finite-action decision to use continuous observations, such as an exact temperature guiding an on/off choice. The creator chooses each decision's policy family; the solver fits its parameters and returns a reusable policy. Tables and functions share one policy abstraction. The [continuous-information proposal](design/continuous_information/README.md) separates evaluating supplied rules from optimizing declared families, describes an approximate optimizer, and records its validation requirements. It can be implemented before continuous decisions; it is not implemented yet.
+Forward evaluation now accepts complete deterministic function rules alongside tables, allowing continuous observations to guide finite actions. Next, let the creator choose each decision's policy family and have the solver fit its parameters and return a reusable policy. The [continuous-information proposal](design/continuous_information/README.md) separates the implemented evaluation step from the proposed family declarations and optimizer. Continuous actions remain a separate extension.
 
 ## Continuous decisions (later)
 

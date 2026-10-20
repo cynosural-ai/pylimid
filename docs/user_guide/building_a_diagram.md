@@ -26,6 +26,8 @@ A decision observes exactly its declared parents. In the shop model, `weather` i
 PyLIMID does not automatically make earlier choices or observations available to later decisions. Anything a later decision should remember must also be one of its parents.
 
 Decisions choose from a finite set of actions. Their tabular policies require parents with named finite states, so numerical counts and continuous variables cannot directly index a decision table.
+
+Supplied deterministic function policies can use continuous observations for forward evaluation with {py:func}`infer`. The current solvers still require categorical information sets. See {py:data}`Policy` for the function contract and its evaluation limits.
 ```
 
 We start with the numbers and the `profit` function from the quickstart:
