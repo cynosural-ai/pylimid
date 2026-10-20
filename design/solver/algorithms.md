@@ -64,7 +64,9 @@ One-pass backward induction is sound exactly on *soluble* LIMIDs, so the gate is
 
 ## Discrete decisions with continuous information (proposed)
 
-The current tiers all require categorical information sets. Supporting a continuous observation does not require a continuous action: a finite-action decision can instead use a function policy. The [continuous-information proposal](../continuous_information/README.md) describes a separate approximate solver that optimizes those policies by forward simulation and score-function gradients, with finite action enumeration as a possible improvement. It respects the same explicit information sets, but does not inherit the scan's exhaustive-search guarantee or a global-optimality guarantee from structural solubility. This extension can precede continuous-action support and is not implemented.
+The current tiers all require categorical information sets. Supporting a continuous observation does not require a continuous action: a finite-action decision can instead use a function policy. In the [continuous-information proposal](../continuous_information/README.md), the diagram creator chooses a policy family per decision, such as linear scores followed by softmax or a neural network followed by softmax. A compatible solver fits its parameters and returns the fitted policy. Tables and functions share one policy abstraction.
+
+The proposed approximate solver uses forward simulation and score-function gradients, with finite action enumeration as a possible improvement. It respects the declared families and explicit information sets, but does not inherit the scan's exhaustive-search guarantee or a global-optimality guarantee from structural solubility. This extension can precede continuous-action support and is not implemented.
 
 ## The papers
 

@@ -2,6 +2,8 @@
 
 **Status:** proposal, not implemented. This is a separate extension from continuous actions and can be implemented first. Every decision in scope still declares a finite tuple of action `states`; what changes is the policy's ability to use continuous observations.
 
+The diagram creator chooses each decision's policy family: the form of the rule connecting its observations to its actions. The solver fits that family's parameters to maximize expected utility and returns the fitted policy. Tables and functions are supported representations under one policy abstraction; a neural network is optional.
+
 ## Scope and sequencing
 
 An action space and an information set are different parts of a decision problem:
@@ -46,28 +48,45 @@ The continuous observation space cannot be exhaustively tabulated. An unrestrict
 
 For one decision, let `Q(h, a)` be the expected total utility of choosing action `a` after observing `h`. If `Q` is available, an optimal action at that observation is simply `argmax_a Q(h, a)`. No gradient-based policy training is required to make that one comparison. Obtaining conditional values at arbitrary continuous observations can itself require inference, regression, or conditional simulation; grouping forward draws by exactly equal observations will not supply them.
 
-Learning a reusable policy over the observation space is a different task. A practical solver can optimize a finite parameter vector, learn approximations to the action-value functions and take their argmax, or discretize observations and use a table. Parameter optimization is the candidate developed here; the other approaches remain valid alternatives.
+Learning a reusable policy over the observation space is a different task. This proposal optimizes parameters within creator-declared policy families. Learning action-value functions and taking their argmax, or discretizing observations and using a table, remain alternative approaches for other solvers.
 
-## Candidate policy representation
+## The creator chooses the form; the solver fits it
 
-For a decision with `K` actions, a trainable policy could return `K` logits from its observed information:
+When defining a decision, the creator declares its available actions, information parents, and policy family. The library should provide built-in families so choosing a representation does not require writing an optimizer. Custom families must meet the selected solver's contract. The solver fits parameters within the declared family; it does not choose a different architecture.
+
+For example, an oil-drilling decision might be specified as follows. This describes the proposed contract, not an implemented Python API:
+
+| Part of the decision | Creator chooses | Solver determines |
+| --- | --- | --- |
+| Actions | `do_not_drill`, `drill` | Which action the fitted policy selects or samples at each observation |
+| Information | The continuous seismic reading | How the policy uses that reading within the chosen family |
+| Policy family | Linear scores followed by softmax | Weights and biases |
+| Alternative policy family | A neural network followed by softmax, with a chosen architecture | Network weights and biases |
+
+The probability of oil given a seismic reading comes from the chance model. The decision policy describes how to act on that reading. Choosing the form of the decision policy does not mean supplying its fitted parameters or the final drilling strategy.
+
+Softmax converts scores into action probabilities. For `K` actions, a creator-selected linear family could use:
 
 ```text
 logits(h; theta) = W features(h) + b
 pi_theta(a | h) = softmax(logits(h; theta))[a]
 ```
 
-An affine feature model is a small starting family. Categorical parents need an explicit encoding; continuous parents may need scaling for stable optimization. The encoding and any fitted scaling belong to the returned policy so later evaluation uses the same transformation. Nonlinear features or a small neural network can increase expressiveness, with additional optimization and sample costs.
+The creator can instead choose nonlinear features or a neural network to produce the logits. A more expressive family permits more complex strategies and can require more optimization and samples. The solver searches the selected family; it cannot recover a strategy that family cannot represent.
 
-Mixed information sets should be supported deliberately: for example, temperature plus an earlier discrete decision. Using a scalar state index as a numerical feature would impose an ordering on category labels; use an explicit categorical encoding instead.
+### One policy abstraction
 
-Supporting a supplied deterministic function, such as a threshold returning an integer action, is useful before adding optimization. Evaluating that function only requires the existing JAX-traceable simulation contract. Training an arbitrary threshold with ordinary autodiff is not implied: a sampled threshold objective can have zero derivatives almost everywhere.
+A `Policy` contains one rule per decision. A table implements a rule by indexing categorical parent states; a function computes from observed parent values. Both use the same policy evaluation interface, and a diagram may mix the two. Preserve the existing table input format and its inspectable entries. Under the table family, the solver chooses an action for every information-set assignment.
 
-There is no final public API in this note. The needed contract is a policy bound to a decision's declared parents and actions, with enough information to evaluate it again. A trained stochastic policy also needs an explicit random key when sampling actions.
+The result contains each fitted rule together with its family, parameter values, action labels, and information-parent binding. Feature encoding and any fitted scaling must travel with the rule. Mixed information sets, such as temperature plus an earlier discrete decision, need explicit categorical encodings; treating a category index as a numerical feature would impose an ordering on its labels. A stochastic rule also needs an explicit random key when sampling actions.
+
+A supplied function with fixed parameters is already a complete policy: it can be evaluated without solving. A trainable family additionally exposes parameters and the operations required by its optimizer. For example, a deterministic threshold can be evaluated using the existing JAX-traceable simulation contract, but optimizing its cutoff requires a compatible search method. A sampled threshold objective can have zero derivatives almost everywhere, so it is not automatically supported by the score-function solver below.
+
+The ownership is settled: the creator chooses the family, the solver fits it, and the result preserves it. Exact class names, where the family is attached in the decision-definition API, and method signatures remain open.
 
 ## A general approximate solver
 
-The candidate solver applies the same procedure to different finite acyclic diagrams, including diagrams with several decisions. Let `theta` collect the policy parameters, and let `p_theta` be the joint distribution generated by the chance model and those policies:
+The candidate solver applies the same procedure to different finite acyclic diagrams, including diagrams with several decisions, using the creator-declared policy families. It requires differentiable action log probabilities; an incompatible family needs a different solver. Let `theta` collect the policy parameters, and let `p_theta` be the joint distribution generated by the chance model and those policies:
 
 ```text
 R = sum of all utility nodes in a simulated scenario
@@ -111,7 +130,7 @@ The proposed first general optimizer uses sampled actions with score-function gr
 
 ### Optimization and evaluation loop
 
-1. Initialize the policies and any baseline parameters.
+1. Check that the declared policy families support the solver, then initialize their parameters and any baseline parameters.
 2. Draw a fresh batch of complete scenarios under the current policies, respecting each decision's information set.
 3. Estimate expected utility and score-function gradients, and update the policy parameters with an optimizer such as Adam. Fit a learned baseline separately if used.
 4. Repeat within a stated optimization budget; use several initializations when useful. Estimated utility need not improve on every stochastic update.
@@ -145,7 +164,7 @@ J* = (1/2) * integral from 0 to 1 of x dx = 1/4
 
 Without observing `X`, every fixed action and every randomized policy independent of `X` has expected utility zero. This gives a direct value-of-information comparison.
 
-For `pi_theta(1 | x) = sigmoid(w*x + b)`, the enumerated objective is `E[X * sigmoid(w*X + b)]`. At `w = b = 0`, its exact gradient is `(dJ/dw, dJ/db) = (1/12, 0)`. This checks the score-function estimator against an analytic derivative, not merely another implementation of the same sampled loss.
+For this oracle, the creator selects the binary linear-softmax family, equivalently `pi_theta(1 | x) = sigmoid(w*x + b)`. The solver fits `w` and `b`. The enumerated objective is `E[X * sigmoid(w*X + b)]`. At `w = b = 0`, its exact gradient is `(dJ/dw, dJ/db) = (1/12, 0)`. This checks the score-function estimator against an analytic derivative, not merely another implementation of the same sampled loss.
 
 With `b = 0`, increasing positive `w` approaches the optimal threshold. The stochastic sigmoid policy reaches `1/4` only as `w` tends to infinity; validation must compare utility within tolerance rather than require a finite optimizer coefficient matching the deterministic rule.
 
@@ -160,7 +179,7 @@ These are requirements for a future implementation, not tests added by this docu
 - **Mixed parents and information constraints.** Combine a continuous signal with a categorical parent, and include a useful hidden ancestor that is deliberately not observed. Check that policy evaluation only receives declared parents.
 - **Multiple decisions.** Include an earlier action affecting a later observation. Compare sampled-action gradients with exact finite action branching on a small analytically tractable model. Include a LIMID without full memory so the solver cannot silently use a full-history policy or assume a one-pass backward solution.
 - **Discrete descendants and utility discontinuities.** Exercise a sampled categorical consequence and an integer-indexed or indicator payoff. Verify the score estimator against an analytic or enumerated expectation despite a zero or undefined pathwise derivative.
-- **Policy reuse.** Evaluate the returned policy with fresh keys and preserve its action labels, information order, feature encoding, and stochastic or deterministic meaning. Reject incompatible policy bindings explicitly.
+- **Policy families and reuse.** Evaluate returned table and function rules through the same interface, including in one diagram. Preserve the creator-selected family, fitted parameters, action labels, information order, feature encoding, and stochastic or deterministic meaning. Reject incompatible solver/family combinations and policy bindings explicitly; do not silently substitute a different family.
 - **Training and evaluation separation.** Check reproducibility for a fixed key schedule, initialization sensitivity, and held-out utility estimates. Do not assert monotone improvement on every optimizer step or claim coverage of every continuous observation from finite draws.
 
 ## Guarantees and limitations
@@ -173,13 +192,13 @@ The existing scan's exhaustive finite-policy search guarantee does not carry ove
 
 ## Proposed implementation stages and open decisions
 
-1. **Evaluate supplied function policies.** Keep finite action `states`; add a policy representation evaluated only from declared information parents, and define forward evaluation and rendering without pretending the observation space is a finite table. Preserve existing table policies. No optimizer is needed to evaluate a supplied rule.
-2. **Optimize one discrete decision.** Establish the expected-utility objective and analytic oracle, then implement score gradients and compare with finite action enumeration. Choose a small policy family and explicit optimization settings.
+1. **Evaluate supplied function policies.** Keep finite action `states`; establish one policy abstraction with table and function rules evaluated only from declared information parents. Define forward evaluation and rendering without pretending the observation space is a finite table. Preserve the existing table input format. No optimizer is needed to evaluate a supplied rule.
+2. **Optimize one discrete decision.** Let the creator declare a built-in linear-softmax family for the decision, and return the fitted family and parameters. Establish the expected-utility objective and analytic oracle, then implement score gradients and compare with finite action enumeration. Keep optimization settings explicit.
 3. **Optimize several decisions.** Extend the validated estimator to full trajectories with mixed information sets and explicit LIMID memory. Add baselines and report candidate selection and evaluation separately. This is the general solver milestone; one-decision support alone is not sufficient.
 4. **Improve efficiency.** Investigate conditional action enumeration, richer policy families, or learned action-value policies where benchmarks justify them.
 5. **Revisit continuous actions independently.** Reuse policy binding and evaluation infrastructure where appropriate, while adding action domains and suitable pathwise or other estimators as separate work.
 
-Before implementation, decide the public policy/result representation, solver-owned versus user-supplied policy families, action sampling and random-key contracts, and which optimizer diagnostics belong in the result. Fixed actions, tables, and function policies need unambiguous dispatch. A new solver should initially be explicit; extending `method="auto"` requires an agreed approximation and result contract.
+Before implementation, decide the exact public syntax for declaring families and storing fitted rules under the shared policy abstraction, action sampling and random-key contracts, and which optimizer diagnostics belong in the result. Fixed actions, tables, and function policies need unambiguous dispatch. The creator's choice of family is part of the decision specification. A new solver should initially be explicit; extending `method="auto"` must preserve that choice and requires an agreed approximation and result contract.
 
 Forward evaluation should be supported before promising posterior reuse through `infer(policy=...)`. Conditioning with a threshold policy can introduce discontinuities in continuous latent variables, so accepting a callable does not automatically make the current NUTS path reliable. Posterior inference compatibility needs its own documented support boundary.
 
