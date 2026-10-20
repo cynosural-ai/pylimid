@@ -23,11 +23,12 @@ from numpyro.infer import MCMC, NUTS, Predictive
 
 from pylimid._distributions import _supports_count_enumeration
 from pylimid.errors import InferenceError
+from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.node import NodeKind
 from pylimid.graph.utility_node import UtilityNode
 from pylimid.numpyro.model import _to_model
-from pylimid.policy import Policy, _policy_tables
+from pylimid.policy import Policy, _policy_rules
 
 __all__ = ["samples"]
 
@@ -71,8 +72,10 @@ def samples(
         num_warmup: NUTS warmup steps; ignored on the forward and
             enumeration paths.
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``.
-        policy: State-dependent decision rules mapping information-set
-            assignments to action indices.
+        policy: Decision names mapped to complete action tables or JAX-traceable
+            deterministic functions. Functions receive only declared information
+            parents as keyword arguments and return a scalar integer action index.
+            Function policies currently support forward evaluation only.
 
     Returns:
         Dict mapping node name to a JAX array with shape
@@ -86,24 +89,34 @@ def samples(
         KeyError: If a policy names a node that is not in the snapshot.
         ValueError: If a policy has an information-set parent without named states, or
             a chance distribution conflicts with its ``states``.
+        NotImplementedError: If function policies are combined with chance-node
+            evidence.
     """
     observed = observed or {}
     if rng_key is None:
         rng_key = jax.random.PRNGKey(0)
 
-    policy_tables = _policy_tables(snapshot, policy or {})
-    model = _to_model(snapshot, observed, policy_tables)
+    policy = policy or {}
+    policy_rules = _policy_rules(snapshot, policy, observed)
+    model = _to_model(snapshot, observed, policy_rules)
     draws = _draw(model, snapshot, observed, num_samples, num_warmup, rng_key)
     # Enumerated deterministic sites may be absent or still carry enumeration
     # dimensions. Resolve them from joint posterior draws, parents before children.
     for name, node in snapshot.nodes:
-        if name not in policy_tables:
+        if name not in policy_rules:
             continue
-        table = policy_tables[name]
+        assert isinstance(node, DecisionNode)
+        rule = policy_rules[name]
         if node.parents:
-            draws[name] = table[tuple(draws[parent] for parent in node.parents)]
+            draws[name] = jax.vmap(rule)(
+                **{parent: draws[parent] for parent in node.parents}
+            )
         else:
-            draws[name] = jnp.broadcast_to(table, (num_samples,))
+            draws[name] = jnp.broadcast_to(rule(), (num_samples,))
+        if callable(policy[name]):
+            assert node.states is not None
+            if jnp.any((draws[name] < 0) | (draws[name] >= len(node.states))):
+                raise InferenceError(f"Policy for {name!r} returned an invalid action.")
 
     if query is None:
         return draws

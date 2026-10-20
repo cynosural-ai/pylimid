@@ -25,10 +25,11 @@ class Solution:
     Result of solving an influence diagram.
 
     Attributes:
-        policy: One action table per decision. Keys are tuples of parent-state indices
+        policy: One rule per decision. Current solvers return action tables; functions
+            can also be evaluated and rendered. Table keys are parent-state tuples
             in the decision's ``parents`` order; values are action indices in its
-            ``states``. A decision with no parents uses the key ``()``. Actions maximise
-            estimated expected utility.
+            ``states``. A decision with no parents uses the key ``()``. Current solvers
+            choose actions that maximize estimated expected utility.
         expected_utility: Monte-Carlo estimate of the expected total
             utility under *policy*.
         method: The solver that produced the solution. ``"scan"`` evaluated
@@ -50,7 +51,8 @@ class Solution:
         followed by one block per decision: a header naming the decision and its parents
         in information-set order, then one line per situation reading the
         chosen action's label. A decision with no parents has the single
-        situation ``always``.
+        situation ``always``. Function rules are identified without enumerating
+        their observation space.
 
         Args:
             diagram: The diagram this solution was computed from; supplies
@@ -64,6 +66,13 @@ class Solution:
         ]
         for name, rule in self.policy.items():
             decision = diagram[name]
+            if callable(rule):
+                lines += [
+                    "",
+                    f"{name} ({', '.join(decision.parents) or 'no parents'})",
+                    "  deterministic function policy",
+                ]
+                continue
             rows = [
                 ", ".join(
                     f"{parent}={diagram.states_of(parent)[state]}"

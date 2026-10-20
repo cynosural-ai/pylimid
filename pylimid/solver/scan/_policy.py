@@ -10,7 +10,7 @@ import jax.numpy as jnp
 
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
-from pylimid.policy import Policy
+from pylimid.policy import _TablePolicy
 
 __all__ = ["Rule", "batched_policy_array", "policy_space"]
 
@@ -30,7 +30,7 @@ def policy_space(rules: list[Rule]):
         assert node.states is not None  # decisions always declare states
         action_rules.append(product(range(len(node.states)), repeat=len(assignments)))
     for combination in product(*action_rules):
-        policy: Policy = {}
+        policy: _TablePolicy = {}
         for (name, _node, assignments), actions in zip(rules, combination, strict=True):
             policy[name] = dict(zip(assignments, actions, strict=True))
         yield policy

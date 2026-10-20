@@ -24,7 +24,7 @@ Posterior inference and its result types are also available from ``pylimid.infer
 Data types
 ----------
 
-These aliases describe the dictionaries and solver names used by the functions above.
+These aliases describe the mappings and solver names used by the functions above.
 
 .. py:data:: InferenceResult
    :type: dict[str, Posterior]
@@ -32,11 +32,19 @@ These aliases describe the dictionaries and solver names used by the functions a
    One `Posterior` per query variable. Each posterior stores a JAX array with shape ``(num_samples, *node_shape)``. Entries at the same position in each posterior's ``values`` belong to the same joint draw.
 
 .. py:data:: Policy
-   :type: dict[str, dict[tuple[int, ...], int]]
+   :type: dict[str, dict[tuple[int, ...], int] | collections.abc.Callable[..., int | jax.Array]]
 
-   A policy maps each decision name to an action table. Each table maps a tuple of parent-state indices, in the decision's ``parents`` order, to an action index in its ``states``. A decision with no parents uses the empty tuple ``()`` as its only key.
+   A policy maps each decision name to an action table or a deterministic function. Each table maps a tuple of parent-state indices, in the decision's ``parents`` order, to an action index in its ``states``. A decision with no parents uses the empty tuple ``()`` as its only key.
 
-   `solve` returns this format, and `infer` accepts it through ``policy``. `infer` also accepts a fixed action index for an individual decision.
+   `solve` currently returns tables and still requires categorical information sets. `infer` accepts tables, functions, and fixed action indices through ``policy``. Tables and functions can be mixed within one diagram.
+
+   Function rules accept their declared information parents by keyword and return a scalar integer action index. They must be deterministic and JAX-traceable; use ``jnp`` operations rather than Python conditionals on parent values. For example, a decision observing a continuous ``signal`` could use:
+
+   .. code-block:: python
+
+      policy = {"action": lambda signal: jnp.where(signal > 0, 1, 0)}
+
+   This supplies a complete rule for evaluation, rather than asking the solver to learn one. Function rules currently support forward evaluation only: combining a relevant function rule with chance-node evidence raises ``NotImplementedError``. Sampled function actions are checked against the decision's ``states``. Training policy families and posterior inference through function rules are separate extensions.
 
 .. py:data:: SolverName
    :type: Literal["backward_induction", "scan"]

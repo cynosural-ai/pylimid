@@ -35,7 +35,7 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.policy import Policy, _policy_tables
+from pylimid.policy import Policy, _policy_rules
 
 __all__ = ["to_model"]
 
@@ -80,8 +80,12 @@ def to_model(
         observed: Mapping of node names to observed values. Chance nodes
             present here are conditioned on their given value; chance nodes
             absent are treated as latent. Fixed decisions are bound here.
-        policy: State-dependent decision rules mapping information-set
-            assignments (tuples of state indices) to action indices.
+        policy: Decision names mapped to complete action tables or deterministic
+            functions. Functions accept declared information parents by keyword and
+            return a scalar integer action index in the decision's ``states``.
+            They must be JAX-traceable and currently support forward evaluation only.
+            `samples` additionally checks sampled function actions against the action
+            space; direct NumPyro callers must respect that output contract.
 
     Returns:
         A NumPyro model function taking no arguments, returning a
@@ -93,16 +97,20 @@ def to_model(
         KeyError: If a policy names a node that is not in the snapshot.
         ValueError: If a policy has an information-set parent without named states, or
             a chance distribution conflicts with its ``states`` when the model executes.
+        NotImplementedError: If function policies are combined with chance-node
+            evidence.
     """
-    return _to_model(snapshot, observed or {}, _policy_tables(snapshot, policy or {}))
+    observed = observed or {}
+    rules = _policy_rules(snapshot, policy or {}, observed)
+    return _to_model(snapshot, observed, rules)
 
 
 def _to_model(
     snapshot: DiagramSnapshot,
     observed: dict[str, Any],
-    policy_tables: dict[str, jax.Array],
+    policy_rules: dict[str, Callable[..., jax.Array]],
 ) -> Callable[[], dict[str, Any]]:
-    """Build a model using already validated and compiled policy tables."""
+    """Build a model using already validated decision rules."""
     nodes = snapshot.nodes
 
     def model() -> dict[str, Any]:
@@ -111,10 +119,9 @@ def _to_model(
             if isinstance(node, UtilityNode):
                 continue
             if isinstance(node, DecisionNode):
-                if name in policy_tables:
-                    parent_values = tuple(values[parent] for parent in node.parents)
-                    table = policy_tables[name]
-                    value = table[parent_values] if parent_values else table
+                if name in policy_rules:
+                    parent_values = {parent: values[parent] for parent in node.parents}
+                    value = policy_rules[name](**parent_values)
                     values[name] = numpyro.deterministic(name, value)
                 else:
                     # A fixed decision has all its probability at the supplied action.

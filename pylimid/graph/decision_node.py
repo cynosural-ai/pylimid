@@ -47,7 +47,10 @@ class DecisionNode(Node):
 
     A decision chooses among a finite set of actions. Tabular policies require every
     parent to declare named finite states; numerical counts and continuous parents
-    cannot index these tables. Its ``parents`` are the information available when it
+    cannot index these tables. Supplied deterministic function policies accepted by
+    `infer` can use continuous observations for forward evaluation; the current
+    solvers still require tabular policies. Its ``parents`` are the information
+    available when it
     acts; earlier observations and decisions are remembered only when included
     explicitly.
     ``states=None`` leaves the decision unconfigured.

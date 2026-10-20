@@ -18,11 +18,13 @@ A decision is `CONSISTENT` once its action `states` are declared, and `UNCONFIGU
 
 The implemented solvers live in `pylimid.solver`. `solve(method="auto")` selects backward induction when the diagram has a valid solution ordering and the batched policy scan otherwise. Both estimate expected utility by forward simulation and require finite decisions with discrete information sets; chance variables may be discrete, continuous, or both in the same diagram. The [solver algorithms](../solver/algorithms.md) describe the costs, solvability criterion, and validation references.
 
+[Discrete decisions with continuous information](../continuous_information/README.md) are proposed separately from continuous actions. The action `states` and information-arc semantics stay the same. The creator additionally declares each decision's policy family, and the solver fits its parameters. Tables and functions share one policy abstraction. This extension can be implemented first; the exact family-declaration API remains open.
+
 ---
 
 ## What "solving a LIMID" means here
 
-A LIMID is solved when each decision node has a *local policy* δᵢ (a function from its observed information set → an action) such that the expected total utility is maximized. There is no forgetting barrier, so each policy is independent — a later decision cannot depend on the full history.
+A LIMID is solved when each decision node has a local policy δᵢ, mapping its observed information to an action, and the policies together maximize expected total utility. Each policy uses only its declared information parents. Earlier observations and decisions are available only through explicit information arcs; the policies' effects on utility can still interact.
 
 The objective is:
 
@@ -37,11 +39,13 @@ where the expectation is over chance variables, whose distributions depend on th
 
 ## Two strategies
 
-The *graph* and *node definitions* are identical in both strategies — only the solver differs.
+Both strategies use the same action spaces and information-arc semantics. In the proposed parameterized approach, the creator also declares the policy family to fit for each decision.
 
 ### Strategy A — policy as parameters (deferred)
 
-In this proposed approach, a decision node would be backed by `numpyro.param()` forming a parameterized policy (e.g. logits over actions, or a continuous policy mean/variance). Utility is pushed into the objective as a log-density factor via `numpyro.factor()`. Solving is gradient ascent on `E[U]` (reparameterization or score function).
+The creator chooses the form of each decision's policy: for example, linear scores followed by softmax, or a neural network followed by softmax. The solver fits weights and biases to maximize expected utility within that family and returns the fitted rule. Choosing a family does not mean supplying the final strategy. A complete function supplied by the creator can instead be evaluated without optimization.
+
+Solving uses an explicit expected-utility objective with an appropriate estimator: score-function gradients for sampled discrete actions or probability-weighted sums for enumerated actions. Continuous-action policies and their estimators remain a separate extension. NumPyro supplies probabilistic machinery; ordinary SVI or a utility `numpyro.factor()` alone does not establish an equivalent maximum-expected-utility objective. The [continuous-information proposal](../continuous_information/README.md#a-general-approximate-solver) develops the finite-action case.
 
 ### Strategy B — intervention scan
 
@@ -51,10 +55,10 @@ Decisions are discrete action choices. The solver enumerates the policy space �
 
 |                     | A. Policy as params            | B. Intervention scan             |
 | ------------------- | ------------------------------ | -------------------------------- |
-| Best for            | continuous decisions, large action spaces | discrete decisions, small action spaces |
-| Optimizes via       | gradients (fast, scales)       | enumeration / search (exact-ish) |
+| Best for            | discrete decisions with continuous information; future continuous actions | finite actions and categorical information sets |
+| Optimizes via       | estimated policy gradients    | exhaustive policy search with sampled utility |
 | Main difficulty     | gradient of `E[U]` w.r.t. policy — SVI's ELBO framing does not directly fit EU maximization, so a custom loss around `jax.grad` + trace is required | exponential blow-up in (#decisions × action-space) |
-| Verifiability       | hard to tell convergence from correctness | trivially correct — EU measured per action |
+| Verifiability       | analytic examples and fresh policy evaluation; no general global guarantee | exhaustive search finds the best of the sampled policy estimates |
 
 Bucket elimination was the original exact solver and was retired with the other exact engines; the [NumPyro-only ADR](../ADR/25_08_2026_numpyro_only_engine.md) records that decision. Solver choice does not change the graph abstraction: a `DecisionNode` declares its actions and the parents it can observe.
 
@@ -62,41 +66,14 @@ Bucket elimination was the original exact solver and was retired with the other 
 
 ## Mixed discrete + continuous decisions
 
-Mixed discrete and continuous decisions remain a future proposal. The intended approach nests discrete policy search around continuous policy optimization; it is not supported by the current solvers.
+Continuous action domains remain future work, separate from allowing discrete decisions to observe continuous parents. Mixed action domains would require compatible policy families and estimators for both types of action.
 
-Standard decomposition (same structure as mixed-integer nonlinear programming):
-
-> Enumerate over the discrete decisions; for each discrete setting, solve the continuous subproblem by gradient. Pick the discrete setting whose best continuous response scores highest.
-
-Formally, for a discrete decision $D_d \in \{a, b, c\}$ and a continuous decision $D_c \in \mathbb{R}$:
-
-$$\max_{D_d, D_c} \mathbb{E}[U] \;=\; \max_{D_d \in \{a,b,c\}} \; \max_{D_c} \mathbb{E}[U \mid D_d]$$
-
-The outer loop is Strategy B (implemented); the inner loop is Strategy A (deferred). The mixed case is just composition.
-
-### Concrete shape
-
-```
-for action in discrete_actions:                      # outer: B
-    intervened = numpyro.handlers.do(model, {d: action})
-    cont_opt = maximize_expected_utility(intervened)  # inner: A (jax.grad on a param)
-    best_EU[action] = expected_utility(intervened, cont_opt)
-winner = argmax(best_EU)
-```
-
-### Where it stops being clean
-
-- **Non-convex continuous subproblems.** Gradient ascent finds *a* solution per branch, not guaranteed the global one. Mitigations: random restarts, or exploit convex substructure (e.g. LQG) when present.
-- **Multiple discrete decisions with interaction.** Two interdependent discrete decisions enumerate a product space — exponential blow-up. LIMID structure (local information sets, no forgetting barrier) helps but does not eliminate it. No free lunch here; classical ID solvers hit the same wall.
+When the discrete policy space is small and enumerable, one possible approach is to enumerate those policies and optimize the continuous policies within each branch. A discrete policy over continuous observations cannot generally be enumerated this way. Joint parameter optimization is another possible approach. Neither method is implemented, and non-convex optimization would need its own validation and guarantee analysis.
 
 ---
 
 ## Design implication
 
-When Strategy A lands, the mixed case forces the "pluggable per-node" structure:
+A decision's action domain, information set, and creator-selected policy family determine which solvers can handle it. A discrete action domain alone does not imply policy enumeration: a discrete decision with continuous observations can use a parameterized policy and gradient optimization.
 
-- A `DecisionNode` knows its own type (discrete / continuous) and exposes the right solving primitive — enumeration for discrete, gradient for continuous.
-- A `Solver` walks the graph and dispatches per decision: discrete decisions become outer enumeration branches, continuous decisions become inner optimizations.
-- The mixed case is not special-cased — it falls out of composing the two dispatch types.
-
-The asset is the **per-node dispatch abstraction**; the strategies (enum-scan vs. policy-gradient) are interchangeable parts behind it.
+The policy abstraction should support tables and function rules through a shared evaluation interface. Solvers fit compatible families and return reusable fitted policies. Continuous actions would extend this infrastructure with action domains and suitable optimization methods; they do not require a separate policy system.

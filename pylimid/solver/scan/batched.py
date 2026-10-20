@@ -37,6 +37,8 @@ References:
 
 from __future__ import annotations
 
+from typing import cast
+
 import jax
 import jax.numpy as jnp
 
@@ -45,7 +47,7 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.policy import _info_assignments
+from pylimid.policy import Policy, _info_assignments
 from pylimid.solver.scan._policy import (
     Rule,
     batched_policy_array,
@@ -117,7 +119,9 @@ def solve(
     eu = _estimate_eu(snapshot, policy_arrays, num_samples, rng_key, node_map)
     best = int(jnp.argmax(eu))
     return Solution(
-        policy=policies[best], expected_utility=float(eu[best]), method="scan"
+        policy=cast(Policy, policies[best]),
+        expected_utility=float(eu[best]),
+        method="scan",
     )
 
 

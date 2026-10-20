@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable
+from typing import cast
 
 import jax
 import jax.numpy as jnp
@@ -45,7 +46,7 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.policy import Policy, _info_assignments
+from pylimid.policy import Policy, _info_assignments, _TablePolicy
 from pylimid.solver.regularity import solvability_order
 from pylimid.solver.solution import Solution
 
@@ -117,7 +118,7 @@ def solve(
 
     key = rng_key
     rules: dict[str, jax.Array] = {}
-    policy: Policy = {}
+    policy: _TablePolicy = {}
     for name in order:
         key, subkey = jax.random.split(key)
         rule, sub_policy = _resolve_decision(
@@ -129,7 +130,9 @@ def solve(
     key, subkey = jax.random.split(key)
     expected_utility = _estimate_policy_eu(snapshot, rules, num_samples, subkey)
     return Solution(
-        policy=policy, expected_utility=expected_utility, method="backward_induction"
+        policy=cast(Policy, policy),
+        expected_utility=expected_utility,
+        method="backward_induction",
     )
 
 
