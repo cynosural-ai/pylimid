@@ -1,5 +1,5 @@
 """
-Optimal policy and expected utility — the result of `solve`.
+Fitted policy and expected utility — the result of `solve`.
 
 Returned by `solve`. Expected utility is a Monte Carlo estimate.
 """
@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import product
-from typing import Literal, TypeAlias
 
 import jax
 
@@ -16,11 +15,7 @@ from pylimid.graph.diagram import InfluenceDiagram
 from pylimid.policy import Policy
 from pylimid.policy_family import SoftmaxPolicy, TabularPolicy
 
-__all__ = ["Solution", "SolverName"]
-
-
-#: The solver that produced a `Solution`.
-SolverName: TypeAlias = Literal["backward_induction", "scan", "policy_gradient"]
+__all__ = ["Solution"]
 
 
 @dataclass(frozen=True)
@@ -29,33 +24,22 @@ class Solution:
     Result of solving an influence diagram.
 
     Attributes:
-        policy: One rule per decision. Table solvers return action tables;
-            policy-gradient training returns a fitted stochastic `SoftmaxPolicy` or
-            `TabularPolicy` per decision, jointly trained using only each rule's
-            information parents.
-            Supplied deterministic functions can also be evaluated and rendered.
-            Table keys are parent-state tuples in the decision's ``parents`` order;
-            values are action indices in its ``states``. A root table uses ``()``.
-        expected_utility: Monte-Carlo estimate of the expected total
-            utility under *policy*.
-        method: The solver that produced the solution. ``"scan"`` evaluated
-            every policy, so *policy* is the best of the Monte-Carlo
-            estimates; ``"backward_induction"`` resolved one decision at a
-            time on a solvable diagram, optimal up to sampling noise.
-            ``"policy_gradient"`` fitted a declared family with no optimality
-            guarantee, then estimated utility on independent simulations. With
-            ``solve(method="auto")`` this records which table solver was chosen.
+        policy: One fitted stochastic rule per decision, jointly trained using
+            only its declared information parents. Supplied deterministic tables
+            and functions can also be evaluated and rendered.
+        expected_utility: Independent Monte Carlo estimate of expected total utility
+            under the final stochastic policy. This is an approximate result with
+            no optimality or convergence guarantee.
     """
 
     policy: Policy
     expected_utility: float
-    method: SolverName
 
     def render(self, diagram: InfluenceDiagram) -> str:
         """
         Render the policy with state labels instead of indices.
 
-        The first line shows the estimated expected utility and the solver used. It is
+        The first line shows the estimated expected utility. It is
         followed by one block per decision: a header naming the decision and its parents
         in information-set order, then one line per situation reading the
         chosen action's label. A decision with no parents has the single
@@ -70,9 +54,7 @@ class Solution:
         Returns:
             A multi-line string, for ``print`` or notebook display.
         """
-        lines = [
-            f"expected utility: {self.expected_utility:.2f} (method: {self.method})"
-        ]
+        lines = [f"expected utility: {self.expected_utility:.2f}"]
         for name, rule in self.policy.items():
             decision = diagram[name]
             if isinstance(rule, SoftmaxPolicy):

@@ -358,8 +358,7 @@ class InfluenceDiagram:
 
         Checks for missing parents, cycles, unconfigured nodes, callable signatures that
         do not match their parents, and utility nodes with children. It does not
-        evaluate distribution or utility functions, check their numerical outputs or
-        test whether the diagram is solvable by backward induction.
+        evaluate distribution or utility functions or check their numerical outputs.
 
         `infer` and `solve` run this check automatically. Use `probe_discrete_parents`
         separately to look for parents whose effects may be missing.

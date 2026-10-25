@@ -13,13 +13,13 @@ from pylimid import (
     DecisionNode,
     InferenceError,
     InfluenceDiagram,
+    TabularPolicy,
+    TabularSoftmax,
     UtilityNode,
     infer,
+    solve,
 )
 from pylimid.numpyro import samples, to_model
-from pylimid.solver.backward_induction import solve as backward_induction_solve
-from pylimid.solver.scan.batched import solve as batched_solve
-from pylimid.solver.scan.intervention import solve as intervention_solve
 
 
 @pytest.mark.parametrize(
@@ -60,9 +60,7 @@ def test_forward_counts_keep_numerical_values_and_summaries(
 
 
 @pytest.mark.parametrize("family", ["poisson", "binomial"])
-@pytest.mark.parametrize(
-    "execution", ["inference", "backward_induction", "batched", "intervention"]
-)
+@pytest.mark.parametrize("execution", ["inference", "policy_gradient"])
 def test_counts_with_chance_and_decision_parents_feed_utilities(family, execution):
     diagram = InfluenceDiagram()
     diagram.add_node(
@@ -71,7 +69,12 @@ def test_counts_with_chance_and_decision_parents_feed_utilities(family, executio
         )
     )
     diagram.add_node(
-        DecisionNode(name="action", parents=("weather",), states=("no", "yes"))
+        DecisionNode(
+            name="action",
+            parents=("weather",),
+            states=("no", "yes"),
+            policy_family=TabularSoftmax(),
+        )
     )
 
     def distribution(weather, action):
@@ -99,13 +102,11 @@ def test_counts_with_chance_and_decision_parents_feed_utilities(family, executio
         assert jnp.array_equal(result["payoff"].values, 10 - result["count"].values)
         assert result["payoff"].mean() == pytest.approx(expected_utility, abs=0.4)
     else:
-        solver = {
-            "backward_induction": backward_induction_solve,
-            "batched": batched_solve,
-            "intervention": intervention_solve,
-        }[execution]
-        result = solver(diagram.snapshot(), num_samples=1500)
-        assert result.policy == policy
+        result = solve(diagram, num_steps=200, num_samples=1500)
+        rule = result.policy["action"]
+        assert isinstance(rule, TabularPolicy)
+        for weather in range(2):
+            assert rule.probabilities(weather=jnp.array(weather))[weather] > 0.98
         assert result.expected_utility == pytest.approx(expected_utility, abs=0.4)
 
 
@@ -214,14 +215,17 @@ def test_unrelated_latent_count_is_pruned_from_posterior():
     assert result["weather"].marginal()[1] == pytest.approx(0.8, abs=0.03)
 
 
-@pytest.mark.parametrize(
-    "execution", ["inference", "backward_induction", "batched", "intervention"]
-)
+@pytest.mark.parametrize("execution", ["inference", "policy_gradient"])
 def test_counts_cannot_index_tabular_policies(execution):
     diagram = InfluenceDiagram()
     diagram.add_node(ChanceNode(name="count", dist=lambda: dist.Poisson(3.0)))
     diagram.add_node(
-        DecisionNode(name="action", parents=("count",), states=("no", "yes"))
+        DecisionNode(
+            name="action",
+            parents=("count",),
+            states=("no", "yes"),
+            policy_family=TabularSoftmax(),
+        )
     )
     diagram.add_node(
         UtilityNode(
@@ -229,16 +233,12 @@ def test_counts_cannot_index_tabular_policies(execution):
         )
     )
 
-    with pytest.raises(ValueError, match="action.*count.*without named states"):
-        if execution == "inference":
+    if execution == "inference":
+        with pytest.raises(ValueError, match="action.*count.*without named states"):
             infer(diagram, ["payoff"], policy={"action": {(0,): 0}}, num_samples=10)
-        else:
-            solver = {
-                "backward_induction": backward_induction_solve,
-                "batched": batched_solve,
-                "intervention": intervention_solve,
-            }[execution]
-            solver(diagram.snapshot(), num_samples=10)
+    else:
+        with pytest.raises(ValueError, match="named finite states.*count"):
+            solve(diagram, num_samples=10)
 
 
 def test_vector_discrete_events_are_rejected():

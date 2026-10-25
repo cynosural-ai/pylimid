@@ -124,7 +124,6 @@ def solve(
             for name, rule in templates.items()
         },
         expected_utility=expected_utility,
-        method="policy_gradient",
     )
 
 

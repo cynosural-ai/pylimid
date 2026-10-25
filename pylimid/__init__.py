@@ -2,7 +2,7 @@
 pylimid — limited-memory influence diagrams with mixed-type variables.
 
 Build a diagram from chance, decision and utility nodes, then query it with
-`infer` or find the optimal policy with `solve`::
+`infer` or fit a policy with `solve`::
 
     from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
     from pylimid import infer, solve
@@ -29,7 +29,7 @@ from pylimid.policy_family import (
     TabularPolicy,
     TabularSoftmax,
 )
-from pylimid.solver import Solution, SolveMethod, SolverName, solve
+from pylimid.solver import Solution, solve
 
 __all__ = [
     "ChanceNode",
@@ -44,8 +44,6 @@ __all__ = [
     "TabularPolicy",
     "Posterior",
     "Solution",
-    "SolveMethod",
-    "SolverName",
     "UtilityNode",
     "__version__",
     "infer",

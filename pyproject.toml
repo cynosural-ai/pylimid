@@ -55,9 +55,6 @@ dev = [
 ]
 test = [
     "pytest>=8.4.0",
-    "pyagrum>=1.12",
-    # pyagrum.clg imports pandas at module load without declaring it.
-    "pandas>=2.0",
 ]
 docs = [
     # myst-parser 5.1 is not yet compatible with Sphinx 9.

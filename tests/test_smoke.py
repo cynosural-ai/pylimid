@@ -28,5 +28,3 @@ def test_top_level_exports_the_public_api() -> None:
     assert pylimid.InferenceResult is inference.InferenceResult
     assert pylimid.InferenceError is InferenceError
     assert pylimid.Policy is Policy
-    assert pylimid.SolveMethod is solver.SolveMethod
-    assert pylimid.SolverName is solver.SolverName

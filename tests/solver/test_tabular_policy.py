@@ -122,9 +122,9 @@ def test_tabular_score_gradient_matches_analytic_and_enumerated_expectation(
         )
 
 
-def test_tabular_solver_learns_xor_and_matches_categorical_reference_solvers():
+def test_tabular_solver_learns_xor_against_analytic_optimum():
     diagram = _xor_diagram(TabularSoftmax())
-    solution = solve(diagram, method="policy_gradient", num_steps=200, num_samples=512)
+    solution = solve(diagram, num_steps=200, num_samples=512)
     rule = solution.policy["action"]
     assert isinstance(rule, TabularPolicy)
     assert rule.family is diagram["action"].policy_family
@@ -141,13 +141,7 @@ def test_tabular_solver_learns_xor_and_matches_categorical_reference_solvers():
                 ]
                 > 0.97
             )
-    reference = _xor_diagram(None)
-    for method in ("scan", "backward_induction"):
-        exact_table = solve(reference, method=method, num_samples=2000)
-        assert exact_table.expected_utility == 1.0
-        assert solution.expected_utility == pytest.approx(
-            exact_table.expected_utility, abs=0.03
-        )
+    assert solution.expected_utility == pytest.approx(1.0, abs=0.03)
     payoff = infer(diagram, ["payoff"], policy=solution.policy, num_samples=5000)[
         "payoff"
     ]
@@ -161,12 +155,8 @@ def test_tabular_solver_learns_xor_and_matches_categorical_reference_solvers():
 def test_tabular_fitting_is_reproducible_and_evaluated_on_independent_scenarios():
     diagram = _xor_diagram(TabularSoftmax())
     key = jax.random.PRNGKey(9)
-    first = solve(
-        diagram, method="policy_gradient", num_steps=20, num_samples=64, rng_key=key
-    )
-    second = solve(
-        diagram, method="policy_gradient", num_steps=20, num_samples=64, rng_key=key
-    )
+    first = solve(diagram, num_steps=20, num_samples=64, rng_key=key)
+    second = solve(diagram, num_steps=20, num_samples=64, rng_key=key)
     first_rule, second_rule = first.policy["action"], second.policy["action"]
     assert isinstance(first_rule, TabularPolicy)
     assert isinstance(second_rule, TabularPolicy)
@@ -207,7 +197,7 @@ def test_joint_tabular_and_linear_training_with_action_dependent_observations():
             values=lambda signal, follow_up: signal * follow_up,
         )
     )
-    solution = solve(diagram, method="policy_gradient", num_steps=400, num_samples=1024)
+    solution = solve(diagram, num_steps=400, num_samples=1024)
     first, second = solution.policy["action"], solution.policy["follow_up"]
     assert isinstance(first, TabularPolicy)
     assert isinstance(second, SoftmaxPolicy)
@@ -251,7 +241,7 @@ def test_tabular_family_rejects_information_without_named_states(distribution):
         )
     )
     with pytest.raises(ValueError, match="named finite states.*'information'"):
-        solve(diagram, method="policy_gradient")
+        solve(diagram)
 
 
 def test_tabular_family_rejects_array_valued_categorical_information():
@@ -272,13 +262,7 @@ def test_tabular_family_rejects_array_valued_categorical_information():
         )
     )
     with pytest.raises(ValueError, match="scalar state index.*'information'"):
-        solve(diagram, method="policy_gradient")
-
-
-@pytest.mark.parametrize("method", ["auto", "scan", "backward_induction"])
-def test_table_solvers_reject_declared_tabular_softmax(method):
-    with pytest.raises(InferenceError, match="table solvers cannot"):
-        solve(_xor_diagram(TabularSoftmax()), method=method)
+        solve(diagram)
 
 
 def test_tabular_root_policy_preserves_stochastic_action_and_descendant_correlation():

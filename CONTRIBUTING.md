@@ -34,10 +34,10 @@ Ruff and ty also run on every commit through pre-commit.
 | --- | --- |
 | `pylimid/graph/` | Node types, the mutable `InfluenceDiagram`, validation, and rendering |
 | `pylimid/inference/` | Posterior queries and posterior result types |
-| `pylimid/solver/` | Policy optimisation, solver selection, and solution results |
+| `pylimid/solver/` | Joint policy-gradient optimisation and fitted policy results |
 | `pylimid/numpyro/` | NumPyro model translation and sampling |
 | `pylimid/policy.py`, `pylimid/errors.py` | Shared policy representation and errors |
-| `tests/` | The pytest suite; fully discrete models are cross-checked against pyAgrum |
+| `tests/` | Graph, inference, and optimizer tests with analytic utility and gradient references |
 | `docs/` | The published Sphinx site (see `docs/README.md` for build details) |
 | `design/` | Contributor-facing decision records and design notes; not published |
 | `AGENTS.md` | Detailed code style and design conventions |
@@ -66,7 +66,7 @@ The `-W` flag turns warnings into errors. Prose pages are Markdown; pages with e
 
 - Keep each pull request focused on one change.
 - Fill in the repository's pull request template: summary, what changed, why, and how it was tested.
-- Add or update tests for behavior changes. For discrete models, pyAgrum provides the exact reference.
+- Add or update tests for behavior changes. Use analytic expectations or exact sums on small models to verify numerical behavior.
 - Update the docs when the public API or behavior changes.
 
 ## Releases

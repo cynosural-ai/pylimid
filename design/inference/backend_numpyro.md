@@ -34,7 +34,7 @@ prior = Predictive(model, num_samples=10_000)(jax.random.PRNGKey(0))
 
 Queried utilities are computed from their parents' draws. `infer()` wraps requested arrays in `Posterior` objects, retaining joint sample order and JAX array shapes and dtypes. Discrete probabilities are computed by `Posterior.marginal()`; continuous and utility summaries use `mean()`, `std()`, and `hdi()`. Results are Monte Carlo estimates by contract, including when enumeration is used to obtain the draws.
 
-External references remain in the test suite: `tests/inference/test_compare_pyagrum.py` checks discrete posteriors, and `tests/inference/test_compare_pyagrum_clg.py` checks continuous and mixed models. Solving uses separate simulation walks in `pylimid.solver`; the [solver note](../solver/algorithms.md) covers their algorithms and validation.
+Inference tests use analytic posterior expectations and small-model exact arithmetic. The optimizer uses a joint policy-gradient trajectory walk in `pylimid.solver`; the [optimizer note](../solver/algorithms.md) covers its estimator and verification. There are no external reference-solver dependencies in the test suite.
 
 ## Constraints
 

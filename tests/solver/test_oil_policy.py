@@ -1,16 +1,10 @@
-"""Validate the oil comparison against analytic strategies and exact inference."""
+"""Validate trained oil policies against analytic utilities."""
 
 import jax
 import jax.numpy as jnp
 import pytest
 
-from examples.oil_policy_comparison import (
-    build_pylimid,
-    deterministic_policy,
-    exact_optimum,
-    exact_policy_value,
-    solve_pyagrum,
-)
+from examples.oil_policy import build_diagram, exact_policy_value
 from pylimid import TabularPolicy, TabularSoftmax, solve
 
 
@@ -42,23 +36,11 @@ def test_oil_exact_evaluation_matches_analytic_deterministic_and_uniform_policie
     assert exact_policy_value(uniform) == pytest.approx(0.5 * 721 + 0.5 * 350 - 15)
 
 
-def test_oil_three_solvers_agree_under_exact_policy_evaluation():
-    optimum = exact_optimum()
-    pyagrum_value, pyagrum_policy = solve_pyagrum()
-    assert optimum == pytest.approx(721.0)
-    assert pyagrum_value == pytest.approx(optimum)
-    assert exact_policy_value(pyagrum_policy) == pytest.approx(optimum)
-    with pytest.warns(UserWarning, match="Decision 'buy'"):
-        backward = solve(build_pylimid(), method="backward_induction", num_samples=4000)
-    assert exact_policy_value(backward.policy) == pytest.approx(optimum)
+def test_trained_oil_policy_approaches_analytic_optimum():
     fitted = solve(
-        build_pylimid(trainable=True),
-        method="policy_gradient",
+        build_diagram(),
         num_steps=200,
         num_samples=2000,
         rng_key=jax.random.PRNGKey(0),
     )
-    assert 0 < optimum - exact_policy_value(fitted.policy) < 2.0
-    assert exact_policy_value(deterministic_policy(fitted.policy)) == pytest.approx(
-        optimum
-    )
+    assert 0 < 721.0 - exact_policy_value(fitted.policy) < 2.0

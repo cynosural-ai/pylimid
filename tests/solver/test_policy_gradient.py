@@ -21,17 +21,13 @@ from pylimid import (
     solve,
 )
 from pylimid.numpyro import samples
-from pylimid.solver import (
-    backward_induction_solve,
-    batched_solve,
-    is_solvable,
-    policy_gradient_solve,
-    scan_solve,
-)
 from pylimid.solver.policy_gradient import (
     _initialize_policy,
     _score_loss,
     _trajectory,
+)
+from pylimid.solver.policy_gradient import (
+    solve as policy_gradient_solve,
 )
 
 
@@ -146,7 +142,6 @@ def test_score_gradient_matches_analytic_oracle_and_enumerated_derivative():
 @pytest.mark.parametrize("nonzero_parameters", [False, True])
 def test_joint_score_gradient_matches_exact_action_branching(nonzero_parameters):
     snapshot = _sequential_diagram().snapshot()
-    assert not is_solvable(snapshot)
     templates = _initialize_policy(snapshot, jax.random.PRNGKey(1))
     parameters = {
         name: {"weights": rule.weights, "bias": rule.bias}
@@ -241,7 +236,7 @@ def test_joint_score_gradient_matches_exact_action_branching(nonzero_parameters)
 @pytest.mark.parametrize("remember_first", [False, True])
 def test_solver_learns_joint_policy_and_reuses_local_information(remember_first):
     diagram = _sequential_diagram(remember_first)
-    solution = solve(diagram, method="policy_gradient", num_steps=400, num_samples=512)
+    solution = solve(diagram, num_steps=400, num_samples=512)
     assert set(solution.policy) == {"first", "second"}
     for name, rule in solution.policy.items():
         assert isinstance(rule, SoftmaxPolicy)
@@ -329,7 +324,7 @@ def test_three_decisions_with_different_action_spaces(families):
             values=lambda first, second, third: first + (second == 2) + third,
         )
     )
-    solution = solve(diagram, method="policy_gradient", num_steps=150, num_samples=256)
+    solution = solve(diagram, num_steps=150, num_samples=256)
     for name, shape in [("first", (0, 2)), ("second", (2, 3)), ("third", (3, 2))]:
         rule = solution.policy[name]
         if isinstance(rule, SoftmaxPolicy):
@@ -342,7 +337,7 @@ def test_three_decisions_with_different_action_spaces(families):
 
 def test_solver_learns_signal_rule_and_returns_reusable_stochastic_policy():
     diagram = _signal_diagram()
-    solution = solve(diagram, method="policy_gradient", num_steps=300, num_samples=512)
+    solution = solve(diagram, num_steps=300, num_samples=512)
     rule = solution.policy["action"]
     assert isinstance(rule, SoftmaxPolicy)
     assert rule.family is diagram["action"].policy_family
@@ -362,15 +357,14 @@ def test_solver_learns_signal_rule_and_returns_reusable_stochastic_policy():
         rng_key=jax.random.PRNGKey(22),
     )["payoff"]
     assert payoff.mean() == pytest.approx(0.25, abs=0.02)
-    assert solution.method == "policy_gradient"
     assert "stochastic" in solution.render(diagram)
 
 
 @pytest.mark.parametrize("make_diagram", [_signal_diagram, _sequential_diagram])
 def test_seed_reproduces_fitted_parameters_and_independent_evaluation(make_diagram):
     diagram = make_diagram()
-    first = solve(diagram, method="policy_gradient", num_steps=20, num_samples=64)
-    second = solve(diagram, method="policy_gradient", num_steps=20, num_samples=64)
+    first = solve(diagram, num_steps=20, num_samples=64)
+    second = solve(diagram, num_steps=20, num_samples=64)
     parameters = {}
     for name, rule in first.policy.items():
         other = second.policy[name]
@@ -433,7 +427,7 @@ def test_score_solver_handles_discrete_descendants_and_indicator_utilities():
             values=lambda outcome: jnp.where(outcome == 1, 1.0, 0.0),
         )
     )
-    solution = solve(diagram, method="policy_gradient", num_steps=200, num_samples=256)
+    solution = solve(diagram, num_steps=200, num_samples=256)
     rule = solution.policy["action"]
     assert isinstance(rule, SoftmaxPolicy)
     assert rule.weights.shape == (0, 2)
@@ -472,7 +466,7 @@ def test_training_uses_mixed_declared_information_and_flattens_vector_values():
             ),
         )
     )
-    solution = solve(diagram, method="policy_gradient", num_steps=300, num_samples=512)
+    solution = solve(diagram, num_steps=300, num_samples=512)
     rule = solution.policy["action"]
     assert isinstance(rule, SoftmaxPolicy)
     assert rule.parents == ("signal", "category")
@@ -527,29 +521,15 @@ def test_fitted_policy_rejects_changed_action_or_information_states(changes):
         samples(diagram.snapshot(), policy={"action": rule})
 
 
-@pytest.mark.parametrize("method", ["auto", "scan", "backward_induction"])
-def test_table_solver_never_silently_replaces_declared_family(method):
-    with pytest.raises(InferenceError, match="table solvers cannot"):
-        solve(_signal_diagram(), method=method)
-
-
-@pytest.mark.parametrize(
-    "solver", [scan_solve, batched_solve, backward_induction_solve]
-)
-def test_direct_table_solver_checks_declared_family(solver):
-    with pytest.raises(ValueError, match="table solvers cannot"):
-        solver(_signal_diagram().snapshot())
-
-
 def test_solver_requires_family_for_every_decision():
     diagram = _signal_diagram()
     diagram["action"].policy_family = None
     with pytest.raises(ValueError, match="'action' must declare"):
-        solve(diagram, method="policy_gradient")
+        solve(diagram)
     diagram["action"].policy_family = LinearSoftmax()
     diagram.add_node(DecisionNode("other", states=("off", "on")))
     with pytest.raises(ValueError, match="'other' must declare"):
-        solve(diagram, method="policy_gradient")
+        solve(diagram)
 
 
 def test_direct_policy_gradient_solver_requires_a_decision():
@@ -572,11 +552,6 @@ def test_direct_policy_gradient_solver_requires_a_decision():
 def test_solver_rejects_invalid_optimization_settings(options):
     with pytest.raises(ValueError):
         policy_gradient_solve(_signal_diagram().snapshot(), **options)
-
-
-def test_optimizer_settings_require_explicit_policy_gradient_method():
-    with pytest.raises(ValueError, match="require method"):
-        solve(_signal_diagram(), num_steps=10)
 
 
 def test_family_assignment_rejects_unsupported_representations():

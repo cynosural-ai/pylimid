@@ -114,7 +114,7 @@ The following table describes the intended boundaries after this proposal, not c
 
 Consequently, a model may support forward simulation and solving while a particular posterior query is unsupported. That difference should be documented and reported where the operation is requested. Unsupported inference should stop with an error, not trigger an unannounced approximation or a change of model.
 
-The regularity check remains a structural question about backward-induction applicability. Finite domains and numerical sampling coverage are separate prerequisites; adding count support does not change the regularity theorem.
+Policy-gradient training does not require a structural solution ordering. Finite domains and numerical sampling coverage are separate from graph validation and policy-family compatibility.
 
 ## Finite domains and policy indexing
 
@@ -128,7 +128,7 @@ Keep actual numeric counts in samples, observed evidence, utilities, and downstr
 
 Preserving the existing index-based `Policy` representation is a reasonable first implementation. A single domain mapping should encode numeric observations and decode rendered policy rows. Whether public policy keys should eventually use actual numeric values is a separate API decision; it must not change accidentally while replacing label lookups.
 
-All solvers must share the domain interpretation, including backward-induction group indices and both scan implementations. Declaring a finite domain must not hide out-of-domain values through JAX's indexing behavior.
+Inference, policy binding, and policy-gradient trajectories must share the domain interpretation. Declaring a finite domain must not hide out-of-domain values through JAX's indexing behavior.
 
 Larger domains still increase computational cost. Scan policy counts remain exponential in the number of information-set assignments, so automatically deriving a large finite domain does not make its policy search practical. Rare and impossible assignments also retain their existing sampling-coverage problems; domain representation alone does not solve those issues.
 
@@ -164,7 +164,7 @@ Unbounded discrete latent inference is a separate feature. NumPyro has additiona
 
 ## Implementation scope and sequence
 
-This affects more than `Posterior`. The current assumptions are spread across chance-node classification, graph helpers, inference dispatch, model translation, policy encoding, backward-induction grouping, both scan implementations, and policy rendering. Structural graph algorithms and decision action representation should mostly retain their current roles.
+This affects more than `Posterior`. The current assumptions are spread across chance-node classification, graph helpers, inference dispatch, model translation, policy encoding, policy-gradient training, and policy rendering. Structural graph algorithms and decision action representation should mostly retain their current roles.
 
 Categorical validation, classification separation, forward numerical counts, observed-count likelihoods and scalar fixed-range posteriors are complete. Tests cover exact Binomial and Beta-Binomial posterior masses and moments, categorical-parent updates, mixed continuous/discrete posteriors and preserved joint utility draws. They also check zero-trial counts, zero-probability outcomes, forward parent-dependent trial counts, native rejection of non-static enumeration and rejection of unsupported count domains. The remaining sequence is:
 
@@ -188,7 +188,7 @@ These criteria cover both implemented behavior and future extensions. Numerical 
 - Explicit domains cover all supported parent configurations; a pilot sample is never treated as proof of the domain or of impossibility.
 - Adding or changing display labels does not change numerical summaries, evidence values, policy meaning, or sampler selection.
 - Forward simulation of the five-or-ten-item batch model succeeds, while unsupported posterior enumeration fails. Any future fixed-domain enumeration workaround agrees with an exact small-model posterior.
-- Shared domain mappings work consistently in backward induction, batched scan, intervention scan, contingent-policy inference, and policy rendering. Domain sizes and mappings are not retained across invalidating diagram edits.
+- Shared domain mappings work consistently in policy-gradient training, contingent-policy inference, and policy rendering. Domain sizes and mappings are not retained across invalidating diagram edits.
 - Dirichlet and other array-valued continuous posteriors retain their draw shapes, component summaries, dtypes, and joint sample alignment.
 
 ## Recommendation

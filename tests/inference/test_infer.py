@@ -416,15 +416,15 @@ def test_contingent_policy_keeps_latent_information_parent_conditionable(
     assert jnp.all(result["payoff"].values == 1)
 
 
-@pytest.mark.parametrize("observed", [{}, {"evidence": 1}])
-def test_contingent_policy_accepts_solve_result(observed):
+def test_contingent_policy_accepts_solve_result_for_forward_evaluation():
+    from pylimid import TabularSoftmax
+
     diagram = _contingent_policy_diagram()
-    solution = solve(diagram, num_samples=500)
-    assert solution.method == "backward_induction"
-    payoff = infer(
-        diagram, ["payoff"], policy=solution.policy, observed=observed, num_samples=1000
-    )
-    assert jnp.all(payoff["payoff"].values == 2)
+    diagram["first"].policy_family = TabularSoftmax()
+    diagram["second"].policy_family = TabularSoftmax()
+    solution = solve(diagram, num_steps=200, num_samples=500)
+    payoff = infer(diagram, ["payoff"], policy=solution.policy, num_samples=2000)
+    assert payoff["payoff"].mean() > 1.95
 
 
 @pytest.mark.parametrize("reverse_policy", [False, True])

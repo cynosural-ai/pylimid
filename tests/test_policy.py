@@ -155,9 +155,7 @@ def test_infer_ignores_irrelevant_function_policy_with_evidence():
 
 
 def test_function_policy_can_be_rendered_without_enumerating_observations():
-    solution = Solution(
-        policy={"action": _positive_signal}, expected_utility=0.25, method="scan"
-    )
+    solution = Solution(policy={"action": _positive_signal}, expected_utility=0.25)
     rendered = solution.render(_signal_diagram())
     assert "action (signal)" in rendered
     assert "deterministic function policy" in rendered

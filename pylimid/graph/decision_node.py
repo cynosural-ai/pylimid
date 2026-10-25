@@ -51,7 +51,7 @@ class DecisionNode(Node):
     cannot index these tables. Supplied deterministic functions and fitted
     `SoftmaxPolicy` rules can use continuous observations during forward evaluation
     with `infer`. Declare `LinearSoftmax` or `TabularSoftmax` on every decision to fit
-    their joint policy through ``solve(method="policy_gradient")``. Its ``parents``
+    their joint policy through `solve`. Its ``parents``
     are the information available when it acts; earlier observations and decisions
     are remembered only when included explicitly.
     ``states=None`` leaves the decision unconfigured.
@@ -66,8 +66,9 @@ class DecisionNode(Node):
             graph are integer indices into this tuple.
         policy_family: Optional creator-selected `LinearSoftmax` or `TabularSoftmax`
             family. `TabularSoftmax` requires scalar categorical information. Use
-            ``solve(method="policy_gradient")`` to fit all declared rules jointly.
-            ``None`` retains the existing tabular solver behavior.
+            `solve` to fit all declared rules jointly.
+            ``None`` allows supplied rules for evaluation with `infer`; `solve` requires
+            a declared family on every decision.
     """
 
     states: tuple[str, ...] | None = field(default=None, kw_only=True)

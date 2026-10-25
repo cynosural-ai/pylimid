@@ -145,16 +145,6 @@ def _policy_rules(
     return rules
 
 
-def _require_tabular_families(snapshot: DiagramSnapshot) -> None:
-    """Require table solvers to preserve creator-declared policy families."""
-    for name, node in snapshot.nodes:
-        if isinstance(node, DecisionNode) and node.policy_family is not None:
-            raise ValueError(
-                f"Decision {name!r} declares a policy family; table solvers cannot "
-                "fit it. Use method='policy_gradient'."
-            )
-
-
 def _table_rule(table: jax.Array, parents: tuple[str, ...]) -> Callable[..., jax.Array]:
     """Wrap a compiled action table as a function of named parent values."""
 
