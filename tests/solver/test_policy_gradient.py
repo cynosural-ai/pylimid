@@ -14,6 +14,8 @@ from pylimid import (
     InfluenceDiagram,
     LinearSoftmax,
     SoftmaxPolicy,
+    TabularPolicy,
+    TabularSoftmax,
     UtilityNode,
     infer,
     solve,
@@ -291,17 +293,25 @@ def test_solver_learns_joint_policy_and_reuses_local_information(remember_first)
         second.probabilities(reading=jnp.array(0.0), signal=jnp.array(0.0))
 
 
-def test_three_decisions_with_different_action_spaces():
+@pytest.mark.parametrize(
+    "families",
+    [
+        (LinearSoftmax, LinearSoftmax, LinearSoftmax),
+        (TabularSoftmax, TabularSoftmax, TabularSoftmax),
+        (LinearSoftmax, TabularSoftmax, LinearSoftmax),
+    ],
+)
+def test_three_decisions_with_different_action_spaces(families):
     diagram = InfluenceDiagram()
     diagram.add_node(
-        DecisionNode("first", states=("off", "on"), policy_family=LinearSoftmax())
+        DecisionNode("first", states=("off", "on"), policy_family=families[0]())
     )
     diagram.add_node(
         DecisionNode(
             "second",
             parents=("first",),
             states=("low", "medium", "high"),
-            policy_family=LinearSoftmax(),
+            policy_family=families[1](),
         )
     )
     diagram.add_node(
@@ -309,7 +319,7 @@ def test_three_decisions_with_different_action_spaces():
             "third",
             parents=("second",),
             states=("off", "on"),
-            policy_family=LinearSoftmax(),
+            policy_family=families[2](),
         )
     )
     diagram.add_node(
@@ -322,8 +332,11 @@ def test_three_decisions_with_different_action_spaces():
     solution = solve(diagram, method="policy_gradient", num_steps=150, num_samples=256)
     for name, shape in [("first", (0, 2)), ("second", (2, 3)), ("third", (3, 2))]:
         rule = solution.policy[name]
-        assert isinstance(rule, SoftmaxPolicy)
-        assert rule.weights.shape == shape
+        if isinstance(rule, SoftmaxPolicy):
+            assert rule.weights.shape == shape
+        else:
+            assert isinstance(rule, TabularPolicy)
+            assert rule.logits.shape == ((2,) if name == "first" else shape)
     assert solution.expected_utility > 2.8
 
 

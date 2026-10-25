@@ -38,7 +38,7 @@ from pylimid.graph.node import (
     Node,
     NodeKind,
 )
-from pylimid.policy_family import LinearSoftmax
+from pylimid.policy_family import LinearSoftmax, TabularSoftmax
 
 
 @dataclass
@@ -50,10 +50,10 @@ class DecisionNode(Node):
     parent to declare named finite states; numerical counts and continuous parents
     cannot index these tables. Supplied deterministic functions and fitted
     `SoftmaxPolicy` rules can use continuous observations during forward evaluation
-    with `infer`. Declare `LinearSoftmax` on every decision to fit their joint policy
-    through ``solve(method="policy_gradient")``. Its ``parents`` are the information
-    available when it acts; earlier observations and decisions are remembered only
-    when included explicitly.
+    with `infer`. Declare `LinearSoftmax` or `TabularSoftmax` on every decision to fit
+    their joint policy through ``solve(method="policy_gradient")``. Its ``parents``
+    are the information available when it acts; earlier observations and decisions
+    are remembered only when included explicitly.
     ``states=None`` leaves the decision unconfigured.
 
     Attributes:
@@ -64,13 +64,16 @@ class DecisionNode(Node):
         states: Labels for the available actions. ``None`` (the default) marks
             the decision as not-yet-configured. Values flowing through the
             graph are integer indices into this tuple.
-        policy_family: Optional creator-selected `LinearSoftmax` family. Use
+        policy_family: Optional creator-selected `LinearSoftmax` or `TabularSoftmax`
+            family. `TabularSoftmax` requires scalar categorical information. Use
             ``solve(method="policy_gradient")`` to fit all declared rules jointly.
             ``None`` retains the existing tabular solver behavior.
     """
 
     states: tuple[str, ...] | None = field(default=None, kw_only=True)
-    policy_family: LinearSoftmax | None = field(default=None, kw_only=True)
+    policy_family: LinearSoftmax | TabularSoftmax | None = field(
+        default=None, kw_only=True
+    )
 
     def __setattr__(self, key: str, value: Any) -> None:
         """Validate decision-specific fields, then defer to the base node."""
@@ -79,9 +82,12 @@ class DecisionNode(Node):
         elif (
             key == "policy_family"
             and value is not None
-            and not isinstance(value, LinearSoftmax)
+            and not isinstance(value, (LinearSoftmax, TabularSoftmax))
         ):
-            raise TypeError("`policy_family` must be a LinearSoftmax instance or None.")
+            raise TypeError(
+                "`policy_family` must be a LinearSoftmax or TabularSoftmax instance "
+                "or None."
+            )
         super().__setattr__(key, value)
 
     # --- kind / structure ---------------------------------------------------

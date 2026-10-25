@@ -1,4 +1,4 @@
-"""Fit declared linear-softmax decisions by joint expected-utility policy gradients."""
+"""Fit declared softmax decisions by joint expected-utility policy gradients."""
 
 from dataclasses import replace
 from math import isfinite
@@ -12,7 +12,7 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.policy_family import LinearSoftmax, SoftmaxPolicy
+from pylimid.policy_family import LinearSoftmax, TabularSoftmax
 from pylimid.solver.solution import Solution
 
 __all__ = ["solve"]
@@ -27,7 +27,7 @@ def solve(
     rng_key: jax.Array | None = None,
 ) -> Solution:
     """
-    Fit every decision's declared `LinearSoftmax` family jointly with Adam.
+    Fit every decision's declared softmax family jointly with Adam.
 
     Each update samples fresh complete scenarios and estimates a score-function
     gradient of expected total utility for all decisions. Each rule uses only its
@@ -39,23 +39,26 @@ def solve(
 
     The final stochastic policy is evaluated on independent fresh scenarios. Its
     expected utility is an estimate, with no global or local optimality guarantee.
-    Every decision must declare `LinearSoftmax`; other families are unsupported.
+    Every decision must declare `LinearSoftmax` or `TabularSoftmax`. Families can be
+    mixed in one diagram; tabular rules require scalar categorical information.
 
     Args:
         snapshot: A validated diagram with at least one decision, each declaring
-            ``policy_family=LinearSoftmax()``.
+            a `LinearSoftmax` or `TabularSoftmax` policy family.
         num_samples: Scenarios per training update and in the final evaluation.
         num_steps: Number of optimizer updates.
         learning_rate: Positive, finite Adam step size.
         rng_key: JAX random key; defaults to ``jax.random.PRNGKey(0)``.
 
     Returns:
-        A `Solution` containing one fitted `SoftmaxPolicy` per decision and an
-        independent Monte Carlo estimate of their joint expected total utility.
+        A `Solution` containing a fitted `SoftmaxPolicy` or `TabularPolicy` per
+        decision and an independent Monte Carlo estimate of their joint expected
+        total utility.
 
     Raises:
         ValueError: If there are no decisions, any decision lacks a declared
-            `LinearSoftmax` family, a budget is non-positive, the learning rate is
+            supported family, tabular information is not scalar and categorical,
+            a budget is non-positive, the learning rate is
             invalid, or optimization produces non-finite parameters or expected
             utility. Also raised if a chance distribution conflicts with its ``states``.
     """
@@ -63,10 +66,10 @@ def solve(
     if not decisions:
         raise ValueError("Policy-gradient solving requires at least one decision.")
     for decision in decisions:
-        if not isinstance(decision.policy_family, LinearSoftmax):
+        if not isinstance(decision.policy_family, (LinearSoftmax, TabularSoftmax)):
             raise ValueError(
                 f"Decision {decision.name!r} must declare "
-                "policy_family=LinearSoftmax()."
+                "policy_family=LinearSoftmax() or TabularSoftmax()."
             )
     if num_samples <= 0 or num_steps <= 0:
         raise ValueError("num_samples and num_steps must be positive.")
@@ -78,10 +81,7 @@ def solve(
         rng_key, 4
     )
     templates = _initialize_policy(snapshot, information_key)
-    parameters = {
-        name: {"weights": rule.weights, "bias": rule.bias}
-        for name, rule in templates.items()
-    }
+    parameters = {name: rule._parameters() for name, rule in templates.items()}
     trajectory = _trajectory(snapshot, templates)
     pilot_utility, _, _ = trajectory(parameters, shape_key)
     baseline = jnp.zeros_like(jnp.mean(pilot_utility))
@@ -147,21 +147,10 @@ def _initialize_policy(snapshot, key):
             values[name] = distribution.sample(next(keys))
         else:
             assert node.states is not None
-            assert isinstance(node.policy_family, LinearSoftmax)
+            assert isinstance(node.policy_family, (LinearSoftmax, TabularSoftmax))
             parent_states = tuple(nodes[parent].states for parent in node.parents)
-            feature_count = node.policy_family._features(
-                node.parents, parent_states, parents
-            ).size
-            rule = SoftmaxPolicy(
-                family=node.policy_family,
-                parents=node.parents,
-                parent_states=parent_states,
-                parent_shapes=tuple(
-                    jnp.shape(parents[parent]) for parent in node.parents
-                ),
-                states=node.states,
-                weights=jnp.zeros((feature_count, len(node.states))),
-                bias=jnp.zeros(len(node.states)),
+            rule = node.policy_family._initialize(
+                node.parents, parent_states, parents, node.states
             )
             templates[name] = rule
             values[name] = rule.sample(next(keys), **parents)

@@ -22,6 +22,8 @@ Posterior inference and its result types are also available from ``pylimid.infer
    Solution
    LinearSoftmax
    SoftmaxPolicy
+   TabularSoftmax
+   TabularPolicy
 
 Data types
 ----------
@@ -34,11 +36,11 @@ These aliases describe the mappings and solver names used by the functions above
    One `Posterior` per query variable. Each posterior stores a JAX array with shape ``(num_samples, *node_shape)``. Entries at the same position in each posterior's ``values`` belong to the same joint draw.
 
 .. py:data:: Policy
-   :type: dict[str, dict[tuple[int, ...], int] | collections.abc.Callable[..., int | jax.Array] | SoftmaxPolicy]
+   :type: dict[str, dict[tuple[int, ...], int] | collections.abc.Callable[..., int | jax.Array] | SoftmaxPolicy | TabularPolicy]
 
-   A policy maps each decision name to an action table, a deterministic function, or a fitted stochastic `SoftmaxPolicy`. Each table maps a tuple of parent-state indices, in the decision's ``parents`` order, to an action index in its ``states``. A decision with no parents uses the empty tuple ``()`` as its only key.
+   A policy maps each decision name to a deterministic action table, a deterministic function, or a fitted stochastic `SoftmaxPolicy` or `TabularPolicy`. Each deterministic table maps a tuple of parent-state indices, in the decision's ``parents`` order, to an action index in its ``states``. A decision with no parents uses the empty tuple ``()`` as its only key.
 
-   Table solvers return tables and require categorical information sets. ``solve(method="policy_gradient")`` jointly fits all decisions, each declaring ``policy_family=LinearSoftmax()``, and returns a `SoftmaxPolicy` per decision. Each rule receives only its declared information parents; the joint policy is the mapping of all local rules. `infer` accepts these rules and fixed action indices through ``policy``. Tables, functions, and fitted rules can be mixed during evaluation.
+   Table solvers return deterministic tables and require categorical information sets. ``solve(method="policy_gradient")`` jointly fits all decisions, each declaring `LinearSoftmax` or `TabularSoftmax`, and returns a `SoftmaxPolicy` or `TabularPolicy` per decision. A `TabularPolicy` contains independent action logits for every scalar categorical parent-state assignment; its final axis follows the action labels. Each rule receives only its declared information parents; the joint policy is the mapping of all local rules. `infer` accepts these rules and fixed action indices through ``policy``. Tables, functions, and fitted rules can be mixed during evaluation.
 
    Function rules accept their declared information parents by keyword and return a scalar integer action index. They must be deterministic and JAX-traceable; use ``jnp`` operations rather than Python conditionals on parent values. For example, a decision observing a continuous ``signal`` could use:
 

@@ -258,7 +258,7 @@ This is an approximate optimization result, with no global or local optimality g
 
 ### Training several decisions together
 
-For several decisions, we declare `LinearSoftmax` on each one. The solver fits a joint policy: a mapping from decision names to local fitted rules. Each rule receives only its declared information parents. Earlier observations and actions are remembered only when included explicitly as parents.
+For several decisions, we declare a supported family on each one. The solver fits a joint policy: a mapping from decision names to local fitted rules. Each rule receives only its declared information parents. Earlier observations and actions are remembered only when included explicitly as parents.
 
 Suppose the first action changes a later measurement. We add a second decision that sees only that measurement, and a further payoff:
 
@@ -297,7 +297,86 @@ print(joint_fit.render(signal_diagram))
 
 `joint_fit.policy` contains rules for `action` and `follow_up`. The second rule sees `reading`; it cannot inspect `signal` or `action` directly. During each training update, the solver samples the first action, generates the resulting reading, then samples the follow-up action. It updates both rules using the sum of all utility nodes. This also supports diagrams with limited memory that cannot be solved by one pass of backward induction. We can pass the complete mapping to `infer(policy=joint_fit.policy)` for fresh forward evaluation.
 
-The solver returns the final training iterate and evaluates it on independent scenarios. It does not select among training checkpoints or report convergence diagnostics. `method="auto"` continues to choose table solvers and rejects a declared family; use `method="policy_gradient"` explicitly. Every decision must declare `LinearSoftmax`. Fitted rules support forward evaluation without observed chance-node evidence; other trainable families and posterior reuse remain future work.
+The solver returns the final training iterate and evaluates it on independent scenarios. It does not select among training checkpoints or report convergence diagnostics. `method="auto"` continues to choose table solvers and rejects a declared family; use `method="policy_gradient"` explicitly. Every decision must declare `LinearSoftmax` or `TabularSoftmax`. Fitted rules support forward evaluation without observed chance-node evidence; custom trainable families and posterior reuse remain future work.
+
+### Trainable tables for categorical information
+
+With {py:class}`TabularSoftmax`, each combination of categorical parent states has independent scores for the available actions. Softmax converts each row's scores to action probabilities. This can express interactions that adding separate linear effects cannot, such as choosing `on` when exactly one of two observations is `yes`:
+
+```{code-cell} ipython3
+from pylimid import TabularSoftmax
+
+categorical_diagram = InfluenceDiagram()
+for name in ("left", "right"):
+    categorical_diagram.add_node(
+        ChanceNode(name, states=("no", "yes"), dist=lambda: dist.Bernoulli(0.5))
+    )
+categorical_diagram.add_node(
+    DecisionNode(
+        "action",
+        parents=("left", "right"),
+        states=("off", "on"),
+        policy_family=TabularSoftmax(),
+    )
+)
+categorical_diagram.add_node(
+    UtilityNode(
+        "payoff",
+        parents=("left", "right", "action"),
+        values=lambda left, right, action: jnp.where(
+            action == (left != right), 1.0, 0.0
+        ),
+    )
+)
+table_fit = solve(
+    categorical_diagram,
+    method="policy_gradient",
+    num_steps=200,
+    num_samples=2000,
+)
+print(table_fit.render(categorical_diagram))
+```
+
+The fitted {py:class}`TabularPolicy` keeps `logits`, parent labels and action labels. The leading axes of `logits` follow `parents` and their state-label order; the last axis follows the action `states`. `probabilities(left=jnp.array(0), right=jnp.array(1))` inspects a row. A parentless decision has a single action-score vector. Every parent must have named finite states and a scalar state index; continuous values and numerical counts without named states cannot index a trainable table. Table size grows as the product of the parents' state counts, and rare combinations may receive little training.
+
+We can also train a table rule alongside a function rule. Here the categorical action affects a later continuous reading, which a {py:class}`LinearSoftmax` follow-up decision observes together with the remembered action:
+
+```{code-cell} ipython3
+categorical_diagram.add_node(
+    ChanceNode("signal", dist=lambda: dist.Uniform(-1.0, 1.0))
+)
+categorical_diagram.add_node(
+    ChanceNode(
+        "reading",
+        parents=("signal", "action"),
+        dist=lambda signal, action: dist.Delta(signal + action),
+    )
+)
+categorical_diagram.add_node(
+    DecisionNode(
+        "follow_up",
+        parents=("reading", "action"),
+        states=("off", "on"),
+        policy_family=LinearSoftmax(),
+    )
+)
+categorical_diagram.add_node(
+    UtilityNode(
+        "later_payoff",
+        parents=("signal", "follow_up"),
+        values=lambda signal, follow_up: signal * follow_up,
+    )
+)
+mixed_fit = solve(
+    categorical_diagram,
+    method="policy_gradient",
+    num_steps=400,
+    num_samples=2000,
+)
+print(mixed_fit.render(categorical_diagram))
+```
+
+Both rules train jointly using total utility, and the fitted mapping can be passed to {py:func}`infer` for forward evaluation. The table remains stochastic, including in a fully categorical diagram; choosing each row's largest score creates a different policy. Trainable tables provide an approximate alternative to the scan and backward induction. Backward induction still directly compares finite actions on supported soluble diagrams. Training tables with policy gradients does not combine those solvers or inherit their optimization guarantees.
 
 ## When does solve() fail?
 
@@ -305,6 +384,6 @@ The solver returns the final training iterate and evaluates it on independent sc
 
 - **The diagram has no decisions.** In that case there is nothing to optimise, so there is no policy to return.
 - **A table solver receives numerical information.** Tables require named finite parent states, so they cannot directly use continuous measurements or numerical counts. We can bin the reading into categories, or use the policy-gradient method above. Numerical variables can still feed other chance nodes and utilities in any solver.
-- **The selected solver cannot fit the declared family.** Table solvers reject declared families. Policy-gradient training requires `LinearSoftmax` on every decision; it rejects missing families.
+- **The selected solver cannot fit the declared family.** Table solvers reject declared families. Policy-gradient training requires `LinearSoftmax` or `TabularSoftmax` on every decision; it rejects missing families and trainable tables with non-scalar or non-categorical information.
 
 Diagrams without decisions and incompatible table-solver inputs raise {py:class}`~pylimid.InferenceError`. Policy-gradient training raises `ValueError` for a missing family or invalid optimizer settings.

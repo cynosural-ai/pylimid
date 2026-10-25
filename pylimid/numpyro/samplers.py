@@ -29,7 +29,7 @@ from pylimid.graph.node import NodeKind
 from pylimid.graph.utility_node import UtilityNode
 from pylimid.numpyro.model import _to_model
 from pylimid.policy import Policy, _policy_rules
-from pylimid.policy_family import SoftmaxPolicy
+from pylimid.policy_family import SoftmaxPolicy, TabularPolicy
 
 __all__ = ["samples"]
 
@@ -76,7 +76,7 @@ def samples(
         policy: Decision names mapped to complete action tables or JAX-traceable
             deterministic functions. Functions receive only declared information
             parents as keyword arguments and return a scalar integer action index.
-            Fitted `SoftmaxPolicy` rules sample actions from their learned
+            Fitted `SoftmaxPolicy` and `TabularPolicy` rules sample actions from learned
             probabilities. Functions and fitted rules support forward evaluation only.
 
     Returns:
@@ -109,7 +109,7 @@ def samples(
             continue
         assert isinstance(node, DecisionNode)
         rule = policy_rules[name]
-        if isinstance(rule, SoftmaxPolicy):
+        if isinstance(rule, (SoftmaxPolicy, TabularPolicy)):
             continue
         if node.parents:
             draws[name] = jax.vmap(rule)(

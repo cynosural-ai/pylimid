@@ -14,7 +14,7 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.node import _signature_matches
-from pylimid.policy_family import SoftmaxPolicy
+from pylimid.policy_family import SoftmaxPolicy, TabularPolicy
 
 __all__ = ["Policy"]
 
@@ -23,7 +23,11 @@ __all__ = ["Policy"]
 #: parents by keyword and return a scalar integer action index. Functions and fitted
 #: stochastic rules currently support forward evaluation only.
 Policy: TypeAlias = dict[
-    str, dict[tuple[int, ...], int] | Callable[..., int | jax.Array] | SoftmaxPolicy
+    str,
+    dict[tuple[int, ...], int]
+    | Callable[..., int | jax.Array]
+    | SoftmaxPolicy
+    | TabularPolicy,
 ]
 
 _TablePolicy: TypeAlias = dict[str, dict[tuple[int, ...], int]]
@@ -73,7 +77,7 @@ def _policy_rules(
     snapshot: DiagramSnapshot,
     policy: Policy,
     observed: Mapping[str, object],
-) -> dict[str, Callable[..., jax.Array] | SoftmaxPolicy]:
+) -> dict[str, Callable[..., jax.Array] | SoftmaxPolicy | TabularPolicy]:
     """Validate rules and bind tables and functions to one evaluation interface."""
     nodes = dict(snapshot.nodes)
     node_map = {
@@ -90,7 +94,7 @@ def _policy_rules(
         decision = nodes[name]
         if not isinstance(decision, DecisionNode):
             raise InferenceError(f"Policy for {name!r} must bind a decision node.")
-        if isinstance(rule, SoftmaxPolicy):
+        if isinstance(rule, (SoftmaxPolicy, TabularPolicy)):
             if (
                 set(rule.parents) != set(decision.parents)
                 or rule.states != decision.states

@@ -5,7 +5,8 @@ Policy optimisation, solver selection, and solution results.
 the batched policy scan otherwise. The scan implementations and their shared
 enumeration helpers live in ``pylimid.solver.scan``. Structural solvability checks
 and backward induction live directly in ``pylimid.solver``. Explicitly select
-``method="policy_gradient"`` to fit one declared `LinearSoftmax` decision instead.
+``method="policy_gradient"`` to jointly fit declared `LinearSoftmax` and
+`TabularSoftmax` decision rules instead.
 """
 
 from pylimid.solver.api import SolveMethod, solve

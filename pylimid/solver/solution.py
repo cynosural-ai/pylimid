@@ -7,11 +7,14 @@ Returned by `solve`. Expected utility is a Monte Carlo estimate.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import product
 from typing import Literal, TypeAlias
+
+import jax
 
 from pylimid.graph.diagram import InfluenceDiagram
 from pylimid.policy import Policy
-from pylimid.policy_family import SoftmaxPolicy
+from pylimid.policy_family import SoftmaxPolicy, TabularPolicy
 
 __all__ = ["Solution", "SolverName"]
 
@@ -27,8 +30,9 @@ class Solution:
 
     Attributes:
         policy: One rule per decision. Table solvers return action tables;
-            policy-gradient training returns a fitted stochastic `SoftmaxPolicy`
-            per decision, jointly trained using only each rule's information parents.
+            policy-gradient training returns a fitted stochastic `SoftmaxPolicy` or
+            `TabularPolicy` per decision, jointly trained using only each rule's
+            information parents.
             Supplied deterministic functions can also be evaluated and rendered.
             Table keys are parent-state tuples in the decision's ``parents`` order;
             values are action indices in its ``states``. A root table uses ``()``.
@@ -55,8 +59,9 @@ class Solution:
         followed by one block per decision: a header naming the decision and its parents
         in information-set order, then one line per situation reading the
         chosen action's label. A decision with no parents has the single
-        situation ``always``. Function and fitted stochastic rules are identified
-        without enumerating their observation space.
+        situation ``always``. Fitted stochastic tables show action probabilities per
+        assignment. Function and fitted linear rules are identified without enumerating
+        their observation space.
 
         Args:
             diagram: The diagram this solution was computed from; supplies
@@ -76,6 +81,39 @@ class Solution:
                     f"{name} ({', '.join(rule.parents) or 'no parents'})",
                     "  fitted linear-softmax policy (stochastic)",
                 ]
+                continue
+            if isinstance(rule, TabularPolicy):
+                lines += [
+                    "",
+                    f"{name} ({', '.join(rule.parents) or 'no parents'})",
+                    "  fitted tabular-softmax policy (stochastic)",
+                ]
+                assignments = product(
+                    *(range(len(states)) for states in rule.parent_states)
+                )
+                probabilities = (
+                    jax.nn.softmax(rule.logits, axis=-1)
+                    .reshape(-1, len(rule.states))
+                    .tolist()
+                )
+                for assignment, row in zip(assignments, probabilities, strict=True):
+                    situation = (
+                        ", ".join(
+                            f"{parent}={states[state]}"
+                            for parent, states, state in zip(
+                                rule.parents,
+                                rule.parent_states,
+                                assignment,
+                                strict=True,
+                            )
+                        )
+                        or "always"
+                    )
+                    actions = ", ".join(
+                        f"{state}={probability:.3f}"
+                        for state, probability in zip(rule.states, row, strict=True)
+                    )
+                    lines.append(f"  {situation} -> {actions}")
                 continue
             if callable(rule):
                 lines += [

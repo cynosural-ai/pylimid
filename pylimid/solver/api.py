@@ -36,7 +36,8 @@ def solve(
     All methods estimate the sum of all utility nodes by Monte Carlo simulation.
     Table solvers require finite decisions with categorical information sets.
     The policy-gradient solver jointly fits finite decisions with numerical,
-    categorical, or mixed information parents and declared `LinearSoftmax` families.
+    categorical, or mixed information parents and declared `LinearSoftmax` or
+    `TabularSoftmax` families. Tabular families require scalar categorical parents.
 
     - ``"backward_induction"`` resolves one decision at a time, from the
       last to the first, estimating each action's expected utility per
@@ -49,9 +50,10 @@ def solve(
       diagram with finite decisions and categorical information sets. Its policy count
       grows exponentially with the number of action-table entries.
     - ``"policy_gradient"`` jointly fits all decisions, each declaring
-      ``policy_family=LinearSoftmax()``, using sampled-action score gradients and Adam.
-      It returns a stochastic `SoftmaxPolicy` per decision and evaluates the joint
-      policy on fresh simulations. Each rule uses only its information parents.
+      `LinearSoftmax` or `TabularSoftmax`, using sampled-action score gradients and
+      Adam. It returns a stochastic `SoftmaxPolicy` or `TabularPolicy` per decision
+      and evaluates the joint policy on fresh simulations. Each rule uses only its
+      information parents.
       Training has no global or local optimality guarantee, even within the family.
     - ``"auto"`` selects between the two table solvers only: backward induction when
       the diagram is solvable and the scan otherwise. Table solvers reject declared
