@@ -50,10 +50,10 @@ class DecisionNode(Node):
     parent to declare named finite states; numerical counts and continuous parents
     cannot index these tables. Supplied deterministic functions and fitted
     `SoftmaxPolicy` rules can use continuous observations during forward evaluation
-    with `infer`. Declare `LinearSoftmax` to fit one decision through
-    ``solve(method="policy_gradient")``. Its ``parents`` are the information available
-    when it acts; earlier observations and decisions are remembered only when
-    included explicitly.
+    with `infer`. Declare `LinearSoftmax` on every decision to fit their joint policy
+    through ``solve(method="policy_gradient")``. Its ``parents`` are the information
+    available when it acts; earlier observations and decisions are remembered only
+    when included explicitly.
     ``states=None`` leaves the decision unconfigured.
 
     Attributes:
@@ -65,7 +65,7 @@ class DecisionNode(Node):
             the decision as not-yet-configured. Values flowing through the
             graph are integer indices into this tuple.
         policy_family: Optional creator-selected `LinearSoftmax` family. Use
-            ``solve(method="policy_gradient")`` to fit it for a single decision.
+            ``solve(method="policy_gradient")`` to fit all declared rules jointly.
             ``None`` retains the existing tabular solver behavior.
     """
 

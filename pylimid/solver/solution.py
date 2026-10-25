@@ -27,7 +27,8 @@ class Solution:
 
     Attributes:
         policy: One rule per decision. Table solvers return action tables;
-            policy-gradient training returns a fitted stochastic `SoftmaxPolicy`.
+            policy-gradient training returns a fitted stochastic `SoftmaxPolicy`
+            per decision, jointly trained using only each rule's information parents.
             Supplied deterministic functions can also be evaluated and rendered.
             Table keys are parent-state tuples in the decision's ``parents`` order;
             values are action indices in its ``states``. A root table uses ``()``.

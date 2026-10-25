@@ -3,7 +3,7 @@ Solvers
 
 .. currentmodule:: pylimid.solver
 
-For most uses, call `pylimid.solve`. It chooses backward induction when the diagram is structurally solvable and the batched policy scan otherwise. Explicitly select ``method="policy_gradient"`` to fit one decision with a declared `LinearSoftmax` family and numerical or mixed information. The :doc:`solving guide <../user_guide/solving>` explains these choices.
+For most uses, call `pylimid.solve`. It chooses backward induction when the diagram is structurally solvable and the batched policy scan otherwise. Explicitly select ``method="policy_gradient"`` to jointly fit decisions with declared `LinearSoftmax` families and numerical or mixed information. The :doc:`solving guide <../user_guide/solving>` explains these choices.
 
 The functions below expose the solvers individually. They take a `DiagramSnapshot`, obtained with `InfluenceDiagram.snapshot`, rather than the editable diagram. `batched_solve` and `scan_solve` enumerate the same policies; the batched version evaluates them together with JAX.
 

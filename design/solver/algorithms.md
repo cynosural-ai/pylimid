@@ -62,11 +62,11 @@ One-pass backward induction is sound exactly on *soluble* LIMIDs, so the gate is
 - **The divergence is deliberate.** `is_solvable` matches `isSolvable()` on every fixture and structural battery case except the pinned one, where the paper and pyAgrum disagree. A diagram pyAgrum solves that we reject is not a false alarm — it is a diagram on which pyAgrum can silently return a suboptimal policy.
 - **Not implemented from the paper:** the minimal-reduction loop (repeated removal of non-requisite arcs to test the reduced model). That loop explores reduced models and bounds; the correctness gate for solving the diagram as given is the exact-solution ordering above.
 
-## Discrete decisions with continuous information (single decision implemented)
+## Discrete decisions with continuous information (joint training implemented)
 
 The table tiers above all require categorical information sets. Supporting a continuous observation does not require a continuous action: a finite-action decision can instead use a function policy. In the [continuous-information proposal](../continuous_information/README.md), the diagram creator chooses a policy family per decision, such as linear scores followed by softmax or a neural network followed by softmax. A compatible solver fits its parameters and returns the fitted policy. Tables and functions share one policy abstraction.
 
-`solve(method="policy_gradient")` now implements sampled-action score gradients and Adam for exactly one decision declaring `policy_family=LinearSoftmax()`. It returns a fitted stochastic rule and evaluates its utility on fresh scenarios. It preserves the declared information set and family, but has no global or local optimality guarantee, even within that family. General multiple-decision training and finite action enumeration for variance reduction remain future work. Continuous actions remain separate.
+`solve(method="policy_gradient")` implements joint sampled-action score gradients and Adam for decisions that each declare `policy_family=LinearSoftmax()`. It walks complete trajectories under all current rules, allowing earlier actions to affect later observations while preserving explicit information sets and limited memory. It returns one fitted stochastic rule per decision and evaluates the final joint policy on fresh scenarios. It preserves each declared family, but has no global or local optimality guarantee, even within those families. Richer baselines, candidate selection, diagnostics and finite action enumeration for variance reduction remain future work. Continuous actions remain separate.
 
 ## The papers
 

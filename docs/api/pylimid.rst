@@ -38,7 +38,7 @@ These aliases describe the mappings and solver names used by the functions above
 
    A policy maps each decision name to an action table, a deterministic function, or a fitted stochastic `SoftmaxPolicy`. Each table maps a tuple of parent-state indices, in the decision's ``parents`` order, to an action index in its ``states``. A decision with no parents uses the empty tuple ``()`` as its only key.
 
-   Table solvers return tables and require categorical information sets. ``solve(method="policy_gradient")`` fits exactly one decision declaring ``policy_family=LinearSoftmax()`` and returns a `SoftmaxPolicy`. `infer` accepts these rules and fixed action indices through ``policy``. Tables, functions, and fitted rules can be mixed during evaluation.
+   Table solvers return tables and require categorical information sets. ``solve(method="policy_gradient")`` jointly fits all decisions, each declaring ``policy_family=LinearSoftmax()``, and returns a `SoftmaxPolicy` per decision. Each rule receives only its declared information parents; the joint policy is the mapping of all local rules. `infer` accepts these rules and fixed action indices through ``policy``. Tables, functions, and fitted rules can be mixed during evaluation.
 
    Function rules accept their declared information parents by keyword and return a scalar integer action index. They must be deterministic and JAX-traceable; use ``jnp`` operations rather than Python conditionals on parent values. For example, a decision observing a continuous ``signal`` could use:
 

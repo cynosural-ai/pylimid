@@ -256,14 +256,55 @@ print("Fresh expected utility:", payoff.mean())
 
 This is an approximate optimization result, with no global or local optimality guarantee, even within the selected family. Compare different training keys and budgets as well as independent utility estimates. More evaluation samples reduce estimation noise, but cannot fix an unsuitable family or incomplete optimization.
 
-Training currently supports **exactly one decision** with `LinearSoftmax`. `method="auto"` continues to choose table solvers and rejects a declared family; use `method="policy_gradient"` explicitly. Fitted rules support forward evaluation without observed chance-node evidence. Multiple-decision training, other trainable families and posterior reuse remain future work.
+### Training several decisions together
+
+For several decisions, we declare `LinearSoftmax` on each one. The solver fits a joint policy: a mapping from decision names to local fitted rules. Each rule receives only its declared information parents. Earlier observations and actions are remembered only when included explicitly as parents.
+
+Suppose the first action changes a later measurement. We add a second decision that sees only that measurement, and a further payoff:
+
+```{code-cell} ipython3
+signal_diagram.add_node(
+    ChanceNode(
+        "reading",
+        parents=("signal", "action"),
+        dist=lambda signal, action: dist.Delta(signal + action),
+    )
+)
+signal_diagram.add_node(
+    DecisionNode(
+        "follow_up",
+        parents=("reading",),
+        states=("off", "on"),
+        policy_family=LinearSoftmax(),
+    )
+)
+signal_diagram.add_node(
+    UtilityNode(
+        "follow_up_payoff",
+        parents=("reading", "follow_up"),
+        values=lambda reading, follow_up: reading * follow_up,
+    )
+)
+joint_fit = solve(
+    signal_diagram,
+    method="policy_gradient",
+    num_steps=300,
+    num_samples=2000,
+    rng_key=jax.random.PRNGKey(0),
+)
+print(joint_fit.render(signal_diagram))
+```
+
+`joint_fit.policy` contains rules for `action` and `follow_up`. The second rule sees `reading`; it cannot inspect `signal` or `action` directly. During each training update, the solver samples the first action, generates the resulting reading, then samples the follow-up action. It updates both rules using the sum of all utility nodes. This also supports diagrams with limited memory that cannot be solved by one pass of backward induction. We can pass the complete mapping to `infer(policy=joint_fit.policy)` for fresh forward evaluation.
+
+The solver returns the final training iterate and evaluates it on independent scenarios. It does not select among training checkpoints or report convergence diagnostics. `method="auto"` continues to choose table solvers and rejects a declared family; use `method="policy_gradient"` explicitly. Every decision must declare `LinearSoftmax`. Fitted rules support forward evaluation without observed chance-node evidence; other trainable families and posterior reuse remain future work.
 
 ## When does solve() fail?
 
 {py:func}`solve` reports these unsupported cases:
 
 - **The diagram has no decisions.** In that case there is nothing to optimise, so there is no policy to return.
-- **A table solver receives numerical information.** Tables require named finite parent states, so they cannot directly use continuous measurements or numerical counts. We can bin the reading into categories, or use the single-decision policy-gradient method above. Numerical variables can still feed other chance nodes and utilities in any solver.
-- **The selected solver cannot fit the declared family.** Table solvers reject declared families. Policy-gradient training requires exactly one decision with `LinearSoftmax`; it rejects missing families and multiple decisions.
+- **A table solver receives numerical information.** Tables require named finite parent states, so they cannot directly use continuous measurements or numerical counts. We can bin the reading into categories, or use the policy-gradient method above. Numerical variables can still feed other chance nodes and utilities in any solver.
+- **The selected solver cannot fit the declared family.** Table solvers reject declared families. Policy-gradient training requires `LinearSoftmax` on every decision; it rejects missing families.
 
-Diagrams without decisions and incompatible table-solver inputs raise {py:class}`~pylimid.InferenceError`. Policy-gradient training raises `ValueError` for a missing family or invalid optimizer settings, and `NotImplementedError` for multiple decisions.
+Diagrams without decisions and incompatible table-solver inputs raise {py:class}`~pylimid.InferenceError`. Policy-gradient training raises `ValueError` for a missing family or invalid optimizer settings.
