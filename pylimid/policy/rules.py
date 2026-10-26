@@ -2,6 +2,7 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from typing import cast
 
 import jax
 import jax.numpy as jnp
@@ -95,7 +96,8 @@ class CategoricalPolicy:
         Returns:
             A scalar integer index into ``states``.
         """
-        return self._distribution(observations).sample(rng_key)
+        # NumPyro's ArrayLike hint is broader than this sampler's JAX array output.
+        return cast(jax.Array, self._distribution(observations).sample(rng_key))
 
     def log_prob(self, action: jax.Array, /, **observations: jax.Array) -> jax.Array:
         """
@@ -110,7 +112,9 @@ class CategoricalPolicy:
         """
         return self._distribution(observations).log_prob(action)
 
-    def _distribution(self, observations: DecisionInformation):
+    def _distribution(
+        self, observations: DecisionInformation
+    ) -> dist.CategoricalLogits:
         """Bind observations in declared order and construct the action distribution."""
         unexpected = observations.keys() - self.parents
         if unexpected:

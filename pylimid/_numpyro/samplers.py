@@ -38,7 +38,7 @@ def samples(
     query: list[str] | None = None,
     num_samples: int = 2000,
     num_warmup: int = 500,
-    rng_key: Any = None,
+    rng_key: jax.Array | None = None,
     policy: Mapping[str, DecisionRule] | None = None,
 ) -> SampleBatch:
     """
@@ -147,7 +147,7 @@ def _draw(
     observed: dict[str, Any],
     num_samples: int,
     num_warmup: int,
-    rng_key: Any,
+    rng_key: jax.Array,
 ) -> SampleBatch:
     """Run the sampling machinery for ``model`` and return all site draws."""
     if not _has_chance_evidence(snapshot, observed):
@@ -181,7 +181,7 @@ def _has_chance_evidence(snapshot: DiagramSnapshot, observed: dict[str, Any]) ->
 
 
 def _validate_posterior_latents(
-    snapshot: DiagramSnapshot, model: Callable[[], dict[str, Any]], rng_key: Any
+    snapshot: DiagramSnapshot, model: Callable[[], dict[str, Any]], rng_key: jax.Array
 ) -> bool:
     """Check latent enumeration support and report whether continuous latents remain."""
     trace = handlers.trace(handlers.seed(model, rng_key)).get_trace()
