@@ -43,47 +43,6 @@ from pylimid.graph.utility_node import UtilityNode
 from pylimid.graph.validation import DiagramProblem, DiagramProblemKind
 
 
-def _distribution_fingerprint(output) -> tuple[object, ...]:
-    """
-    A comparable snapshot of a callable's output.
-
-    NumPyro distributions expose their defining parameters uniformly via
-    ``get_args()`` (``{'loc': ..., 'scale': ...}``), so two distributions
-    are compared exactly: equal parameters mean equal distributions. A
-    plain scalar (a utility ``values`` payoff) is its own fingerprint.
-    Anything else fails loudly — the library's contract is that ``dist``
-    returns a distribution object and ``values`` returns a number. Equal
-    fingerprints are treated as "the same output" by
-    `InfluenceDiagram.probe_discrete_parents`.
-    """
-    get_args = getattr(output, "get_args", None)
-    if get_args is not None:
-        args = get_args()
-        if args:
-            return tuple(
-                (name, _comparable(value)) for name, value in sorted(args.items())
-            )
-    return (float(output),)
-
-
-def _comparable(value) -> object:
-    """Convert an array-like parameter to a hashable, comparable form."""
-    tolist = getattr(value, "tolist", None)
-    if tolist is not None:
-        return _freeze(tolist())
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return value
-
-
-def _freeze(value):
-    """Convert nested lists to nested tuples so they can be hashed."""
-    if isinstance(value, list):
-        return tuple(_freeze(item) for item in value)
-    return value
-
-
 @dataclass(frozen=True)
 class DiagramSnapshot:
     """
@@ -251,49 +210,6 @@ class InfluenceDiagram:
                 "Run validate() to locate it."
             )
         return tuple(order)
-
-    def _kahn_order(self) -> list[str]:
-        """
-        Kahn's algorithm, stopping where a cycle blocks it.
-
-        Returns every node when the diagram is acyclic. Otherwise the nodes
-        left out are those on a cycle or downstream of one.
-        """
-        nodes = self._nodes
-        indegree: dict[str, int] = dict.fromkeys(nodes, 0)
-        children = {name: [] for name in nodes}
-        for name, node in nodes.items():
-            for parent in node.parents:
-                if parent in nodes:
-                    children[parent].append(name)
-                    indegree[name] += 1
-        queue = [name for name, degree in indegree.items() if degree == 0]
-        order: list[str] = []
-        while queue:
-            current = queue.pop(0)
-            order.append(current)
-            for child in children[current]:
-                indegree[child] -= 1
-                if indegree[child] == 0:
-                    queue.append(child)
-        return order
-
-    def _find_cycle(self, blocked: set[str]) -> tuple[str, ...]:
-        """
-        One cycle among the nodes Kahn's algorithm could not order.
-
-        Every blocked node has a blocked parent, so walking up parents from
-        any of them must eventually repeat a node. Returned in arc order
-        (parent before child), starting from the repeated node.
-        """
-        current = min(blocked)
-        path: list[str] = []
-        position: dict[str, int] = {}
-        while current not in position:
-            position[current] = len(path)
-            path.append(current)
-            current = next(p for p in self._nodes[current].parents if p in blocked)
-        return tuple(reversed(path[position[current] :]))
 
     def parents_of(self, name: str) -> tuple[str, ...]:
         """
@@ -582,3 +498,89 @@ class InfluenceDiagram:
         if not graphviz_available():
             return None
         return to_svg(self)
+
+    # --- internal helpers ---------------------------------------------------
+
+    def _kahn_order(self) -> list[str]:
+        """
+        Kahn's algorithm, stopping where a cycle blocks it.
+
+        Returns every node when the diagram is acyclic. Otherwise the nodes
+        left out are those on a cycle or downstream of one.
+        """
+        nodes = self._nodes
+        indegree: dict[str, int] = dict.fromkeys(nodes, 0)
+        children = {name: [] for name in nodes}
+        for name, node in nodes.items():
+            for parent in node.parents:
+                if parent in nodes:
+                    children[parent].append(name)
+                    indegree[name] += 1
+        queue = [name for name, degree in indegree.items() if degree == 0]
+        order: list[str] = []
+        while queue:
+            current = queue.pop(0)
+            order.append(current)
+            for child in children[current]:
+                indegree[child] -= 1
+                if indegree[child] == 0:
+                    queue.append(child)
+        return order
+
+    def _find_cycle(self, blocked: set[str]) -> tuple[str, ...]:
+        """
+        One cycle among the nodes Kahn's algorithm could not order.
+
+        Every blocked node has a blocked parent, so walking up parents from
+        any of them must eventually repeat a node. Returned in arc order
+        (parent before child), starting from the repeated node.
+        """
+        current = min(blocked)
+        path: list[str] = []
+        position: dict[str, int] = {}
+        while current not in position:
+            position[current] = len(path)
+            path.append(current)
+            current = next(p for p in self._nodes[current].parents if p in blocked)
+        return tuple(reversed(path[position[current] :]))
+
+
+def _distribution_fingerprint(output) -> tuple[object, ...]:
+    """
+    A comparable snapshot of a callable's output.
+
+    NumPyro distributions expose their defining parameters uniformly via
+    ``get_args()`` (``{'loc': ..., 'scale': ...}``), so two distributions
+    are compared exactly: equal parameters mean equal distributions. A
+    plain scalar (a utility ``values`` payoff) is its own fingerprint.
+    Anything else fails loudly — the library's contract is that ``dist``
+    returns a distribution object and ``values`` returns a number. Equal
+    fingerprints are treated as "the same output" by
+    `InfluenceDiagram.probe_discrete_parents`.
+    """
+    get_args = getattr(output, "get_args", None)
+    if get_args is not None:
+        args = get_args()
+        if args:
+            return tuple(
+                (name, _comparable(value)) for name, value in sorted(args.items())
+            )
+    return (float(output),)
+
+
+def _comparable(value) -> object:
+    """Convert an array-like parameter to a hashable, comparable form."""
+    tolist = getattr(value, "tolist", None)
+    if tolist is not None:
+        return _freeze(tolist())
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return value
+
+
+def _freeze(value):
+    """Convert nested lists to nested tuples so they can be hashed."""
+    if isinstance(value, list):
+        return tuple(_freeze(item) for item in value)
+    return value

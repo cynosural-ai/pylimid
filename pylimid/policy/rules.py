@@ -45,26 +45,6 @@ class CategoricalPolicy:
     states: tuple[str, ...]
     parameters: dict[str, Any]
 
-    def _distribution(self, observations: Mapping[str, jax.Array]):
-        """Bind observations in declared order and construct the action distribution."""
-        unexpected = observations.keys() - self.parents
-        if unexpected:
-            raise TypeError(f"Unexpected information parents: {sorted(unexpected)}.")
-        for parent, shape in zip(self.parents, self.parent_shapes, strict=True):
-            if jnp.shape(observations[parent]) != shape:
-                raise ValueError(
-                    f"Information parent {parent!r} must have shape {shape}."
-                )
-        ordered = {parent: observations[parent] for parent in self.parents}
-        parent_states = dict(zip(self.parents, self.parent_states, strict=True))
-        logits = self.family.logits(self.parameters, ordered, parent_states)
-        if logits.shape != (len(self.states),):
-            raise ValueError(
-                f"Policy logits must have shape {(len(self.states),)}, "
-                f"got {logits.shape}."
-            )
-        return dist.Categorical(logits=logits)
-
     def probabilities(self, **observations: jax.Array) -> jax.Array:
         """
         Return action probabilities at the supplied observation.
@@ -102,6 +82,26 @@ class CategoricalPolicy:
             The scalar log probability of ``action``.
         """
         return self._distribution(observations).log_prob(action)
+
+    def _distribution(self, observations: Mapping[str, jax.Array]):
+        """Bind observations in declared order and construct the action distribution."""
+        unexpected = observations.keys() - self.parents
+        if unexpected:
+            raise TypeError(f"Unexpected information parents: {sorted(unexpected)}.")
+        for parent, shape in zip(self.parents, self.parent_shapes, strict=True):
+            if jnp.shape(observations[parent]) != shape:
+                raise ValueError(
+                    f"Information parent {parent!r} must have shape {shape}."
+                )
+        ordered = {parent: observations[parent] for parent in self.parents}
+        parent_states = dict(zip(self.parents, self.parent_states, strict=True))
+        logits = self.family.logits(self.parameters, ordered, parent_states)
+        if logits.shape != (len(self.states),):
+            raise ValueError(
+                f"Policy logits must have shape {(len(self.states),)}, "
+                f"got {logits.shape}."
+            )
+        return dist.Categorical(logits=logits)
 
 
 #: Decision names mapped to action tables, deterministic functions, or fitted rules.

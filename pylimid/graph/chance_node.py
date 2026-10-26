@@ -97,13 +97,6 @@ class ChanceNode(Node):
 
     # --- consistency --------------------------------------------------------
 
-    def _compute_consistency(self) -> Consistency:
-        if self.dist is None:
-            return Consistency.UNCONFIGURED
-        if _signature_matches(self.dist, self.parents):
-            return Consistency.CONSISTENT
-        return Consistency.STALE
-
     def consistency_message(self, state: Consistency) -> str:
         """
         Describe a missing distribution or a mismatch with the parents.
@@ -122,6 +115,13 @@ class ChanceNode(Node):
             f"parents {self.parents!r}; reconfigure `dist` after changing "
             f"the parent set."
         )
+
+    def _compute_consistency(self) -> Consistency:
+        if self.dist is None:
+            return Consistency.UNCONFIGURED
+        if _signature_matches(self.dist, self.parents):
+            return Consistency.CONSISTENT
+        return Consistency.STALE
 
 
 # --- chance-specific field validators ---------------------------------------

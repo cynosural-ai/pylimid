@@ -47,7 +47,8 @@ Ruff and ty also run on every commit through pre-commit.
 
 The full conventions live in [AGENTS.md](AGENTS.md); the highlights:
 
-- Internal packages and modules start with an underscore. Within them, shared operations use ordinary descriptive names and module-local helpers use leading underscores. Members of public classes or modules retain leading underscores when they are internal implementation details.
+- Internal package directories and standalone internal modules start with an underscore; modules inside an internal package can use ordinary filenames. Shared operations within internal namespaces use ordinary descriptive names and module-local helpers use leading underscores. Members of public classes or modules retain leading underscores when they are implementation details.
+- Put public and shared entry points before internal helpers. In classes, place initialization first, then public methods, then internal helpers; keep related properties and protocol methods together. Supporting types needed to construct module constants stay with those constants.
 - Google-style docstrings for every public function, method, and class.
 - Public API names in single backticks (`` `DiagramSnapshot` ``), literals in double backticks (`` ``None`` ``).
 - No comments that reference design notes, ADRs, or ticket numbers; docstrings describe what the code does, not the history of the decision.

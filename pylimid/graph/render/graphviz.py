@@ -83,17 +83,6 @@ def to_svg(diagram: InfluenceDiagram) -> str:
     return result.stdout
 
 
-def _to_dot(diagram: InfluenceDiagram) -> str:
-    """
-    The internal DOT source for *diagram*, consumed by `to_svg`.
-
-    Deterministic, mirroring `to_mermaid`: nodes in topological order,
-    dangling parents as dashed ghost nodes, non-consistent nodes tinted.
-    Rendering does not require a valid diagram.
-    """
-    return render(build_scene(diagram))
-
-
 def render(scene: Scene) -> str:
     """Format *scene* as Graphviz DOT source."""
     lines = ["digraph {", "    rankdir=LR;"]
@@ -111,6 +100,17 @@ def render(scene: Scene) -> str:
         lines.append(f"    {edge.parent} -> {edge.child}{suffix};")
     lines.append("}")
     return "\n".join(lines) + "\n"
+
+
+def _to_dot(diagram: InfluenceDiagram) -> str:
+    """
+    The internal DOT source for *diagram*, consumed by `to_svg`.
+
+    Deterministic, mirroring `to_mermaid`: nodes in topological order,
+    dangling parents as dashed ghost nodes, non-consistent nodes tinted.
+    Rendering does not require a valid diagram.
+    """
+    return render(build_scene(diagram))
 
 
 def _escape(name: str) -> str:

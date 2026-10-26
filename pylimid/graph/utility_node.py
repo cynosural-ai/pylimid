@@ -79,13 +79,6 @@ class UtilityNode(Node):
 
     # --- consistency --------------------------------------------------------
 
-    def _compute_consistency(self) -> Consistency:
-        if self.values is None:
-            return Consistency.UNCONFIGURED
-        if _signature_matches(self.values, self.parents):
-            return Consistency.CONSISTENT
-        return Consistency.STALE
-
     def consistency_message(self, state: Consistency) -> str:
         """
         Describe a missing utility function or a mismatch with the parents.
@@ -104,6 +97,13 @@ class UtilityNode(Node):
             f"parents {self.parents!r}; reconfigure `values` after changing "
             f"the parent set."
         )
+
+    def _compute_consistency(self) -> Consistency:
+        if self.values is None:
+            return Consistency.UNCONFIGURED
+        if _signature_matches(self.values, self.parents):
+            return Consistency.CONSISTENT
+        return Consistency.STALE
 
 
 # --- utility-specific field validators --------------------------------------

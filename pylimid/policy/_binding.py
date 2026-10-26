@@ -17,46 +17,6 @@ from pylimid.graph.node import _signature_matches
 from pylimid.policy.rules import CategoricalPolicy, Policy
 
 
-def _info_assignments(
-    decision: DecisionNode,
-    node_map: dict[str, ChanceNode | DecisionNode],
-) -> list[tuple[int, ...]]:
-    """
-    Every assignment of the decision's information set, in parent order.
-
-    Raises:
-        ValueError: If an information-set parent has no named states.
-    """
-    cards: list[int] = []
-    for parent in decision.parents:
-        states = node_map[parent].states
-        if states is None:
-            raise ValueError(
-                f"Decision {decision.name!r} has parent {parent!r} without named "
-                "states in its information set; tabular policies require finite "
-                "categorical information sets."
-            )
-        cards.append(len(states))
-    return list(product(*[range(c) for c in cards]))
-
-
-def _policy_array(
-    decision: DecisionNode,
-    sub_policy: dict[tuple[int, ...], int],
-    node_map: dict[str, ChanceNode | DecisionNode],
-) -> jax.Array:
-    """The decision's sub-policy as an array indexed by the info assignment."""
-    cards: list[int] = []
-    for parent in decision.parents:
-        states = node_map[parent].states
-        assert states is not None  # _info_assignments requires named states
-        cards.append(len(states))
-    arr = jnp.zeros(tuple(cards), dtype=jnp.int32)
-    for assignment, action in sub_policy.items():
-        arr = arr.at[assignment].set(action)
-    return arr
-
-
 def bind_policy_rules(
     snapshot: DiagramSnapshot,
     policy: Policy,
@@ -148,6 +108,46 @@ def bind_policy_rules(
             _policy_array(decision, rule, node_map), decision.parents
         )
     return rules
+
+
+def _info_assignments(
+    decision: DecisionNode,
+    node_map: dict[str, ChanceNode | DecisionNode],
+) -> list[tuple[int, ...]]:
+    """
+    Every assignment of the decision's information set, in parent order.
+
+    Raises:
+        ValueError: If an information-set parent has no named states.
+    """
+    cards: list[int] = []
+    for parent in decision.parents:
+        states = node_map[parent].states
+        if states is None:
+            raise ValueError(
+                f"Decision {decision.name!r} has parent {parent!r} without named "
+                "states in its information set; tabular policies require finite "
+                "categorical information sets."
+            )
+        cards.append(len(states))
+    return list(product(*[range(c) for c in cards]))
+
+
+def _policy_array(
+    decision: DecisionNode,
+    sub_policy: dict[tuple[int, ...], int],
+    node_map: dict[str, ChanceNode | DecisionNode],
+) -> jax.Array:
+    """The decision's sub-policy as an array indexed by the info assignment."""
+    cards: list[int] = []
+    for parent in decision.parents:
+        states = node_map[parent].states
+        assert states is not None  # _info_assignments requires named states
+        cards.append(len(states))
+    arr = jnp.zeros(tuple(cards), dtype=jnp.int32)
+    for assignment, action in sub_policy.items():
+        arr = arr.at[assignment].set(action)
+    return arr
 
 
 def _table_rule(table: jax.Array, parents: tuple[str, ...]) -> Callable[..., jax.Array]:

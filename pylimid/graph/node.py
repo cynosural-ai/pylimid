@@ -201,12 +201,6 @@ class Node:
         """
         return self._compute_consistency()
 
-    def _compute_consistency(self) -> Consistency:
-        """Subclass-specific consistency computation."""
-        raise NotImplementedError(
-            f"{type(self).__name__} must implement `_compute_consistency`."
-        )
-
     def consistency_message(self, state: Consistency) -> str:
         """
         Describe a node's configuration problem.
@@ -236,6 +230,12 @@ class Node:
         if state is Consistency.CONSISTENT:
             return
         raise ValueError(self.consistency_message(state))
+
+    def _compute_consistency(self) -> Consistency:
+        """Subclass-specific consistency computation."""
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement `_compute_consistency`."
+        )
 
 
 # --- field validators -------------------------------------------------------

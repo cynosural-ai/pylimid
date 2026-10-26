@@ -105,11 +105,6 @@ class DecisionNode(Node):
 
     # --- consistency --------------------------------------------------------
 
-    def _compute_consistency(self) -> Consistency:
-        if self.states is None:
-            return Consistency.UNCONFIGURED
-        return Consistency.CONSISTENT
-
     def consistency_message(self, state: Consistency) -> str:
         """
         Describe the missing action states.
@@ -125,6 +120,11 @@ class DecisionNode(Node):
             f"Decision {self.name!r} has no action space (`states`) declared; "
             f"set `states` to the available actions."
         )
+
+    def _compute_consistency(self) -> Consistency:
+        if self.states is None:
+            return Consistency.UNCONFIGURED
+        return Consistency.CONSISTENT
 
 
 # --- decision-specific field validators -------------------------------------

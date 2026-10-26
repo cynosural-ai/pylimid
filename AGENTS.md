@@ -32,6 +32,13 @@ def add_arc(self, parent: str, child: str) -> None:
     """
 ```
 
+## Internal APIs and definition order
+
+- Prefix internal packages and standalone internal modules with `_`, such as `_numpyro/` and `policy/_binding.py`. Files inside an internal package can use ordinary names.
+- Within internal namespaces, shared functions use ordinary names and module-local helpers use `_`. Implementation details of public classes and modules retain `_`, even when used elsewhere in pylimid.
+- Supported user APIs are explicitly exported and documented. Cross-module imports do not make an internal function public; changing that boundary requires a deliberate API decision.
+- Module order: imports, supporting types/constants, public/shared entry points, internal helpers. Class order: initialization, public methods, internal helpers. Keep related properties and protocol methods together, and supporting types before constants that instantiate them.
+
 ## Comments and docs in code
 - Do not reference intermediate design notes, ADRs-in-progress, option letters (A/B/C), ticket numbers, or `design/*.md` files from code comments or docstrings. Those files are temporary and will confuse readers later.
 - Docstrings describe what the code does and its inputs/outputs — not the history of the decision.
