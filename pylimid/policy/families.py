@@ -10,9 +10,9 @@ import jax.numpy as jnp
 
 __all__ = [
     "DecisionInformation",
-    "PolicyParameters",
-    "PolicyFamily",
     "LinearSoftmax",
+    "PolicyFamily",
+    "PolicyParameters",
     "TabularSoftmax",
 ]
 

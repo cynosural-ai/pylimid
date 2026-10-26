@@ -23,8 +23,6 @@ from pylimid.graph.nodes import DecisionNode, NodeKind, UtilityNode
 from pylimid.policy import CategoricalPolicy, DecisionRule
 from pylimid.policy._binding import bind_policy_rules
 
-__all__ = ["samples"]
-
 #: Joint draws keyed by node name. Each array has shape
 #: ``(num_samples, *node_shape)``; scalar nodes have shape ``(num_samples,)``.
 #: The same sample index across nodes identifies one joint draw, so relationships

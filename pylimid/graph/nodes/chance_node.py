@@ -18,6 +18,8 @@ from typing import Any
 
 from pylimid.graph.nodes.node import Consistency, Node, NodeKind, _signature_matches
 
+__all__ = ["ChanceNode"]
+
 #: Factory returning a distribution object given resolved parent values.
 #:
 #: The graph layer is opaque to the concrete distribution type a backend uses,

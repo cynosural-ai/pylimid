@@ -17,13 +17,13 @@ from pylimid.policy.rules import (
 
 __all__ = [
     "ActionTable",
-    "DecisionInformation",
-    "PolicyFamily",
-    "LinearSoftmax",
-    "TabularSoftmax",
     "CategoricalPolicy",
+    "DecisionInformation",
     "DecisionRule",
     "FittedPolicy",
+    "LinearSoftmax",
     "Policy",
+    "PolicyFamily",
     "PolicyParameters",
+    "TabularSoftmax",
 ]

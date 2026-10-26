@@ -40,6 +40,8 @@ from pylimid.graph.nodes.node import (
 )
 from pylimid.policy import PolicyFamily
 
+__all__ = ["DecisionNode"]
+
 
 @dataclass
 class DecisionNode(Node):

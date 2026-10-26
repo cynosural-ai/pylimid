@@ -26,6 +26,8 @@ from pylimid.graph.nodes.node import (
     _signature_matches,
 )
 
+__all__ = ["UtilityNode"]
+
 #: Factory returning a utility value given resolved parent values. Invoked as
 #: ``values(**parent_values)``.
 ValueFactory = Callable[..., float]
