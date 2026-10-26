@@ -8,11 +8,12 @@ Update the existing documentation for the policy-gradient-only API, preserving t
 | --- | --- |
 | Starting-point inventory and baseline build | Complete. The baseline build reported 83 warnings. |
 | API reference, public type targets, and navigation | Complete. The updated API pages produce no warnings, and their checked local links resolve. |
-| Quickstart | Next. Preserve the initial ice cream model and the Bayesian-prior extension while updating decision configuration, policy display, and result interpretation. |
+| Quickstart | Complete. Both models use a declared family, display fitted action probabilities in text and grouped bar charts, and execute successfully. |
+| Building a diagram | Next. Introduce decision-family configuration while preserving the build, validate, edit, and draw progression. |
 | Remaining guides, resources, README, and figures | Pending. Follow the page-by-page checklist below. |
-| Full strict documentation build | Failing with 15 warnings: six notebook failures with paired traceback warnings, plus three old references in the Solving guide. |
+| Full strict documentation build | Failing with 13 warnings: five notebook failures with paired traceback warnings, plus three old references in the Solving guide. |
 
-The API reference is complete, but the documentation migration is still in progress. No commits have been made for this documentation work. The build evidence and checks are recorded in the [verification log](#verification-log).
+The API reference and quickstart are complete, but the documentation migration is still in progress. The current quickstart update is uncommitted. The build evidence and checks are recorded in the [verification log](#verification-log).
 
 ## Starting point
 
@@ -21,7 +22,7 @@ The API reference is complete, but the documentation migration is still in progr
 - [x] Inventory outdated API names, solver descriptions, imports, examples, outputs, and figure scripts across the published site and README. Findings are recorded under [Baseline inventory](#baseline-inventory).
 - [x] Run the current strict documentation build and record the failures as the baseline. Results are recorded under [Baseline build](#baseline-build).
 
-The starting-point audit is complete. Its findings are retained as the baseline; the API reference has since been migrated. The remaining items stay open until their content and examples have been checked.
+The starting-point audit is complete. Its findings are retained as the baseline; the API reference and quickstart have since been migrated. The remaining items stay open until their content and examples have been checked.
 
 ## Preserve throughout
 
@@ -52,7 +53,7 @@ The API reference now covers the current contract. Unchecked items in this secti
 For each page, read the existing prose first, update the example and its interpretation together, execute its code, and check references and any associated figures. Mark a page complete only after those checks pass. Keep the existing site order unless a concrete change is agreed during the work.
 
 - [x] `docs/api/`: update the entry points, results, errors, policy families, rules, aliases, and graph references. Replace or retire the obsolete individual-solvers reference and repair its navigation and incoming links. Ensure public names used in signatures and docstrings have resolvable targets.
-- [ ] `docs/getting_started/quickstart.md`: adapt the small ice cream example without expanding it into an optimizer tutorial; update the policy display and result interpretation.
+- [x] `docs/getting_started/quickstart.md`: adapt the small ice cream example without expanding it into an optimizer tutorial; update the policy display and result interpretation.
 - [ ] `docs/user_guide/building_a_diagram.md`: introduce the required decision configuration while preserving the build, validate, and draw progression.
 - [ ] `docs/user_guide/distributions_and_utilities.md`: check model consistency, JAX requirements, inference claims, examples, and demand figures.
 - [ ] `docs/user_guide/solving.md`: explain fitting a policy, choosing a family, controlling training and evaluation, reading stochastic results, and checking the expanded order menu.
@@ -84,7 +85,7 @@ For each page, read the existing prose first, update the example and its interpr
 
 Reviewed on 2026-10-26 against `0b7f054`, including published Markdown and API sources, the README, the four figure scripts, and searches through the excluded tutorial drafts. API claims were checked against the current entry points, public exports, policy classes, and policy binding. Findings below are source observations unless the build results explicitly confirm execution.
 
-This table records the original state before migration. The API-reference findings have been addressed in the [API reference update](#api-reference-update); the walkthrough findings remain pending.
+This table records the original state before migration. The API-reference and quickstart findings have been addressed in their update entries below; the other walkthrough findings remain pending.
 
 | Area | Findings and migration work |
 | --- | --- |
@@ -167,6 +168,28 @@ The aliases have explicit public reference targets and canonical defining-module
 
 The broader API-change checklist above remains open where it also covers walkthroughs, prose, figures, and examples outside the reference section. The complete site still fails its strict build until those pages are migrated.
 
+### Quickstart update
+
+Completed on 2026-10-26 without committing the changes. The initial ice cream model, its 0–200 order menu, and the Bayesian-prior extension are preserved. The `order` decision now declares `TabularSoftmax()`, and both solutions use `Solution.render()` to show their fitted action probabilities. The prose explains the stochastic rule, independent utility evaluation, default training budget, and limits of approximation without adding a separate optimizer tutorial.
+
+- Executed all **nine code cells**, including both solves, directly and through Sphinx. Both diagrams validate with no problems.
+- With the default settings, the initial model estimates expected profit at **498.09**. Its most likely orders are 60 on cloudy days with probability **0.979**, and 200 on sunny days with probability **0.935**. The prior-based model estimates **600.56**, favouring 80 with probability **0.994** and 200 with probability **0.991**, respectively. The page interprets these probabilities without converting the fitted policy to deterministic actions.
+- Replaced the former explicit 50,000-sample calls with the public defaults: 10,000 scenarios per update, 500 updates, and 10,000 independent evaluation scenarios. The page distinguishes training quality from evaluation noise.
+- Re-ran the strict full build with fresh Sphinx processing and forced notebook execution. Result: exit code **1**, with **13 warnings**, down from 15. The quickstart executes successfully and produces no warnings. Log: `docs/_build/documentation-quickstart-update.log`.
+- The remaining failures are in Count distributions, Distributions and utilities, Inference, Multiple decisions, and Solving, each with a paired traceback warning. The three removed-name references in Solving remain pending.
+- Verified that the executed notebook contains the same nine code cells as the source, with no error outputs, and that its displayed probabilities and expected profits support the prose. Checked **117 local page and anchor links** and **six image references** in the rendered page; all resolve.
+- Visually inspected the existing demand and busyness-prior plots and checked their script parameters against the page. The distributions and plot parameters are unchanged, so the figures and their scripts were retained.
+- Ruff lint, repository-wide formatting, type checks, and `git diff --check` pass. Library code and figure scripts are unchanged; the runtime verification for this step is the execution of the quickstart examples.
+
+### Quickstart policy figures
+
+Added on 2026-10-26 without committing. The Solving section and Bayesian-prior extension now each show a grouped bar chart of the fitted order probabilities, using blue-grey for cloudy days and orange for sunny days to match the existing demand figure. Each colour represents a separate conditional distribution summing to 100%; bar heights come directly from `CategoricalPolicy.probabilities()`, with no histogram sampling or deterministic conversion.
+
+- Added `docs/_static/figures/quickstart/plot_policy.py`. It executes the quickstart's code cells to obtain both fitted policies, keeping the model parameters and fitting settings tied to the page.
+- Generated and visually inspected `order_policy.png` and `prior_order_policy.png`. The charts show the cloudy-day shift from 60 to 80 and the sunny-day concentration at 200, with the same probabilities reported in the text and rendered policy output.
+- Re-ran the strict full build with forced notebook execution. The quickstart succeeds with no warnings, and both new figures appear in the rendered page, which now has eight image references. The full build still exits with code **1** and the same **13 warnings** from pending pages. Log: `docs/_build/quickstart-policy-build.log`.
+- Full test suite: **404 passed**. Ruff lint, formatting, type checks, and `git diff --check` pass. Figure-generation and test logs are under `docs/_build/quickstart-policy-figures.log` and `docs/_build/quickstart-policy-tests.log`.
+
 ## Next step
 
-Update `docs/getting_started/quickstart.md` for a declared policy family and fitted stochastic rules while preserving the original ice cream example and its Bayesian-prior extension. Execute the updated examples and re-check the displayed policies and numerical claims. Continue through the walkthroughs one page at a time, using the inventory above and retaining their story and voice.
+Update `docs/user_guide/building_a_diagram.md` to introduce the decision's policy family and remove the obsolete solver-selection advice. Preserve the incremental construction, validation, editing, and rendering examples, including the hotel-booking extension. Keep the distinction between diagram validation and the additional family requirement checked by `solve()` explicit.
