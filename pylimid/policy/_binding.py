@@ -9,10 +9,10 @@ from typing import cast
 import jax
 import jax.numpy as jnp
 
+from pylimid._signatures import signature_matches
 from pylimid.errors import InferenceError
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.nodes import ChanceNode, DecisionNode
-from pylimid.graph.nodes.node import _signature_matches
 from pylimid.policy.rules import ActionTable, CategoricalPolicy, DecisionRule
 
 #: An execution-ready rule produced by `bind_policy_rules`. Tables become lookup
@@ -86,7 +86,7 @@ def bind_policy_rules(
             rules[name] = rule
             continue
         if not isinstance(rule, dict):
-            if not _signature_matches(rule, decision.parents):
+            if not signature_matches(rule, decision.parents):
                 raise InferenceError(
                     f"Policy for {name!r} must accept its information parents "
                     f"{decision.parents!r} as named keyword arguments."

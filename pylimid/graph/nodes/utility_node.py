@@ -19,18 +19,11 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from pylimid.graph.nodes.node import (
-    Consistency,
-    Node,
-    NodeKind,
-    _signature_matches,
-)
+from pylimid._signatures import signature_matches
+from pylimid.graph.nodes._validation import validate_values
+from pylimid.graph.nodes.node import Consistency, Node, NodeKind
 
 __all__ = ["UtilityNode"]
-
-#: Factory returning a utility value given resolved parent values. Invoked as
-#: ``values(**parent_values)``.
-ValueFactory = Callable[..., float]
 
 
 @dataclass
@@ -54,12 +47,12 @@ class UtilityNode(Node):
             payoff. ``None`` (the default) marks the node as not-yet-configured.
     """
 
-    values: ValueFactory | None = field(default=None, kw_only=True)
+    values: Callable[..., float] | None = field(default=None, kw_only=True)
 
     def __setattr__(self, key: str, value: Any) -> None:
         """Validate ``values`` (utility-specific) then defer to base."""
         if key == "values":
-            _validate_values(value)
+            validate_values(value)
         super().__setattr__(key, value)
 
     # --- kind / structure ---------------------------------------------------
@@ -103,17 +96,6 @@ class UtilityNode(Node):
     def _compute_consistency(self) -> Consistency:
         if self.values is None:
             return Consistency.UNCONFIGURED
-        if _signature_matches(self.values, self.parents):
+        if signature_matches(self.values, self.parents):
             return Consistency.CONSISTENT
         return Consistency.STALE
-
-
-# --- utility-specific field validators --------------------------------------
-
-
-def _validate_values(values: Any) -> None:
-    if values is not None and not callable(values):
-        raise TypeError(
-            f"`values` must be callable or None, "
-            f"got object of type {type(values).__name__}."
-        )

@@ -1,5 +1,5 @@
 """
-Tests for the shared :class:`~pylimid.graph.nodes.node.Node` base.
+Tests for the shared `Node` base.
 
 The base owns the contract every node type inherits — shared ``name`` /
 ``parents`` field validation and the consistency gate machinery. These tests
@@ -28,7 +28,7 @@ from pylimid.graph.nodes.utility_node import UtilityNode
     ],
 )
 def test_empty_name_rejected_on_every_node_type(make: Any) -> None:
-    """The base's `_validate_name` runs for all subclasses."""
+    """Every node rejects an empty name."""
     with pytest.raises(ValueError, match="`name`"):
         make()
 
@@ -42,7 +42,7 @@ def test_empty_name_rejected_on_every_node_type(make: Any) -> None:
     ],
 )
 def test_self_parent_rejected_on_every_node_type(make: Any) -> None:
-    """The base's `_validate_parents` (self-parent rule) runs for all subclasses."""
+    """Every node rejects a self-parent reference."""
     with pytest.raises(ValueError, match="cannot list itself"):
         make()
 
