@@ -15,6 +15,7 @@ This page answers those questions using the same ice cream shop example. It also
 PyLIMID calls each function with one keyword argument per parent, **matched by name**. For `demand`, the discrete parents `weather` and `bookings` pass state indices, while the continuous parent `busyness` passes a numerical multiplier:
 
 ```{code-cell} ipython3
+import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
@@ -99,7 +100,14 @@ We keep the original Gamma demand for the utility examples below. NumPyro has [o
 We can now put together the diagram using the functions defined above:
 
 ```{code-cell} ipython3
-from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, solve
+from pylimid import (
+    ChanceNode,
+    DecisionNode,
+    InfluenceDiagram,
+    TabularSoftmax,
+    UtilityNode,
+    solve,
+)
 
 diagram = InfluenceDiagram()
 diagram.add_node(
@@ -116,7 +124,10 @@ diagram.add_node(
 )
 diagram.add_node(
     DecisionNode(
-        name="order", parents=("weather",), states=tuple(str(n) for n in ORDERS)
+        name="order",
+        parents=("weather",),
+        states=tuple(str(n) for n in ORDERS),
+        policy_family=TabularSoftmax(),
     )
 )
 diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=profit))
@@ -147,12 +158,22 @@ split_diagram.add_node(
 split_diagram
 ```
 
-The cost is negative because it reduces what the shop earns. When there are several utility nodes, {py:func}`solve` **adds their values on each simulated day and maximises the expected total**. We can check that the two ways of expressing profit give the same result:
+The cost is negative because it reduces what the shop earns. When there are several utility nodes, {py:func}`solve` **adds their values on each simulated day and maximises the expected total**. We can compare the most likely stock levels and their probabilities, in cloudy/sunny order:
 
 ```{code-cell} ipython3
-combined_solution = solve(diagram, num_samples=50_000)
-split_solution = solve(split_diagram, num_samples=50_000)
-print("same policy:", combined_solution.policy == split_solution.policy)
+combined_solution = solve(diagram)
+split_solution = solve(split_diagram)
+
+weather = jnp.array([0, 1])
+combined = jax.vmap(combined_solution.policy["order"].probabilities)(weather=weather)
+split = jax.vmap(split_solution.policy["order"].probabilities)(weather=weather)
+
+print("combined stock:", ORDERS[combined.argmax(axis=1)])
+print("split stock:", ORDERS[split.argmax(axis=1)])
+
+print("combined probability:", combined.max(axis=1))
+print("split probability:", split.max(axis=1))
+
 print(f"combined expected profit: {combined_solution.expected_utility:.1f}")
 print(f"split expected profit: {split_solution.expected_utility:.1f}")
 ```

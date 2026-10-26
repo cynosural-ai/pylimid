@@ -1,6 +1,6 @@
 # Documentation maintenance
 
-Maintenance guide for the published documentation in `docs/` and the project `README.md`. The engine has been refactored to policy-gradient-only optimization. The API reference, quickstart, and Building a diagram guide now describe the current contract; the remaining guides and README examples await migration. Progress and verification are tracked in [the documentation update checklist](documentation_update_todo.md). Read this before changing published pages, and update it when the structure or conventions change. Public API details belong in docstrings and the API reference; build instructions live in [docs/README.md](../docs/README.md).
+Maintenance guide for the published documentation in `docs/` and the project `README.md`. The engine has been refactored to policy-gradient-only optimization. The API reference, quickstart, and first two user guides now describe the current contract; the remaining guides and README examples await migration. Progress and verification are tracked in [the documentation update checklist](documentation_update_todo.md). Read this before changing published pages, and update it when the structure or conventions change. Public API details belong in docstrings and the API reference; build instructions live in [docs/README.md](../docs/README.md).
 
 ## Site structure and scope
 

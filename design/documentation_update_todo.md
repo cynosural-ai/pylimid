@@ -10,11 +10,12 @@ Update the existing documentation for the policy-gradient-only API, preserving t
 | API reference, public type targets, and navigation | Complete. The updated API pages produce no warnings, and their checked local links resolve. |
 | Quickstart | Complete. Both models use a declared family, display fitted action probabilities in text and grouped bar charts, and execute successfully. |
 | Building a diagram | Complete. Uses `TabularSoftmax`, retains the construction and editing examples, and executes successfully. |
-| Distributions and utilities | Next. Update decision configuration and the comparison of combined and split utilities. |
+| Distributions and utilities | Complete. The combined and split utility models produce matching fitted probabilities and expected profit. |
+| Solving a diagram | Next. Update policy interpretation and optimization guidance while preserving the order-menu lesson. |
 | Remaining guides, resources, README, and figures | Pending. Follow the page-by-page checklist below. |
-| Full strict documentation build | Failing with 13 warnings: five notebook failures with paired traceback warnings, plus three old references in the Solving guide. |
+| Full strict documentation build | Failing with 11 warnings: four notebook failures with paired traceback warnings, plus three old references in the Solving guide. |
 
-The API reference, quickstart, and Building a diagram guide are complete, but the documentation migration is still in progress. The current Building a diagram update is uncommitted. The build evidence and checks are recorded in the [verification log](#verification-log).
+The API reference, quickstart, and first two user guides are complete, but the documentation migration is still in progress. The current Distributions and utilities update is uncommitted. The build evidence and checks are recorded in the [verification log](#verification-log).
 
 ## Starting point
 
@@ -56,7 +57,7 @@ For each page, read the existing prose first, update the example and its interpr
 - [x] `docs/api/`: update the entry points, results, errors, policy families, rules, aliases, and graph references. Replace or retire the obsolete individual-solvers reference and repair its navigation and incoming links. Ensure public names used in signatures and docstrings have resolvable targets.
 - [x] `docs/getting_started/quickstart.md`: adapt the small ice cream example without expanding it into an optimizer tutorial; update the policy display and result interpretation.
 - [x] `docs/user_guide/building_a_diagram.md`: introduce the required decision configuration while preserving the build, validate, and draw progression.
-- [ ] `docs/user_guide/distributions_and_utilities.md`: check model consistency, JAX requirements, inference claims, examples, and demand figures.
+- [x] `docs/user_guide/distributions_and_utilities.md`: check model consistency, JAX requirements, inference claims, examples, and demand figures.
 - [ ] `docs/user_guide/solving.md`: explain fitting a policy, choosing a family, controlling training and evaluation, reading stochastic results, and checking the expanded order menu.
 - [ ] `docs/user_guide/inference.md`: evaluate fitted policies with the current API while preserving the intentional booking-information variant, aligned draws, comparisons, and inference figures.
 - [ ] `docs/user_guide/multiple_decisions.md`: preserve the promotion story and explain joint fitting with explicit information parents and memory.
@@ -200,6 +201,15 @@ Completed on 2026-10-26 without committing. The example declares `TabularSoftmax
 - The strict full build still exits with code **1** and the same **13 warnings** from pending pages. Log: `docs/_build/building-diagram-update.log`.
 - Ruff lint, formatting, type checks, and `git diff --check` pass. No library code or figure scripts changed.
 
+### Distributions and utilities update
+
+Completed on 2026-10-26 without committing. Added `TabularSoftmax()` to the decision. The comparison now displays the most likely stock levels and their maximum probabilities for cloudy and sunny days, using `jax.vmap` to evaluate both forecasts without a loop. Both calls use the default fitting budget. Distribution explanations, the additive-utility example, and JAX guidance are preserved.
+
+- All **eight code cells** execute successfully. Both models show stock levels **80** and **200**, with maximum probabilities **0.9894665** and **0.9928226**, in cloudy/sunny order. Both report expected profit **618.7**.
+- The page produces no warnings. The strict full build exits with code **1** and **11 warnings**, from the four remaining notebook failures and three old references in Solving. Latest log: `docs/_build/utility-recommendations-update.log`.
+- Checked the rendered page's local links and image references. Visually inspected the existing demand-comparison figure; its parameters still match the page, so the figure and script are unchanged.
+- Ruff lint, formatting, type checks, and `git diff --check` pass. No library code or figure scripts changed.
+
 ## Next step
 
-Update `docs/user_guide/distributions_and_utilities.md`: declare the policy family and replace fitted-policy dictionary equality with a suitable comparison of action probabilities and expected utility. Preserve the distribution explanations, shared model, additive-utility example, and JAX guidance.
+Update `docs/user_guide/solving.md` for the single optimization engine and fitted stochastic rules. Preserve the shared ice cream model and the expansion of its order menu. Explain fitting settings and reliability where the examples use them, replacing the removed solver-selection and solvability sections without adding unrelated material.
