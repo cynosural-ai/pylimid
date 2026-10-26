@@ -4,7 +4,7 @@ from collections.abc import Mapping
 
 from pylimid.graph.diagram._topology import children_of, find_cycle, kahn_order
 from pylimid.graph.diagram.problems import DiagramProblem, DiagramProblemKind
-from pylimid.graph.nodes.node import Consistency, Node
+from pylimid.graph.nodes import Consistency, Node
 
 
 def validate_nodes(nodes: Mapping[str, Node]) -> list[DiagramProblem]:

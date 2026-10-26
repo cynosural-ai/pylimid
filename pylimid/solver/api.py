@@ -10,9 +10,7 @@ from jax.example_libraries.optimizers import adam
 from pylimid._numpyro.distributions import validate_chance_distribution
 from pylimid.errors import SolveError
 from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
-from pylimid.graph.nodes.chance_node import ChanceNode
-from pylimid.graph.nodes.decision_node import DecisionNode
-from pylimid.graph.nodes.utility_node import UtilityNode
+from pylimid.graph.nodes import ChanceNode, DecisionNode, UtilityNode
 from pylimid.policy import CategoricalPolicy
 from pylimid.solver.solution import Solution
 

@@ -32,6 +32,13 @@ def add_arc(self, parent: str, child: str) -> None:
     """
 ```
 
+## Imports
+
+- Within a package, import from defining modules rather than that package's `__init__.py`. For example, modules inside `pylimid.policy` import `PolicyFamily` from `pylimid.policy.families`.
+- Across package boundaries, use the nearest owning package's explicit public exports: `from pylimid.graph.diagram import DiagramSnapshot`, `from pylimid.graph.nodes import ChanceNode`, or `from pylimid.policy import CategoricalPolicy`. Do not import implementation dependencies through an enclosing package's re-exports; use the relevant subpackage or defining module, such as `pylimid.errors`.
+- Import internal names and names without a package export directly from their defining modules. Do not add public exports solely to shorten internal imports.
+- Keep public re-exports in `__init__.py`. Examples use public imports; tests import from the API or module they exercise, using defining modules for internal helpers.
+
 ## Internal APIs and definition order
 
 - Prefix internal packages and standalone internal modules with `_`, such as `_numpyro/` and `policy/_binding.py`. Files inside an internal package can use ordinary names.

@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 
-from pylimid.graph.nodes.node import Node
+from pylimid.graph.nodes import Node
 
 
 def topological_sort(nodes: Mapping[str, Node]) -> tuple[str, ...]:

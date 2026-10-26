@@ -11,7 +11,7 @@ from numpyro.distributions.discrete import (
     CategoricalProbs,
 )
 
-from pylimid.graph.nodes.chance_node import ChanceNode
+from pylimid.graph.nodes import ChanceNode
 
 
 def supports_count_enumeration(fn: Distribution) -> bool:

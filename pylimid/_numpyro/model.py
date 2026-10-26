@@ -18,9 +18,7 @@ import numpyro.distributions as dist
 
 from pylimid._numpyro.distributions import is_zero_count, validate_chance_distribution
 from pylimid.graph.diagram import DiagramSnapshot
-from pylimid.graph.nodes.chance_node import ChanceNode
-from pylimid.graph.nodes.decision_node import DecisionNode
-from pylimid.graph.nodes.utility_node import UtilityNode
+from pylimid.graph.nodes import ChanceNode, DecisionNode, UtilityNode
 from pylimid.policy import CategoricalPolicy
 
 

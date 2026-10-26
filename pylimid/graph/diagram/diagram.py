@@ -37,9 +37,8 @@ from pylimid.graph.diagram._probe import probe_discrete_parents
 from pylimid.graph.diagram._topology import children_of, topological_sort
 from pylimid.graph.diagram._validation import validate_nodes
 from pylimid.graph.diagram.problems import DiagramProblem
-from pylimid.graph.nodes.chance_node import ChanceNode, DistFactory
-from pylimid.graph.nodes.decision_node import DecisionNode
-from pylimid.graph.nodes.node import Node
+from pylimid.graph.nodes import ChanceNode, DecisionNode, Node
+from pylimid.graph.nodes.chance_node import DistFactory
 from pylimid.graph.render.graphviz import available as graphviz_available
 from pylimid.graph.render.graphviz import to_svg
 from pylimid.graph.render.mermaid import to_mermaid

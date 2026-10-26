@@ -11,8 +11,7 @@ import jax.numpy as jnp
 
 from pylimid.errors import InferenceError
 from pylimid.graph.diagram import DiagramSnapshot
-from pylimid.graph.nodes.chance_node import ChanceNode
-from pylimid.graph.nodes.decision_node import DecisionNode
+from pylimid.graph.nodes import ChanceNode, DecisionNode
 from pylimid.graph.nodes.node import _signature_matches
 from pylimid.policy.rules import CategoricalPolicy, Policy
 
