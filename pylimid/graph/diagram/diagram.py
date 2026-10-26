@@ -31,14 +31,15 @@ payoff with a child is reported as a problem.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
+from typing import Any
 
 from pylimid.graph.diagram._probe import probe_discrete_parents
 from pylimid.graph.diagram._topology import children_of, topological_sort
 from pylimid.graph.diagram._validation import validate_nodes
 from pylimid.graph.diagram.problems import DiagramProblem
 from pylimid.graph.nodes import ChanceNode, DecisionNode, Node
-from pylimid.graph.nodes.chance_node import DistFactory
 from pylimid.graph.render.graphviz import available as graphviz_available
 from pylimid.graph.render.graphviz import to_svg
 from pylimid.graph.render.mermaid import to_mermaid
@@ -168,7 +169,7 @@ class InfluenceDiagram:
 
     # --- distribution / state mutators --------------------------------------
 
-    def set_dist(self, name: str, dist: DistFactory | None) -> None:
+    def set_dist(self, name: str, dist: Callable[..., Any] | None) -> None:
         """
         Set the distribution function on a chance node.
 
@@ -335,7 +336,7 @@ class InfluenceDiagram:
         """The number of nodes registered."""
         return len(self._nodes)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         """Iterate over node names (insertion order, not topological)."""
         return iter(self._nodes)
 

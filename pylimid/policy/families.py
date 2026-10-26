@@ -8,7 +8,27 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 
-__all__ = ["PolicyFamily", "LinearSoftmax", "TabularSoftmax"]
+__all__ = [
+    "DecisionInformation",
+    "LinearSoftmax",
+    "PolicyFamily",
+    "PolicyParameters",
+    "TabularSoftmax",
+]
+
+#: Values available to one decision at one information assignment, keyed by its
+#: declared parent names and ordered as `DecisionNode.parents`. Categorical values
+#: are integer state indices; numerical values retain their scalar or array shapes.
+#: There is no leading sample axis. Use ``jax.vmap`` to evaluate several assignments.
+type DecisionInformation = Mapping[str, jax.Array]
+
+#: The trainable parameters of one decision's `PolicyFamily`, rooted in a dictionary.
+#: Values may be nested dictionaries, sequences, or other JAX pytree containers;
+#: leaves are trainable floating-point JAX arrays. Each family owns the keys and
+#: shapes. For example, `LinearSoftmax` uses ``weights`` and ``bias``, while
+#: `TabularSoftmax` uses ``logits``. A joint optimizer parameter tree maps decision
+#: names to these per-decision dictionaries.
+type PolicyParameters = dict[str, Any]
 
 
 class PolicyFamily(ABC):
@@ -32,9 +52,9 @@ class PolicyFamily(ABC):
         rng_key: jax.Array,
         *,
         num_actions: int,
-        observations: Mapping[str, jax.Array],
+        observations: DecisionInformation,
         parent_states: Mapping[str, tuple[str, ...] | None],
-    ) -> dict[str, Any]:
+    ) -> PolicyParameters:
         """
         Initialize the family's trainable parameter tree.
 
@@ -56,8 +76,8 @@ class PolicyFamily(ABC):
     @abstractmethod
     def logits(
         self,
-        parameters: dict[str, Any],
-        observations: Mapping[str, jax.Array],
+        parameters: PolicyParameters,
+        observations: DecisionInformation,
         parent_states: Mapping[str, tuple[str, ...] | None],
     ) -> jax.Array:
         """
@@ -85,7 +105,14 @@ class LinearSoftmax(PolicyFamily):
     not supply initial parameter values. A decision without parents fits only bias.
     """
 
-    def initialize(self, rng_key, *, num_actions, observations, parent_states):
+    def initialize(
+        self,
+        rng_key: jax.Array,
+        *,
+        num_actions: int,
+        observations: DecisionInformation,
+        parent_states: Mapping[str, tuple[str, ...] | None],
+    ) -> PolicyParameters:
         """
         Initialize zero weights and bias, giving uniform action probabilities.
 
@@ -104,7 +131,12 @@ class LinearSoftmax(PolicyFamily):
             "bias": jnp.zeros(num_actions),
         }
 
-    def logits(self, parameters, observations, parent_states):
+    def logits(
+        self,
+        parameters: PolicyParameters,
+        observations: DecisionInformation,
+        parent_states: Mapping[str, tuple[str, ...] | None],
+    ) -> jax.Array:
         """
         Calculate linear action scores from encoded observations.
 
@@ -131,7 +163,14 @@ class TabularSoftmax(PolicyFamily):
     of parent cardinalities; rarely visited rows may receive little training.
     """
 
-    def initialize(self, rng_key, *, num_actions, observations, parent_states):
+    def initialize(
+        self,
+        rng_key: jax.Array,
+        *,
+        num_actions: int,
+        observations: DecisionInformation,
+        parent_states: Mapping[str, tuple[str, ...] | None],
+    ) -> PolicyParameters:
         """
         Initialize uniform action probabilities for every information assignment.
 
@@ -164,7 +203,12 @@ class TabularSoftmax(PolicyFamily):
             cards.append(len(labels))
         return {"logits": jnp.zeros((*cards, num_actions))}
 
-    def logits(self, parameters, observations, parent_states):
+    def logits(
+        self,
+        parameters: PolicyParameters,
+        observations: DecisionInformation,
+        parent_states: Mapping[str, tuple[str, ...] | None],
+    ) -> jax.Array:
         """
         Look up the scores for a categorical information assignment.
 
@@ -179,7 +223,10 @@ class TabularSoftmax(PolicyFamily):
         return parameters["logits"][tuple(observations.values())]
 
 
-def _features(observations, parent_states):
+def _features(
+    observations: DecisionInformation,
+    parent_states: Mapping[str, tuple[str, ...] | None],
+) -> jax.Array:
     """Encode numerical values and named categories in the information-parent order."""
     features = []
     for parent, value in observations.items():

@@ -1,12 +1,29 @@
 """Trainable policy families, fitted decision rules, and joint policies."""
 
-from pylimid.policy.families import LinearSoftmax, PolicyFamily, TabularSoftmax
-from pylimid.policy.rules import CategoricalPolicy, Policy
+from pylimid.policy.families import (
+    DecisionInformation,
+    LinearSoftmax,
+    PolicyFamily,
+    PolicyParameters,
+    TabularSoftmax,
+)
+from pylimid.policy.rules import (
+    ActionTable,
+    CategoricalPolicy,
+    DecisionRule,
+    FittedPolicy,
+    Policy,
+)
 
 __all__ = [
-    "PolicyFamily",
-    "LinearSoftmax",
-    "TabularSoftmax",
+    "ActionTable",
     "CategoricalPolicy",
+    "DecisionInformation",
+    "DecisionRule",
+    "FittedPolicy",
+    "LinearSoftmax",
     "Policy",
+    "PolicyFamily",
+    "PolicyParameters",
+    "TabularSoftmax",
 ]

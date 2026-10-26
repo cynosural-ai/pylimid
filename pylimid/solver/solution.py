@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from itertools import product
 
-from pylimid.policy import CategoricalPolicy, TabularSoftmax
+from pylimid.policy import FittedPolicy, TabularSoftmax
 
 __all__ = ["Solution"]
 
@@ -21,7 +21,7 @@ class Solution:
             guarantee.
     """
 
-    policy: dict[str, CategoricalPolicy]
+    policy: FittedPolicy
     expected_utility: float
 
     def render(self) -> str:

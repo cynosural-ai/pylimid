@@ -83,7 +83,7 @@ def to_svg(diagram: InfluenceDiagram) -> str:
     return result.stdout
 
 
-def render(scene: Scene) -> str:
+def _render(scene: Scene) -> str:
     """Format *scene* as Graphviz DOT source."""
     lines = ["digraph {", "    rankdir=LR;"]
     for node in scene.nodes:
@@ -110,7 +110,7 @@ def _to_dot(diagram: InfluenceDiagram) -> str:
     dangling parents as dashed ghost nodes, non-consistent nodes tinted.
     Rendering does not require a valid diagram.
     """
-    return render(build_scene(diagram))
+    return _render(build_scene(diagram))
 
 
 def _escape(name: str) -> str:

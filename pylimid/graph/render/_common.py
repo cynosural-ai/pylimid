@@ -24,8 +24,6 @@ from pylimid.graph.nodes import Consistency, NodeKind
 if TYPE_CHECKING:
     from pylimid.graph.diagram import InfluenceDiagram
 
-__all__ = ["Edge", "Node", "Scene", "Shape", "Style", "build_scene"]
-
 
 class Shape(Enum):
     """The backend-neutral shape of a node."""

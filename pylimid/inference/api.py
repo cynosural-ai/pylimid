@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from typing import cast
 
 import jax
@@ -12,7 +12,7 @@ from pylimid.errors import InferenceError
 from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.nodes import ChanceNode, NodeKind
 from pylimid.inference.posterior import InferenceResult, Posterior
-from pylimid.policy import CategoricalPolicy
+from pylimid.policy import CategoricalPolicy, DecisionRule, Policy
 
 __all__ = ["infer"]
 
@@ -22,15 +22,8 @@ def infer(
     query: list[str],
     *,
     observed: dict[str, int | float] | None = None,
-    policy: Mapping[
-        str,
-        int
-        | dict[tuple[int, ...], int]
-        | Callable[..., int | jax.Array]
-        | CategoricalPolicy,
-    ]
-    | None = None,
-    num_samples: int = 2000,
+    policy: Policy | None = None,
+    num_samples: int = 10000,
     rng_key: jax.Array | None = None,
 ) -> InferenceResult:
     """
@@ -136,10 +129,7 @@ def infer(
     pruned = DiagramSnapshot(
         nodes=tuple((name, node) for name, node in snapshot.nodes if name in relevant)
     )
-    contingent_policy: dict[
-        str,
-        dict[tuple[int, ...], int] | Callable[..., int | jax.Array] | CategoricalPolicy,
-    ] = {}
+    contingent_policy: dict[str, DecisionRule] = {}
     bound: dict[str, int] = {}
     for name, rule in policy.items():
         if name not in relevant:

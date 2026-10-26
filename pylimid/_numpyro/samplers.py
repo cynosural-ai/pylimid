@@ -7,7 +7,7 @@ arrays from this layer, then wraps the requested draws in posterior result objec
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 import jax
@@ -20,10 +20,15 @@ from pylimid._numpyro.model import build_model
 from pylimid.errors import InferenceError
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.nodes import DecisionNode, NodeKind, UtilityNode
-from pylimid.policy import CategoricalPolicy, Policy
+from pylimid.policy import CategoricalPolicy, DecisionRule
 from pylimid.policy._binding import bind_policy_rules
 
-__all__ = ["samples"]
+#: Joint draws keyed by node name. Each array has shape
+#: ``(num_samples, *node_shape)``; scalar nodes have shape ``(num_samples,)``.
+#: The same sample index across nodes identifies one joint draw, so relationships
+#: between variables are preserved. Categories contain integer state indices;
+#: numerical nodes and utilities contain their actual values.
+type SampleBatch = dict[str, jax.Array]
 
 
 def samples(
@@ -33,9 +38,9 @@ def samples(
     query: list[str] | None = None,
     num_samples: int = 2000,
     num_warmup: int = 500,
-    rng_key: Any = None,
-    policy: Policy | None = None,
-) -> dict[str, jax.Array]:
+    rng_key: jax.Array | None = None,
+    policy: Mapping[str, DecisionRule] | None = None,
+) -> SampleBatch:
     """
     Draw samples from a validated snapshot.
 
@@ -125,7 +130,7 @@ def samples(
 
 
 def _evaluate_utility(
-    node: UtilityNode, draws: dict[str, jax.Array], num_samples: int
+    node: UtilityNode, draws: SampleBatch, num_samples: int
 ) -> jax.Array:
     """The utility's value in every draw, computed from its parents' draws."""
     values = node.values
@@ -142,8 +147,8 @@ def _draw(
     observed: dict[str, Any],
     num_samples: int,
     num_warmup: int,
-    rng_key: Any,
-) -> dict[str, jax.Array]:
+    rng_key: jax.Array,
+) -> SampleBatch:
     """Run the sampling machinery for ``model`` and return all site draws."""
     if not _has_chance_evidence(snapshot, observed):
         return Predictive(model, num_samples=num_samples)(rng_key)
@@ -176,7 +181,7 @@ def _has_chance_evidence(snapshot: DiagramSnapshot, observed: dict[str, Any]) ->
 
 
 def _validate_posterior_latents(
-    snapshot: DiagramSnapshot, model: Callable[[], dict[str, Any]], rng_key: Any
+    snapshot: DiagramSnapshot, model: Callable[[], dict[str, Any]], rng_key: jax.Array
 ) -> bool:
     """Check latent enumeration support and report whether continuous latents remain."""
     trace = handlers.trace(handlers.seed(model, rng_key)).get_trace()

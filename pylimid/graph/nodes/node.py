@@ -42,11 +42,13 @@ Parent values are resolved and passed to the node's configurable callable as
 *names* (stable) rather than parent *order* (incidental).
 """
 
-import inspect
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
+from pylimid.graph.nodes._validation import validate_name, validate_parents
+
+__all__ = ["Consistency", "Node", "NodeKind"]
 
 
 class NodeKind(Enum):
@@ -119,12 +121,9 @@ class Node:
         field checks.
         """
         if key == "name":
-            _validate_name(value)
+            validate_name(value)
         elif key == "parents":
-            # ``name`` is declared before ``parents`` and is therefore assigned
-            # first by the generated ``__init__``; ``getattr`` covers the
-            # pre-name-assignment edge case defensively.
-            _validate_parents(getattr(self, "name", ""), value)
+            validate_parents(self.name, value)
         object.__setattr__(self, key, value)
 
     # --- mutation helpers ---------------------------------------------------
@@ -236,77 +235,3 @@ class Node:
         raise NotImplementedError(
             f"{type(self).__name__} must implement `_compute_consistency`."
         )
-
-
-# --- field validators -------------------------------------------------------
-
-
-def _validate_name(name: Any) -> None:
-    if not isinstance(name, str) or not name.strip():
-        raise ValueError(f"`name` must be a non-empty string, got {name!r}.")
-
-
-def _validate_parents(name: str, parents: Any) -> None:
-    if not isinstance(parents, tuple):
-        raise TypeError(
-            f"`parents` for {name!r} must be a tuple, got {type(parents).__name__}."
-        )
-    if not all(isinstance(p, str) and p.strip() for p in parents):
-        raise ValueError(
-            f"`parents` for {name!r} must all be non-empty strings, got {parents!r}."
-        )
-    seen: set[str] = set()
-    for parent in parents:
-        if parent == name:
-            raise ValueError(f"Node {name!r} cannot list itself among its parents.")
-        if parent in seen:
-            raise ValueError(f"`parents` for {name!r} contains duplicate {parent!r}.")
-        seen.add(parent)
-
-
-def _signature_matches(
-    callable_: Callable[..., Any], parent_names: tuple[str, ...]
-) -> bool:
-    """
-    Whether ``callable_`` names every entry of ``parent_names`` as a parameter.
-
-    The guarantee the consistency gate can make is narrow: a ``CONSISTENT``
-    callable *could* have used its parents. Coverage is by named parameters
-    only — a parent that exists nowhere in the signature except a variadic
-    ``*args`` / ``**kwargs`` does not count, because the gate cannot verify
-    that a generic callable actually reads it. A ``**kwargs``-only callable is
-    therefore ``CONSISTENT`` only for an empty parent set and stale for any
-    wired parents; callables that resolve parents dynamically must generate a
-    named-parameter signature (the gate then works for them like anyone
-    else).
-
-    A callable that names all parents but cannot be bound (a missing required
-    extra parameter) is reported as not matching. A callable that *ignores*
-    its parents but could have used them (an independent node) is a
-    legitimate model; signature inspection cannot tell it apart from a wiring
-    mistake, and the gate does not try.
-
-    A callable that cannot be introspected (some builtins, C extensions) is
-    conservatively reported as not matching.
-    """
-    try:
-        sig = inspect.signature(callable_)
-    except (TypeError, ValueError):
-        return False
-    named = {
-        name
-        for name, param in sig.parameters.items()
-        if param.kind
-        in (
-            inspect.Parameter.POSITIONAL_ONLY,
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            inspect.Parameter.KEYWORD_ONLY,
-        )
-    }
-    if any(parent not in named for parent in parent_names):
-        return False
-    try:
-        sig.bind(**dict.fromkeys(parent_names))
-    except TypeError:
-        return False
-    return True

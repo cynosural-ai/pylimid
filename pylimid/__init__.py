@@ -23,28 +23,38 @@ from pylimid.graph import (
 )
 from pylimid.inference import InferenceResult, Posterior, infer
 from pylimid.policy import (
+    ActionTable,
     CategoricalPolicy,
+    DecisionInformation,
+    DecisionRule,
+    FittedPolicy,
     LinearSoftmax,
     Policy,
     PolicyFamily,
+    PolicyParameters,
     TabularSoftmax,
 )
 from pylimid.solver import Solution, solve
 
 __all__ = [
+    "ActionTable",
+    "CategoricalPolicy",
     "ChanceNode",
+    "DecisionInformation",
     "DecisionNode",
+    "DecisionRule",
+    "FittedPolicy",
     "InferenceError",
     "InferenceResult",
     "InfluenceDiagram",
-    "Policy",
     "LinearSoftmax",
-    "CategoricalPolicy",
+    "Policy",
     "PolicyFamily",
-    "TabularSoftmax",
+    "PolicyParameters",
     "Posterior",
     "Solution",
     "SolveError",
+    "TabularSoftmax",
     "UtilityNode",
     "__version__",
     "infer",

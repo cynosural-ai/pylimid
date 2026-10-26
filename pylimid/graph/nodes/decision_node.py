@@ -33,12 +33,15 @@ unconfigured.
 from dataclasses import dataclass, field
 from typing import Any
 
+from pylimid.graph.nodes._validation import validate_states
 from pylimid.graph.nodes.node import (
     Consistency,
     Node,
     NodeKind,
 )
 from pylimid.policy import PolicyFamily
+
+__all__ = ["DecisionNode"]
 
 
 @dataclass
@@ -77,7 +80,7 @@ class DecisionNode(Node):
     def __setattr__(self, key: str, value: Any) -> None:
         """Validate decision-specific fields, then defer to the base node."""
         if key == "states":
-            _validate_states(value)
+            validate_states(value)
         elif (
             key == "policy_family"
             and value is not None
@@ -125,25 +128,3 @@ class DecisionNode(Node):
         if self.states is None:
             return Consistency.UNCONFIGURED
         return Consistency.CONSISTENT
-
-
-# --- decision-specific field validators -------------------------------------
-
-
-def _validate_states(states: Any) -> None:
-    """Validate the action ``states`` (mirrors the chance-node states check)."""
-    if states is None:
-        return
-    if not isinstance(states, tuple):
-        raise TypeError(
-            f"`states` must be a tuple or None, got {type(states).__name__}."
-        )
-    if not states:
-        raise ValueError(
-            "`states`, when provided, must be non-empty; use `None` for an "
-            "undeclared (or future continuous) decision."
-        )
-    if not all(isinstance(s, str) and s.strip() for s in states):
-        raise ValueError(f"`states` must all be non-empty strings, got {states!r}.")
-    if len(set(states)) != len(states):
-        raise ValueError(f"`states` must be unique, got {states!r}.")

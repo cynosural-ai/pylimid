@@ -16,13 +16,11 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from pylimid.graph.nodes.node import Consistency, Node, NodeKind, _signature_matches
+from pylimid._signatures import signature_matches
+from pylimid.graph.nodes._validation import validate_dist, validate_states
+from pylimid.graph.nodes.node import Consistency, Node, NodeKind
 
-#: Factory returning a distribution object given resolved parent values.
-#:
-#: The graph layer is opaque to the concrete distribution type a backend uses,
-#: so the return is typed ``Any`` here. The backend's translator narrows it.
-DistFactory = Callable[..., Any]
+__all__ = ["ChanceNode"]
 
 
 @dataclass
@@ -67,15 +65,15 @@ class ChanceNode(Node):
             events, and their values are counts rather than state indices.
     """
 
-    dist: DistFactory | None = field(default=None, kw_only=True)
+    dist: Callable[..., Any] | None = field(default=None, kw_only=True)
     states: tuple[str, ...] | None = field(default=None, kw_only=True)
 
     def __setattr__(self, key: str, value: Any) -> None:
         """Validate ``dist`` / ``states`` (chance-specific) then defer to base."""
         if key == "dist":
-            _validate_dist(value)
+            validate_dist(value)
         elif key == "states":
-            _validate_states(value)
+            validate_states(value)
         super().__setattr__(key, value)
 
     # --- kind / structure ---------------------------------------------------
@@ -119,35 +117,6 @@ class ChanceNode(Node):
     def _compute_consistency(self) -> Consistency:
         if self.dist is None:
             return Consistency.UNCONFIGURED
-        if _signature_matches(self.dist, self.parents):
+        if signature_matches(self.dist, self.parents):
             return Consistency.CONSISTENT
         return Consistency.STALE
-
-
-# --- chance-specific field validators ---------------------------------------
-
-
-def _validate_dist(dist: Any) -> None:
-    if dist is not None and not callable(dist):
-        raise TypeError(
-            f"`dist` must be callable or None, "
-            f"got object of type {type(dist).__name__}."
-        )
-
-
-def _validate_states(states: Any) -> None:
-    if states is None:
-        return
-    if not isinstance(states, tuple):
-        raise TypeError(
-            f"`states` must be a tuple or None, got {type(states).__name__}."
-        )
-    if not states:
-        raise ValueError(
-            "`states`, when provided, must be non-empty; use `None` for a "
-            "continuous node."
-        )
-    if not all(isinstance(s, str) and s.strip() for s in states):
-        raise ValueError(f"`states` must all be non-empty strings, got {states!r}.")
-    if len(set(states)) != len(states):
-        raise ValueError(f"`states` must be unique, got {states!r}.")

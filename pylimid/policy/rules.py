@@ -2,15 +2,43 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, TypeAlias
+from typing import cast
 
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
-from pylimid.policy.families import PolicyFamily
+from pylimid.policy.families import DecisionInformation, PolicyFamily, PolicyParameters
 
-__all__ = ["CategoricalPolicy", "Policy"]
+__all__ = ["ActionTable", "CategoricalPolicy", "DecisionRule", "FittedPolicy", "Policy"]
+
+
+#: A complete deterministic rule for a decision with categorical information parents.
+#: Keys contain parent-state indices in `DecisionNode.parents` order; values are
+#: action indices into the decision's ``states``, rather than state labels. Every
+#: information assignment must have an entry. A parentless decision uses ``()``
+#: as its only key.
+type ActionTable = dict[tuple[int, ...], int]
+
+
+#: A contingent rule for one decision: an `ActionTable`, a deterministic function,
+#: or a fitted stochastic `CategoricalPolicy`. Functions receive the decision's
+#: declared information parents by keyword and return a scalar integer action index
+#: as a Python ``int`` or JAX array. Functions must be JAX-traceable. Functions and
+#: fitted rules currently support forward evaluation without chance-node evidence.
+type DecisionRule = ActionTable | Callable[..., int | jax.Array] | CategoricalPolicy
+
+#: Decision names mapped to fixed action indices or contingent `DecisionRule` values.
+#: A fixed integer action ignores the decision's information parents. Different
+#: decisions may use different representations in the same policy. Every decision
+#: relevant to the query or evidence must be supplied when calling `infer`.
+type Policy = Mapping[str, int | DecisionRule]
+
+#: The joint policy returned by `solve`: decision names mapped exclusively to fitted
+#: stochastic `CategoricalPolicy` rules. Each rule retains its family, parameters,
+#: information metadata, and action labels. Pass this mapping directly to `infer`
+#: for forward evaluation; actions remain stochastic under the fitted rules.
+type FittedPolicy = dict[str, CategoricalPolicy]
 
 
 @dataclass(frozen=True)
@@ -43,7 +71,7 @@ class CategoricalPolicy:
     parent_states: tuple[tuple[str, ...] | None, ...]
     parent_shapes: tuple[tuple[int, ...], ...]
     states: tuple[str, ...]
-    parameters: dict[str, Any]
+    parameters: PolicyParameters
 
     def probabilities(self, **observations: jax.Array) -> jax.Array:
         """
@@ -68,7 +96,8 @@ class CategoricalPolicy:
         Returns:
             A scalar integer index into ``states``.
         """
-        return self._distribution(observations).sample(rng_key)
+        # NumPyro's ArrayLike hint is broader than this sampler's JAX array output.
+        return cast(jax.Array, self._distribution(observations).sample(rng_key))
 
     def log_prob(self, action: jax.Array, /, **observations: jax.Array) -> jax.Array:
         """
@@ -83,7 +112,9 @@ class CategoricalPolicy:
         """
         return self._distribution(observations).log_prob(action)
 
-    def _distribution(self, observations: Mapping[str, jax.Array]):
+    def _distribution(
+        self, observations: DecisionInformation
+    ) -> dist.CategoricalLogits:
         """Bind observations in declared order and construct the action distribution."""
         unexpected = observations.keys() - self.parents
         if unexpected:
@@ -102,13 +133,3 @@ class CategoricalPolicy:
                 f"got {logits.shape}."
             )
         return dist.Categorical(logits=logits)
-
-
-#: Decision names mapped to action tables, deterministic functions, or fitted rules.
-#: Tables map parent-state tuples to action indices. Functions accept information
-#: parents by keyword and return a scalar integer action index. Functions and fitted
-#: stochastic rules currently support forward evaluation only.
-Policy: TypeAlias = Mapping[
-    str,
-    dict[tuple[int, ...], int] | Callable[..., int | jax.Array] | CategoricalPolicy,
-]
