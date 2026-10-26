@@ -11,11 +11,12 @@ Update the existing documentation for the policy-gradient-only API, preserving t
 | Quickstart | Complete. Both models use a declared family, display fitted action probabilities in text and grouped bar charts, and execute successfully. |
 | Building a diagram | Complete. Uses `TabularSoftmax`, retains the construction and editing examples, and executes successfully. |
 | Distributions and utilities | Complete. The combined and split utility models produce matching fitted probabilities and expected profit. |
-| Solving a diagram | Next. Update policy interpretation and optimization guidance while preserving the order-menu lesson. |
+| Solving a diagram | Complete. Fitted-policy summaries, training comparisons, wider order menu, cart coordination, and continuous information examples execute successfully. |
+| Inference | Next. Update fitted-policy evaluation and the sunny/high-bookings scenario within the current support boundaries. |
 | Remaining guides, resources, README, and figures | Pending. Follow the page-by-page checklist below. |
-| Full strict documentation build | Failing with 11 warnings: four notebook failures with paired traceback warnings, plus three old references in the Solving guide. |
+| Full strict documentation build | Failing with six warnings: notebook failures and paired traceback warnings in Inference, Multiple decisions, and Count distributions. |
 
-The API reference, quickstart, and first two user guides are complete, but the documentation migration is still in progress. The current Distributions and utilities update is uncommitted. The build evidence and checks are recorded in the [verification log](#verification-log).
+The API reference, quickstart, and first three user guides are complete, but the documentation migration is still in progress. The current Solving update is uncommitted. The build evidence and checks are recorded in the [verification log](#verification-log).
 
 ## Starting point
 
@@ -58,7 +59,7 @@ For each page, read the existing prose first, update the example and its interpr
 - [x] `docs/getting_started/quickstart.md`: adapt the small ice cream example without expanding it into an optimizer tutorial; update the policy display and result interpretation.
 - [x] `docs/user_guide/building_a_diagram.md`: introduce the required decision configuration while preserving the build, validate, and draw progression.
 - [x] `docs/user_guide/distributions_and_utilities.md`: check model consistency, JAX requirements, inference claims, examples, and demand figures.
-- [ ] `docs/user_guide/solving.md`: explain fitting a policy, choosing a family, controlling training and evaluation, reading stochastic results, and checking the expanded order menu.
+- [x] `docs/user_guide/solving.md`: explain fitting a policy, choosing a family, controlling training and evaluation, reading stochastic results, and checking the expanded order menu.
 - [ ] `docs/user_guide/inference.md`: evaluate fitted policies with the current API while preserving the intentional booking-information variant, aligned draws, comparisons, and inference figures.
 - [ ] `docs/user_guide/multiple_decisions.md`: preserve the promotion story and explain joint fitting with explicit information parents and memory.
 - [ ] `docs/resources/common_pitfalls.md` and `docs/resources/count_distributions.md`: update standalone examples and diagnostics; remove obsolete solver advice while retaining relevant modeling and inference limits.
@@ -210,6 +211,15 @@ Completed on 2026-10-26 without committing. Added `TabularSoftmax()` to the deci
 - Checked the rendered page's local links and image references. Visually inspected the existing demand-comparison figure; its parameters still match the page, so the figure and script are unchanged.
 - Ruff lint, formatting, type checks, and `git diff --check` pass. No library code or figure scripts changed.
 
+### Solving update
+
+Completed on 2026-10-26 without committing. Updated the shared model, fitted-rule summaries, training settings, rare-row explanation, and errors for the single engine. Preserved the wider order-menu lesson and adapted the cart and continuous-signal examples. Removed the obsolete solver-choice discussion and repeated joint-signal, categorical-table, and mixed-family examples.
+
+- All **eight code cells** execute successfully. After 100 updates, the most likely stocks remain 80 and 200, with probabilities about **55%** and **68%**; after 500 updates, both exceed **98%** in the two illustrated seeds.
+- Expanding the menu to 400 produces a most likely sunny-day order of **260**, with probability **0.9257** and estimated expected profit **626.5**. The cart example favours Mia at the beach and Leo at the park; the continuous-signal example uses a fitted `CategoricalPolicy` with `LinearSoftmax`.
+- The page produces no warnings. The strict full build now exits with code **1** and **six warnings**, all from the remaining Inference, Multiple decisions, and Count distributions notebook failures and their traceback reports. Removed-name references no longer produce warnings. Log: `docs/_build/solving-update.log`.
+- Checked **116 local page and anchor links** and **three image references**; all resolve. Ruff lint, formatting, type checks, and `git diff --check` pass. No library code or figure scripts changed.
+
 ## Next step
 
-Update `docs/user_guide/solving.md` for the single optimization engine and fitted stochastic rules. Preserve the shared ice cream model and the expansion of its order menu. Explain fitting settings and reliability where the examples use them, replacing the removed solver-selection and solvability sections without adding unrelated material.
+Update `docs/user_guide/inference.md` for fitted stochastic policies, preserving the questions about recommended profit, an alternative order, and sunny-day demand. Adapt the sunny/high-bookings profit scenario through a supported representation: relevant fitted policies cannot currently be combined with observed chance-node evidence. Re-run the examples and regenerate affected figures without replacing the fitted rules with deterministic actions.
