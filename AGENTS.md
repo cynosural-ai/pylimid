@@ -43,7 +43,8 @@ def add_arc(self, parent: str, child: str) -> None:
 
 - Prefix internal packages and standalone internal modules with `_`, such as `_numpyro/` and `policy/_binding.py`. Files inside an internal package can use ordinary names.
 - Within internal namespaces, shared functions use ordinary names and module-local helpers use `_`. Implementation details of public classes and modules retain `_`, even when used elsewhere in pylimid.
-- Supported user APIs are explicitly exported and documented. Cross-module imports do not make an internal function public; changing that boundary requires a deliberate API decision.
+- Public modules and package entry points define an alphabetically sorted `__all__` immediately after imports, listing only supported exports. Use an empty list when there are no exports.
+- Internal modules and packages omit `__all__`. Leave generated `_version.py` untouched.
 - Module order: imports, supporting types/constants, public/shared entry points, internal helpers. Class order: initialization, public methods, internal helpers. Keep related properties and protocol methods together, and supporting types before constants that instantiate them.
 
 ## Comments and docs in code
