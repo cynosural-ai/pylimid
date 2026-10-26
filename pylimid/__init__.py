@@ -14,7 +14,7 @@ translates diagrams into NumPyro models and draws samples.
 """
 
 from pylimid._version import __version__
-from pylimid.errors import InferenceError
+from pylimid.errors import InferenceError, SolveError
 from pylimid.graph import (
     ChanceNode,
     DecisionNode,
@@ -44,6 +44,7 @@ __all__ = [
     "TabularSoftmax",
     "Posterior",
     "Solution",
+    "SolveError",
     "UtilityNode",
     "__version__",
     "infer",

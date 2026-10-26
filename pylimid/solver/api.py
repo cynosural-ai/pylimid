@@ -7,7 +7,7 @@ import jax
 import jax.numpy as jnp
 from jax.example_libraries.optimizers import adam
 
-from pylimid.errors import InferenceError
+from pylimid.errors import SolveError
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
@@ -56,17 +56,18 @@ def solve(
         independent Monte Carlo estimate of their expected total utility.
 
     Raises:
-        InferenceError: If the diagram contains no decisions. Use `infer` for a
-            Bayesian network without decisions.
-        ValueError: If diagram validation fails, a decision lacks a family,
-            tabular information is not scalar and categorical, training budgets or
-            the learning rate are invalid, a chance distribution conflicts with its
-            declared states, or training or evaluation produces non-finite results.
+        ValueError: If diagram validation fails, the diagram contains no decisions,
+            a decision lacks a family, tabular information is not scalar and
+            categorical, training budgets or the learning rate are invalid, or a
+            chance distribution conflicts with its declared states. Use `infer` for
+            a Bayesian network without decisions.
+        SolveError: If optimization produces non-finite parameters or final
+            evaluation produces non-finite expected utility.
     """
     snapshot = diagram.snapshot()
     decisions = [node for _, node in snapshot.nodes if isinstance(node, DecisionNode)]
     if not decisions:
-        raise InferenceError(
+        raise ValueError(
             "solve() requires at least one decision node. "
             "Use infer() for a Bayesian network without decisions."
         )
@@ -116,13 +117,13 @@ def solve(
         bool(jnp.all(jnp.isfinite(value)))
         for value in jax.tree_util.tree_leaves(fitted_parameters)
     ):
-        raise ValueError("Policy optimization produced non-finite parameters.")
+        raise SolveError("Policy optimization produced non-finite parameters.")
     returns, _, _ = jax.jit(jax.vmap(trajectory, in_axes=(None, 0)))(
         fitted_parameters, jax.random.split(evaluation_key, num_samples)
     )
     expected_utility = float(jnp.mean(returns))
     if not isfinite(expected_utility):
-        raise ValueError("Policy evaluation produced non-finite expected utility.")
+        raise SolveError("Policy evaluation produced non-finite expected utility.")
     return Solution(
         policy={
             name: replace(rule, parameters=fitted_parameters[name])

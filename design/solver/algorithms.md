@@ -30,6 +30,8 @@ The graph controls information access. A rule receives only its declared parents
 
 `solve(diagram, num_steps=..., num_samples=..., learning_rate=..., rng_key=...)` is the public entry point and contains the training orchestration and private helpers. There is no solver selector or structural solution-ordering gate. `Solution` contains only the fitted joint policy and independently estimated expected utility. Its rules can be inspected, sampled, and reused through forward `infer` calls. `Solution.render()` uses the labels stored in its fitted rules, without requiring the original diagram.
 
+Invalid solver inputs raise `ValueError`, including a diagram without decisions or a missing policy family. Non-finite fitted parameters or non-finite expected utility in the independent evaluation raise `SolveError`. The public errors remain in `pylimid.errors`; `InferenceError` covers inference requests and supplied-policy binding.
+
 ## Verification
 
 Tests compare score gradients with analytic derivatives and exact action sums on small examples, including nonzero parameters and action-dependent observations. End-to-end tests cover mixed families, categorical interactions, explicit memory, count outcomes, reproducibility, and independent final evaluation. The oil example compares the exact value of its fitted policy with an analytic optimum; no reference solver is required.

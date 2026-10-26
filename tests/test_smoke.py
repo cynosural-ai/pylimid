@@ -14,7 +14,7 @@ def test_top_level_exports_the_public_api() -> None:
     """The main names import from pylimid directly."""
     import pylimid
     from pylimid import graph, inference, policy, solver
-    from pylimid.errors import InferenceError
+    from pylimid.errors import InferenceError, SolveError
     from pylimid.policy import Policy
 
     assert pylimid.InfluenceDiagram is graph.InfluenceDiagram
@@ -27,6 +27,7 @@ def test_top_level_exports_the_public_api() -> None:
     assert pylimid.Posterior is inference.Posterior
     assert pylimid.InferenceResult is inference.InferenceResult
     assert pylimid.InferenceError is InferenceError
+    assert pylimid.SolveError is SolveError
     assert pylimid.Policy is Policy
     assert pylimid.PolicyFamily is policy.PolicyFamily
     assert pylimid.LinearSoftmax is policy.LinearSoftmax

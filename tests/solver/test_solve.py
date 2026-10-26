@@ -8,9 +8,9 @@ from pylimid import (
     CategoricalPolicy,
     ChanceNode,
     DecisionNode,
-    InferenceError,
     InfluenceDiagram,
     LinearSoftmax,
+    SolveError,
     TabularSoftmax,
     UtilityNode,
     solve,
@@ -70,5 +70,38 @@ def test_solve_accepts_continuous_information_and_explicit_optimizer_settings():
 def test_solve_requires_a_decision():
     diagram = InfluenceDiagram()
     diagram.add_node(ChanceNode("signal", dist=lambda: dist.Normal(0.0, 1.0)))
-    with pytest.raises(InferenceError, match="at least one decision"):
+    with pytest.raises(ValueError, match="at least one decision"):
         solve(diagram)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf")])
+def test_solve_reports_nonfinite_optimization(value):
+    diagram = InfluenceDiagram()
+    diagram.add_node(
+        DecisionNode("action", states=("off", "on"), policy_family=LinearSoftmax())
+    )
+    diagram.add_node(
+        UtilityNode("payoff", parents=("action",), values=lambda action: action + value)
+    )
+    with pytest.raises(SolveError, match="optimization.*non-finite parameters"):
+        solve(diagram, num_steps=1, num_samples=2)
+
+
+def test_solve_reports_nonfinite_independent_evaluation():
+    diagram = InfluenceDiagram()
+    diagram.add_node(
+        ChanceNode("switch", states=("zero", "one"), dist=lambda: dist.Bernoulli(0.5))
+    )
+    diagram.add_node(
+        DecisionNode("action", states=("off", "on"), policy_family=LinearSoftmax())
+    )
+    diagram.add_node(
+        UtilityNode(
+            "payoff",
+            parents=("switch", "action"),
+            values=lambda switch, action: (1.0 + action) / switch,
+        )
+    )
+    # The default seed draws switch=1 in training and switch=0 in evaluation.
+    with pytest.raises(SolveError, match="evaluation.*non-finite expected utility"):
+        solve(diagram, num_steps=1, num_samples=1)
