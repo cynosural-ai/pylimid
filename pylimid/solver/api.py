@@ -1,7 +1,9 @@
 """Joint expected-utility optimization with score-function policy gradients."""
 
+from collections.abc import Callable, Mapping
 from dataclasses import replace
 from math import isfinite
+from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
@@ -11,10 +13,29 @@ from pylimid._numpyro.distributions import validate_chance_distribution
 from pylimid.errors import SolveError
 from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.nodes import ChanceNode, DecisionNode, UtilityNode
-from pylimid.policy import CategoricalPolicy
+from pylimid.policy import CategoricalPolicy, DecisionInformation, PolicyParameters
 from pylimid.solver.solution import Solution
 
 __all__ = ["solve"]
+
+
+class _Trajectory(NamedTuple):
+    """
+    Total utility, local decision information, and actions from one scenario.
+
+    Applying ``jax.vmap`` produces the same record with a leading scenario axis on
+    every array. Matching positions across its fields refer to the same scenario.
+
+    Attributes:
+        utility: Scalar sum of all utility-node values. A vector after batching.
+        information: Decision names mapped to their declared information-parent
+            values. Each value retains its node shape before batching.
+        actions: Decision names mapped to sampled scalar integer action indices.
+    """
+
+    utility: float | jax.Array
+    information: dict[str, DecisionInformation]
+    actions: dict[str, jax.Array]
 
 
 def solve(
@@ -87,8 +108,8 @@ def solve(
     templates = _initialize_policy(snapshot, information_key)
     parameters = {name: rule.parameters for name, rule in templates.items()}
     trajectory = _trajectory(snapshot, templates)
-    pilot_utility, _, _ = trajectory(parameters, shape_key)
-    baseline = jnp.zeros_like(jnp.mean(pilot_utility))
+    pilot = trajectory(parameters, shape_key)
+    baseline = jnp.zeros_like(jnp.mean(pilot.utility))
     initialize, update, get_parameters = adam(learning_rate)
 
     @jax.jit
@@ -97,13 +118,18 @@ def solve(
             state, key, baseline = carry
             parameters = get_parameters(state)
             key, batch_key = jax.random.split(key)
-            returns, observations, actions = jax.vmap(trajectory, in_axes=(None, 0))(
+            batch = jax.vmap(trajectory, in_axes=(None, 0))(
                 parameters, jax.random.split(batch_key, num_samples)
             )
             gradients = jax.grad(_score_loss)(
-                parameters, templates, observations, actions, returns, baseline
+                parameters,
+                templates,
+                batch.information,
+                batch.actions,
+                batch.utility,
+                baseline,
             )
-            return (update(step, gradients, state), key, jnp.mean(returns)), None
+            return (update(step, gradients, state), key, jnp.mean(batch.utility)), None
 
         (state, _, _), _ = jax.lax.scan(
             iteration, (initialize(parameters), key, baseline), jnp.arange(num_steps)
@@ -116,10 +142,10 @@ def solve(
         for value in jax.tree_util.tree_leaves(fitted_parameters)
     ):
         raise SolveError("Policy optimization produced non-finite parameters.")
-    returns, _, _ = jax.jit(jax.vmap(trajectory, in_axes=(None, 0)))(
+    evaluation = jax.jit(jax.vmap(trajectory, in_axes=(None, 0)))(
         fitted_parameters, jax.random.split(evaluation_key, num_samples)
     )
-    expected_utility = float(jnp.mean(returns))
+    expected_utility = float(jnp.mean(evaluation.utility))
     if not isfinite(expected_utility):
         raise SolveError("Policy evaluation produced non-finite expected utility.")
     return Solution(
@@ -140,8 +166,8 @@ def _initialize_policy(
         for name, node in snapshot.nodes
         if isinstance(node, (ChanceNode, DecisionNode))
     }
-    templates = {}
-    values = {}
+    templates: dict[str, CategoricalPolicy] = {}
+    values: dict[str, jax.Array] = {}
     keys = iter(jax.random.split(key, len(nodes)))
     for index, (name, node) in enumerate(nodes.items()):
         parents = {parent: values[parent] for parent in node.parents}
@@ -176,8 +202,30 @@ def _initialize_policy(
     return templates
 
 
-def _score_loss(parameters, templates, observations, actions, returns, baseline):
-    """Negative score-function surrogate, with all sampled quantities held fixed."""
+def _score_loss(
+    parameters: dict[str, PolicyParameters],
+    templates: dict[str, CategoricalPolicy],
+    observations: dict[str, Mapping[str, jax.Array]],
+    actions: dict[str, jax.Array],
+    returns: jax.Array,
+    baseline: float | jax.Array,
+) -> jax.Array:
+    """
+    Compute the negative score-function surrogate from a batch of scenarios.
+
+    Args:
+        parameters: Trainable parameter dictionaries keyed by decision name.
+        templates: Local categorical rules whose parameters are replaced for scoring.
+        observations: Decision names mapped to their information-parent sample arrays.
+            Every array has a leading scenario axis followed by its node shape.
+        actions: Sampled action-index vectors keyed by decision name.
+        returns: Total utility for each scenario, aligned with observations and actions.
+        baseline: Scalar utility baseline, independent of the current sampled actions.
+
+    Returns:
+        The scalar surrogate loss, holding sampled quantities and the baseline fixed
+        while differentiating the policy log probabilities.
+    """
     observations, actions, returns, baseline = jax.tree_util.tree_map(
         jax.lax.stop_gradient, (observations, actions, returns, baseline)
     )
@@ -190,8 +238,20 @@ def _score_loss(parameters, templates, observations, actions, returns, baseline)
     return -jnp.mean((returns - baseline) * log_probabilities)
 
 
-def _trajectory(snapshot, templates):
-    """Simulate one complete scenario under all current local stochastic rules."""
+def _trajectory(
+    snapshot: DiagramSnapshot, templates: dict[str, CategoricalPolicy]
+) -> Callable[[dict[str, PolicyParameters], jax.Array], _Trajectory]:
+    """
+    Build a simulator for complete scenarios under local stochastic rules.
+
+    Args:
+        snapshot: Validated diagram in topological order.
+        templates: Initialized categorical rules with bound information metadata.
+
+    Returns:
+        A function of per-decision parameters and a random key, returning a
+        `_Trajectory` with total utility, local information, and sampled actions.
+    """
     utility_nodes = [
         node for _, node in snapshot.nodes if isinstance(node, UtilityNode)
     ]
@@ -199,13 +259,15 @@ def _trajectory(snapshot, templates):
         isinstance(node, (ChanceNode, DecisionNode)) for _, node in snapshot.nodes
     )
 
-    def simulate(parameters, key):
+    def simulate(
+        parameters: dict[str, PolicyParameters], key: jax.Array
+    ) -> _Trajectory:
         rules = {
             name: replace(rule, parameters=parameters[name])
             for name, rule in templates.items()
         }
         keys = iter(jax.random.split(key, num_random))
-        values = {}
+        values: dict[str, jax.Array] = {}
         for name, node in snapshot.nodes:
             if isinstance(node, UtilityNode):
                 continue
@@ -224,13 +286,13 @@ def _trajectory(snapshot, templates):
             total = total + node.values(
                 **{parent: values[parent] for parent in node.parents}
             )
-        return (
-            total,
-            {
+        return _Trajectory(
+            utility=total,
+            information={
                 name: {parent: values[parent] for parent in rule.parents}
                 for name, rule in templates.items()
             },
-            {name: values[name] for name in templates},
+            actions={name: values[name] for name in templates},
         )
 
     return simulate

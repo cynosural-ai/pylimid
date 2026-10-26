@@ -25,6 +25,13 @@ from pylimid.policy._binding import bind_policy_rules
 
 __all__ = ["samples"]
 
+#: Joint draws keyed by node name. Each array has shape
+#: ``(num_samples, *node_shape)``; scalar nodes have shape ``(num_samples,)``.
+#: The same sample index across nodes identifies one joint draw, so relationships
+#: between variables are preserved. Categories contain integer state indices;
+#: numerical nodes and utilities contain their actual values.
+type SampleBatch = dict[str, jax.Array]
+
 
 def samples(
     snapshot: DiagramSnapshot,
@@ -35,7 +42,7 @@ def samples(
     num_warmup: int = 500,
     rng_key: Any = None,
     policy: Mapping[str, DecisionRule] | None = None,
-) -> dict[str, jax.Array]:
+) -> SampleBatch:
     """
     Draw samples from a validated snapshot.
 
@@ -125,7 +132,7 @@ def samples(
 
 
 def _evaluate_utility(
-    node: UtilityNode, draws: dict[str, jax.Array], num_samples: int
+    node: UtilityNode, draws: SampleBatch, num_samples: int
 ) -> jax.Array:
     """The utility's value in every draw, computed from its parents' draws."""
     values = node.values
@@ -143,7 +150,7 @@ def _draw(
     num_samples: int,
     num_warmup: int,
     rng_key: Any,
-) -> dict[str, jax.Array]:
+) -> SampleBatch:
     """Run the sampling machinery for ``model`` and return all site draws."""
     if not _has_chance_evidence(snapshot, observed):
         return Predictive(model, num_samples=num_samples)(rng_key)

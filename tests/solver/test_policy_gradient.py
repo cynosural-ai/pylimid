@@ -207,20 +207,22 @@ def test_joint_score_gradient_matches_exact_action_branching(nonzero_parameters)
             )
 
     trajectory = _trajectory(snapshot, templates)
-    sampled_returns, sampled_observations, sampled_actions = jax.jit(
-        jax.vmap(trajectory, in_axes=(None, 0))
-    )(parameters, jax.random.split(jax.random.PRNGKey(8), 65536))
-    assert set(sampled_observations["second"]) == {"reading"}
+    batch = jax.jit(jax.vmap(trajectory, in_axes=(None, 0)))(
+        parameters, jax.random.split(jax.random.PRNGKey(8), 65536)
+    )
+    assert set(batch.information["second"]) == {"reading"}
+    assert batch.utility.shape == (65536,)
+    assert batch.actions["first"].shape == batch.utility.shape
     assert jnp.array_equal(
-        sampled_observations["second"]["reading"],
-        sampled_observations["first"]["signal"] + sampled_actions["first"],
+        batch.information["second"]["reading"],
+        batch.information["first"]["signal"] + batch.actions["first"],
     )
     sampled_gradients = jax.grad(_score_loss)(
         parameters,
         templates,
-        sampled_observations,
-        sampled_actions,
-        sampled_returns,
+        batch.information,
+        batch.actions,
+        batch.utility,
         0.5,
     )
     for actual, expected in zip(

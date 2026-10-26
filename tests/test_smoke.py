@@ -31,6 +31,9 @@ def test_top_level_exports_the_public_api() -> None:
     assert pylimid.Policy is Policy
     assert pylimid.ActionTable is policy.ActionTable
     assert pylimid.DecisionRule is policy.DecisionRule
+    assert pylimid.FittedPolicy is policy.FittedPolicy
+    assert pylimid.DecisionInformation is policy.DecisionInformation
+    assert pylimid.PolicyParameters is policy.PolicyParameters
     assert pylimid.PolicyFamily is policy.PolicyFamily
     assert pylimid.LinearSoftmax is policy.LinearSoftmax
     assert pylimid.TabularSoftmax is policy.TabularSoftmax

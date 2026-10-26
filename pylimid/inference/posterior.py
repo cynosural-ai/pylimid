@@ -8,12 +8,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import ceil
-from typing import TypeAlias
 
 import jax
 import jax.numpy as jnp
 
 __all__ = ["InferenceResult", "Posterior"]
+
+
+#: Result of infer(): one Posterior per query variable. Every variable maps
+#: to the same type — raw draws plus its states (None when numerical);
+#: marginal() recovers the probability vector for categorical variables.
+#: Everything is a Monte-Carlo estimate.
+type InferenceResult = dict[str, Posterior]
 
 
 @dataclass(frozen=True)
@@ -156,10 +162,3 @@ class Posterior:
                 "the probability vector, or compute over the raw index "
                 "draws explicitly if that is what you mean."
             )
-
-
-#: Result of infer(): one Posterior per query variable. Every variable maps
-#: to the same type — raw draws plus its states (None when numerical);
-#: marginal() recovers the probability vector for categorical variables.
-#: Everything is a Monte-Carlo estimate.
-InferenceResult: TypeAlias = dict[str, Posterior]

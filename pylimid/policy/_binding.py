@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from itertools import product
-from typing import TypeAlias, cast
+from typing import cast
 
 import jax
 import jax.numpy as jnp
@@ -19,7 +19,7 @@ from pylimid.policy.rules import ActionTable, CategoricalPolicy, DecisionRule
 #: functions, and supplied functions are wrapped to check and convert their scalar
 #: integer results to JAX arrays. Fitted `CategoricalPolicy` rules pass through.
 #: Both representations receive information-parent values by keyword.
-BoundDecisionRule: TypeAlias = Callable[..., jax.Array] | CategoricalPolicy
+type BoundDecisionRule = Callable[..., jax.Array] | CategoricalPolicy
 
 
 def bind_policy_rules(
