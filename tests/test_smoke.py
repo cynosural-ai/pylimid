@@ -29,6 +29,8 @@ def test_top_level_exports_the_public_api() -> None:
     assert pylimid.InferenceError is InferenceError
     assert pylimid.SolveError is SolveError
     assert pylimid.Policy is Policy
+    assert pylimid.ActionTable is policy.ActionTable
+    assert pylimid.DecisionRule is policy.DecisionRule
     assert pylimid.PolicyFamily is policy.PolicyFamily
     assert pylimid.LinearSoftmax is policy.LinearSoftmax
     assert pylimid.TabularSoftmax is policy.TabularSoftmax

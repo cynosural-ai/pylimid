@@ -7,7 +7,7 @@ arrays from this layer, then wraps the requested draws in posterior result objec
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 import jax
@@ -20,7 +20,7 @@ from pylimid._numpyro.model import build_model
 from pylimid.errors import InferenceError
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.nodes import DecisionNode, NodeKind, UtilityNode
-from pylimid.policy import CategoricalPolicy, Policy
+from pylimid.policy import CategoricalPolicy, DecisionRule
 from pylimid.policy._binding import bind_policy_rules
 
 __all__ = ["samples"]
@@ -34,7 +34,7 @@ def samples(
     num_samples: int = 2000,
     num_warmup: int = 500,
     rng_key: Any = None,
-    policy: Policy | None = None,
+    policy: Mapping[str, DecisionRule] | None = None,
 ) -> dict[str, jax.Array]:
     """
     Draw samples from a validated snapshot.

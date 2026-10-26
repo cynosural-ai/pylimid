@@ -11,7 +11,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
@@ -20,12 +19,13 @@ from pylimid._numpyro.distributions import is_zero_count, validate_chance_distri
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.nodes import ChanceNode, DecisionNode, UtilityNode
 from pylimid.policy import CategoricalPolicy
+from pylimid.policy._binding import BoundDecisionRule
 
 
 def build_model(
     snapshot: DiagramSnapshot,
     observed: dict[str, Any],
-    policy_rules: dict[str, Callable[..., jax.Array] | CategoricalPolicy],
+    policy_rules: dict[str, BoundDecisionRule],
 ) -> Callable[[], dict[str, Any]]:
     """
     Build a NumPyro model using a validated snapshot and bound decision rules.

@@ -20,7 +20,7 @@ __all__ = ["solve"]
 def solve(
     diagram: InfluenceDiagram,
     *,
-    num_samples: int = 2000,
+    num_samples: int = 10000,
     num_steps: int = 500,
     learning_rate: float = 0.05,
     rng_key: jax.Array | None = None,

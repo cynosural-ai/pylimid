@@ -10,7 +10,15 @@ import numpyro.distributions as dist
 
 from pylimid.policy.families import PolicyFamily
 
-__all__ = ["CategoricalPolicy", "Policy"]
+__all__ = ["ActionTable", "CategoricalPolicy", "DecisionRule", "Policy"]
+
+
+#: A complete deterministic rule for a decision with categorical information parents.
+#: Keys contain parent-state indices in `DecisionNode.parents` order; values are
+#: action indices into the decision's ``states``, rather than state labels. Every
+#: information assignment must have an entry. A parentless decision uses ``()``
+#: as its only key.
+ActionTable: TypeAlias = dict[tuple[int, ...], int]
 
 
 @dataclass(frozen=True)
@@ -104,11 +112,17 @@ class CategoricalPolicy:
         return dist.Categorical(logits=logits)
 
 
-#: Decision names mapped to action tables, deterministic functions, or fitted rules.
-#: Tables map parent-state tuples to action indices. Functions accept information
-#: parents by keyword and return a scalar integer action index. Functions and fitted
-#: stochastic rules currently support forward evaluation only.
-Policy: TypeAlias = Mapping[
-    str,
-    dict[tuple[int, ...], int] | Callable[..., int | jax.Array] | CategoricalPolicy,
-]
+#: A contingent rule for one decision: an `ActionTable`, a deterministic function,
+#: or a fitted stochastic `CategoricalPolicy`. Functions receive the decision's
+#: declared information parents by keyword and return a scalar integer action index
+#: as a Python ``int`` or JAX array. Functions must be JAX-traceable. Functions and
+#: fitted rules currently support forward evaluation without chance-node evidence.
+DecisionRule: TypeAlias = (
+    ActionTable | Callable[..., int | jax.Array] | CategoricalPolicy
+)
+
+#: Decision names mapped to fixed action indices or contingent `DecisionRule` values.
+#: A fixed integer action ignores the decision's information parents. Different
+#: decisions may use different representations in the same policy. Every decision
+#: relevant to the query or evidence must be supplied when calling `infer`.
+Policy: TypeAlias = Mapping[str, int | DecisionRule]

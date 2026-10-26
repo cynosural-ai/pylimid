@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from itertools import product
-from typing import cast
+from typing import TypeAlias, cast
 
 import jax
 import jax.numpy as jnp
@@ -13,14 +13,20 @@ from pylimid.errors import InferenceError
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.nodes import ChanceNode, DecisionNode
 from pylimid.graph.nodes.node import _signature_matches
-from pylimid.policy.rules import CategoricalPolicy, Policy
+from pylimid.policy.rules import ActionTable, CategoricalPolicy, DecisionRule
+
+#: An execution-ready rule produced by `bind_policy_rules`. Tables become lookup
+#: functions, and supplied functions are wrapped to check and convert their scalar
+#: integer results to JAX arrays. Fitted `CategoricalPolicy` rules pass through.
+#: Both representations receive information-parent values by keyword.
+BoundDecisionRule: TypeAlias = Callable[..., jax.Array] | CategoricalPolicy
 
 
 def bind_policy_rules(
     snapshot: DiagramSnapshot,
-    policy: Policy,
+    policy: Mapping[str, DecisionRule],
     observed: Mapping[str, object],
-) -> dict[str, Callable[..., jax.Array] | CategoricalPolicy]:
+) -> dict[str, BoundDecisionRule]:
     """
     Validate supplied policies and bind them to their diagram information sets.
 
@@ -53,7 +59,7 @@ def bind_policy_rules(
         name in observed and isinstance(node, ChanceNode)
         for name, node in snapshot.nodes
     )
-    rules = {}
+    rules: dict[str, BoundDecisionRule] = {}
     for name, rule in policy.items():
         decision = nodes[name]
         if not isinstance(decision, DecisionNode):
@@ -92,7 +98,7 @@ def bind_policy_rules(
                 )
             rules[name] = _function_rule(name, rule)
             continue
-        rule = cast(dict[tuple[int, ...], int], rule)
+        rule = cast(ActionTable, rule)
         if set(rule) != set(_info_assignments(decision, node_map)):
             raise InferenceError(
                 f"Policy for {name!r} must define every information-set assignment."
@@ -134,7 +140,7 @@ def _info_assignments(
 
 def _policy_array(
     decision: DecisionNode,
-    sub_policy: dict[tuple[int, ...], int],
+    sub_policy: ActionTable,
     node_map: dict[str, ChanceNode | DecisionNode],
 ) -> jax.Array:
     """The decision's sub-policy as an array indexed by the info assignment."""

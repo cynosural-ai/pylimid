@@ -23,7 +23,9 @@ from pylimid.graph import (
 )
 from pylimid.inference import InferenceResult, Posterior, infer
 from pylimid.policy import (
+    ActionTable,
     CategoricalPolicy,
+    DecisionRule,
     LinearSoftmax,
     Policy,
     PolicyFamily,
@@ -32,8 +34,10 @@ from pylimid.policy import (
 from pylimid.solver import Solution, solve
 
 __all__ = [
+    "ActionTable",
     "ChanceNode",
     "DecisionNode",
+    "DecisionRule",
     "InferenceError",
     "InferenceResult",
     "InfluenceDiagram",

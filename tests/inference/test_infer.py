@@ -168,7 +168,7 @@ def test_probabilities_sum_to_one_with_observed():
 
 def test_continuous_posterior_keeps_raw_draws():
     """Continuous posteriors store raw draws and carry no states."""
-    result = infer(_continuous_diagram(), ["x"])
+    result = infer(_continuous_diagram(), ["x"], num_samples=2000)
     assert isinstance(result["x"], Posterior)
     assert result["x"].states is None
     assert not result["x"].is_categorical
@@ -303,7 +303,7 @@ def test_array_queries_preserve_event_dimensions(node_shape):
 
 def test_mixed_result_shape_follows_variable_type():
     """One Posterior type; states distinguish categories from numerical values."""
-    result = infer(_mixed_diagram(), ["rain", "temp"])
+    result = infer(_mixed_diagram(), ["rain", "temp"], num_samples=2000)
     assert isinstance(result["rain"], Posterior)
     assert result["rain"].states == ("no", "yes")
     assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
@@ -560,7 +560,7 @@ def test_policy_on_continuous_diagram():
             name="u", parents=("x", "d"), values=lambda x, d: float(x) * float(d)
         )
     )
-    result = infer(diag, ["x"], policy={"d": 1})
+    result = infer(diag, ["x"], policy={"d": 1}, num_samples=2000)
     assert isinstance(result["x"], Posterior)
     assert result["x"].states is None
     assert len(result["x"].values) == 2000
@@ -736,7 +736,7 @@ def _guess_diagram() -> InfluenceDiagram:
 
 
 def test_utility_query_returns_a_continuous_posterior():
-    result = infer(_shop_diagram(), ["profit"], policy={"stock": 0})
+    result = infer(_shop_diagram(), ["profit"], policy={"stock": 0}, num_samples=2000)
     assert result["profit"].states is None
     assert len(result["profit"].values) == 2000
 
