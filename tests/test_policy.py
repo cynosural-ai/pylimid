@@ -1,10 +1,8 @@
-"""Evaluate deterministic function policies through the public sampling paths."""
+"""Evaluate deterministic function policies through sampling and public inference."""
 
-import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 import pytest
-from numpyro.infer import Predictive
 
 from pylimid import (
     ChanceNode,
@@ -14,7 +12,7 @@ from pylimid import (
     UtilityNode,
     infer,
 )
-from pylimid.numpyro import samples, to_model
+from pylimid._numpyro.samplers import samples
 
 
 def _signal_diagram():
@@ -35,14 +33,10 @@ def _positive_signal(signal):
     return jnp.where(signal > 0, 1, 0)
 
 
-@pytest.mark.parametrize("backend", [samples, to_model])
-def test_function_policy_uses_continuous_observation(backend):
+def test_function_policy_uses_continuous_observation():
     diagram = _signal_diagram()
-    result = backend(diagram.snapshot(), policy={"action": _positive_signal})
-    draws = (
-        Predictive(result, num_samples=4000)(jax.random.PRNGKey(0))
-        if backend is to_model
-        else result
+    draws = samples(
+        diagram.snapshot(), policy={"action": _positive_signal}, num_samples=4000
     )
     assert draws["action"].shape == draws["signal"].shape
     assert jnp.array_equal(draws["action"], draws["signal"] > 0)
@@ -99,21 +93,15 @@ def test_function_with_no_information_parents_returns_constant_action():
 @pytest.mark.parametrize(
     "rule", [lambda hidden: 0, lambda **kwargs: 0, lambda signal, hidden: 0]
 )
-@pytest.mark.parametrize("backend", [samples, to_model])
-def test_function_must_accept_declared_information_parents(backend, rule):
+def test_function_must_accept_declared_information_parents(rule):
     with pytest.raises(InferenceError, match="information parents"):
-        backend(_signal_diagram().snapshot(), policy={"action": rule})
+        samples(_signal_diagram().snapshot(), policy={"action": rule})
 
 
 @pytest.mark.parametrize("value", [0.5, True, jnp.array([0, 1])])
-@pytest.mark.parametrize("backend", [samples, to_model])
-def test_function_must_return_scalar_integer_action(backend, value):
+def test_function_must_return_scalar_integer_action(value):
     with pytest.raises(InferenceError, match="scalar integer action"):
-        result = backend(
-            _signal_diagram().snapshot(), policy={"action": lambda signal: value}
-        )
-        if backend is to_model:
-            Predictive(result, num_samples=10)(jax.random.PRNGKey(0))
+        samples(_signal_diagram().snapshot(), policy={"action": lambda signal: value})
 
 
 @pytest.mark.parametrize("value", [-1, 2])
@@ -122,10 +110,9 @@ def test_sampled_function_actions_must_belong_to_action_space(value):
         samples(_signal_diagram().snapshot(), policy={"action": lambda signal: value})
 
 
-@pytest.mark.parametrize("backend", [samples, to_model])
-def test_function_policies_reject_chance_evidence_in_backend(backend):
+def test_function_policies_reject_chance_evidence_in_backend():
     with pytest.raises(NotImplementedError, match="forward evaluation only"):
-        backend(
+        samples(
             _signal_diagram().snapshot(),
             policy={"action": _positive_signal},
             observed={"signal": 0.5},

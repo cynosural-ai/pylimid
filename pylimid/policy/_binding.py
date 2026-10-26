@@ -57,12 +57,33 @@ def _policy_array(
     return arr
 
 
-def _policy_rules(
+def bind_policy_rules(
     snapshot: DiagramSnapshot,
     policy: Policy,
     observed: Mapping[str, object],
 ) -> dict[str, Callable[..., jax.Array] | CategoricalPolicy]:
-    """Validate rules and bind tables and functions to one evaluation interface."""
+    """
+    Validate supplied policies and bind them to their diagram information sets.
+
+    Args:
+        snapshot: Validated snapshot containing the decisions to bind.
+        policy: Decision names mapped to complete tables, deterministic functions,
+            or fitted categorical rules. Fixed actions are supplied in ``observed``.
+        observed: Observed chance values and fixed decision actions, keyed by name.
+
+    Returns:
+        Decision names mapped to functions or fitted categorical rules ready for
+        evaluation with their declared information parents.
+
+    Raises:
+        InferenceError: If a rule binds a non-decision, has incompatible information
+            or action labels, uses an incompatible callable signature, or supplies an
+            incomplete table or invalid action.
+        KeyError: If a policy names a node outside the snapshot.
+        ValueError: If a table policy has a parent without named finite states.
+        NotImplementedError: If functions or fitted rules are combined with
+            observed chance-node evidence.
+    """
     nodes = dict(snapshot.nodes)
     node_map = {
         name: node

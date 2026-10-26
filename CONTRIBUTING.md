@@ -36,7 +36,7 @@ Ruff and ty also run on every commit through pre-commit.
 | `pylimid/policy/` | Trainable families, fitted rules, and supplied-policy binding |
 | `pylimid/inference/` | Posterior queries and posterior result types |
 | `pylimid/solver/` | Joint policy-gradient optimisation and fitted policy results |
-| `pylimid/numpyro/` | Distribution checks, NumPyro model translation, and sampling |
+| `pylimid/_numpyro/` | Internal distribution checks, NumPyro model translation, and sampling |
 | `pylimid/errors.py` | Shared inference and optimization errors |
 | `tests/` | Graph, inference, and optimizer tests with analytic utility and gradient references |
 | `docs/` | The published Sphinx site (see `docs/README.md` for build details) |
@@ -47,6 +47,7 @@ Ruff and ty also run on every commit through pre-commit.
 
 The full conventions live in [AGENTS.md](AGENTS.md); the highlights:
 
+- Internal packages and modules start with an underscore. Within them, shared operations use ordinary descriptive names and module-local helpers use leading underscores. Members of public classes or modules retain leading underscores when they are internal implementation details.
 - Google-style docstrings for every public function, method, and class.
 - Public API names in single backticks (`` `DiagramSnapshot` ``), literals in double backticks (`` ``None`` ``).
 - No comments that reference design notes, ADRs, or ticket numbers; docstrings describe what the code does, not the history of the decision.

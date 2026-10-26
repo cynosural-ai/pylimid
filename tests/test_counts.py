@@ -19,7 +19,8 @@ from pylimid import (
     infer,
     solve,
 )
-from pylimid.numpyro import samples, to_model
+from pylimid._numpyro.model import build_model
+from pylimid._numpyro.samplers import samples
 
 
 @pytest.mark.parametrize(
@@ -276,7 +277,7 @@ def test_batched_scalar_counts_keep_component_summaries():
 def test_count_enumeration_annotation_follows_distribution(distribution, enumerable):
     diagram = InfluenceDiagram()
     diagram.add_node(ChanceNode(name="count", dist=distribution))
-    model = to_model(diagram.snapshot())
+    model = build_model(diagram.snapshot(), {}, {})
 
     trace = numpyro.handlers.trace(
         numpyro.handlers.seed(model, jax.random.PRNGKey(0))

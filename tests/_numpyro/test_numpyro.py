@@ -10,12 +10,12 @@ import numpyro
 import numpyro.distributions as dist
 import pytest
 
+from pylimid._numpyro.model import build_model
+from pylimid._numpyro.samplers import samples
 from pylimid.errors import InferenceError
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import InfluenceDiagram
-from pylimid.numpyro import samples
-from pylimid.numpyro.model import to_model
 
 # --- helpers ----------------------------------------------------------------
 
@@ -81,18 +81,18 @@ def _continuous_hierarchical_diagram() -> InfluenceDiagram:
     return diag
 
 
-# --- to_model ---------------------------------------------------------------
+# --- model translation -------------------------------------------------------
 
 
 def test_model_is_callable() -> None:
-    """to_model returns a callable taking no args."""
-    model = to_model(_rain_wet_grass_diagram().snapshot())
+    """The model builder returns a callable taking no args."""
+    model = build_model(_rain_wet_grass_diagram().snapshot(), {}, {})
     assert callable(model)
 
 
 def test_model_returns_dict() -> None:
     """The model function returns a dict (not None) keyed by node name."""
-    model = to_model(_rain_wet_grass_diagram().snapshot())
+    model = build_model(_rain_wet_grass_diagram().snapshot(), {}, {})
     seeded = numpyro.handlers.seed(model, jax_random_key())
     result = seeded()
     assert isinstance(result, dict)
@@ -101,14 +101,14 @@ def test_model_returns_dict() -> None:
 
 def test_translates_empty_snapshot() -> None:
     """A zero-node snapshot yields a model that traces to no sample sites."""
-    model = to_model(_empty_diagram().snapshot())
+    model = build_model(_empty_diagram().snapshot(), {}, {})
     trace = _trace(model)
     assert trace.keys() == set()
 
 
 def test_topological_order_respected() -> None:
     """Every sample site named after a node; parents resolve before children."""
-    model = to_model(_rain_wet_grass_diagram().snapshot())
+    model = build_model(_rain_wet_grass_diagram().snapshot(), {}, {})
     trace = _trace(model)
     assert set(trace.keys()) == {"rain", "wet_grass"}
 
@@ -331,7 +331,6 @@ def test_samples_posterior_mcmc_resamples_discrete() -> None:
     assert float(jnp.mean(draws["rain"] == 1)) < 0.5
 
 
-@pytest.mark.parametrize("backend", [samples, to_model])
 @pytest.mark.parametrize(
     "rule, message",
     [
@@ -342,14 +341,14 @@ def test_samples_posterior_mcmc_resamples_discrete() -> None:
         ({(0,): 0, (1,): 0.5}, "invalid action"),
     ],
 )
-def test_backend_rejects_invalid_contingent_policy(backend, rule, message):
+def test_backend_rejects_invalid_contingent_policy(rule, message):
     diagram = InfluenceDiagram()
     diagram.add_node(_rain_node())
     diagram.add_node(
         DecisionNode(name="action", parents=("rain",), states=("no", "yes"))
     )
     with pytest.raises(InferenceError, match=message):
-        backend(diagram.snapshot(), policy={"action": rule})
+        samples(diagram.snapshot(), policy={"action": rule})
 
 
 # --- small driver helpers ---------------------------------------------------

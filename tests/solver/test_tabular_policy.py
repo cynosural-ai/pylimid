@@ -19,7 +19,7 @@ from pylimid import (
     infer,
     solve,
 )
-from pylimid.numpyro import samples, to_model
+from pylimid._numpyro.samplers import samples
 from pylimid.solver.api import _initialize_policy, _score_loss, _trajectory
 
 
@@ -299,7 +299,6 @@ def test_tabular_root_policy_preserves_stochastic_action_and_descendant_correlat
     assert jnp.array_equal(draws["outcome"], 2 - draws["first"])
     for evaluate in (
         lambda: samples(diagram.snapshot(), policy=policy, observed={"outcome": 1}),
-        lambda: to_model(diagram.snapshot(), policy=policy, observed={"outcome": 1}),
         lambda: infer(diagram, ["outcome"], policy=policy, observed={"outcome": 1}),
     ):
         with pytest.raises(NotImplementedError, match="forward evaluation"):

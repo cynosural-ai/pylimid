@@ -14,8 +14,16 @@ from numpyro.distributions.discrete import (
 from pylimid.graph.chance_node import ChanceNode
 
 
-def _supports_count_enumeration(fn: Distribution) -> bool:
-    """Whether a count advertises enumeration over a zero-based integer interval."""
+def supports_count_enumeration(fn: Distribution) -> bool:
+    """
+    Check whether a count advertises zero-based integer-interval enumeration.
+
+    Args:
+        fn: Constructed NumPyro distribution to inspect.
+
+    Returns:
+        Whether enumeration is supported over an integer interval starting at zero.
+    """
     support = fn.support
     return (
         fn.has_enumerate_support
@@ -24,8 +32,16 @@ def _supports_count_enumeration(fn: Distribution) -> bool:
     )
 
 
-def _is_zero_count(fn: Distribution) -> bool:
-    """Whether concrete integer support permits only zero in every batch element."""
+def is_zero_count(fn: Distribution) -> bool:
+    """
+    Check whether concrete integer support permits only zero in every batch element.
+
+    Args:
+        fn: Constructed NumPyro distribution to inspect.
+
+    Returns:
+        Whether both integer-interval bounds are concrete and zero throughout.
+    """
     support = fn.support
     return (
         isinstance(support, constraints.integer_interval)
@@ -36,8 +52,19 @@ def _is_zero_count(fn: Distribution) -> bool:
     )
 
 
-def _validate_chance_distribution(node: ChanceNode, fn: Distribution) -> None:
-    """Check distribution kind and static outcome count before sampling a node."""
+def validate_chance_distribution(node: ChanceNode, fn: Distribution) -> None:
+    """
+    Check distribution kind and static outcome count before sampling a node.
+
+    Args:
+        node: Chance node declaring categorical labels or numerical outcomes.
+        fn: Distribution constructed from the node's parent values.
+
+    Raises:
+        ValueError: If categorical outcomes lack matching labels, a labeled node
+            returns a numerical distribution, or numerical discrete events are
+            non-scalar.
+    """
     distribution = type(fn).__name__
     if node.states is None:
         if isinstance(

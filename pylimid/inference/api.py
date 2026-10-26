@@ -7,12 +7,12 @@ from typing import cast
 
 import jax
 
+from pylimid._numpyro.samplers import samples
 from pylimid.errors import InferenceError
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.node import NodeKind
 from pylimid.inference.posterior import InferenceResult, Posterior
-from pylimid.numpyro import samples
 from pylimid.policy import CategoricalPolicy
 
 __all__ = ["infer"]

@@ -9,8 +9,8 @@ Build a diagram from chance, decision and utility nodes, then query it with
 
 The graph layer (`pylimid.graph`) holds the node types and the diagram;
 `pylimid.policy` holds policy families and decision rules. `pylimid.inference` holds
-posterior inference, and `pylimid.solver` holds policy optimisation. `pylimid.numpyro`
-translates diagrams into NumPyro models and draws samples.
+posterior inference, and `pylimid.solver` holds policy optimisation. The internal
+``pylimid._numpyro`` package translates diagrams into NumPyro models and draws samples.
 """
 
 from pylimid._version import __version__

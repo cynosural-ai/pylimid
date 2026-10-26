@@ -1,14 +1,8 @@
 """
-Posterior and forward sampling from translated NumPyro models.
+Internal forward and posterior sampling for validated diagram snapshots.
 
-Usage::
-
-    from pylimid.numpyro import samples
-
-    posterior = samples(diagram.snapshot(), observed={"wet_grass": 1})
-
-For posterior objects and query validation, use `infer`. `samples` accepts a
-validated snapshot and returns raw JAX arrays.
+The inference API prepares relevant nodes and bindings before requesting raw JAX
+arrays from this layer, then wraps the requested draws in posterior result objects.
 """
 
 from __future__ import annotations
@@ -21,15 +15,15 @@ import jax.numpy as jnp
 from numpyro import handlers
 from numpyro.infer import MCMC, NUTS, Predictive
 
+from pylimid._numpyro.distributions import supports_count_enumeration
+from pylimid._numpyro.model import build_model
 from pylimid.errors import InferenceError
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.node import NodeKind
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.numpyro._distributions import _supports_count_enumeration
-from pylimid.numpyro.model import _to_model
 from pylimid.policy import CategoricalPolicy, Policy
-from pylimid.policy._binding import _policy_rules
+from pylimid.policy._binding import bind_policy_rules
 
 __all__ = ["samples"]
 
@@ -99,8 +93,8 @@ def samples(
         rng_key = jax.random.PRNGKey(0)
 
     policy = policy or {}
-    policy_rules = _policy_rules(snapshot, policy, observed)
-    model = _to_model(snapshot, observed, policy_rules)
+    policy_rules = bind_policy_rules(snapshot, policy, observed)
+    model = build_model(snapshot, observed, policy_rules)
     draws = _draw(model, snapshot, observed, num_samples, num_warmup, rng_key)
     # Enumerated deterministic sites may be absent or still carry enumeration
     # dimensions. Resolve them from joint posterior draws, parents before children.
@@ -203,7 +197,7 @@ def _validate_posterior_latents(
                     f"distribution; its batch shape is {fn.batch_shape}. Batched "
                     "numerical counts support forward sampling and observations only."
                 )
-            if not _supports_count_enumeration(fn):
+            if not supports_count_enumeration(fn):
                 raise InferenceError(
                     "Posterior inference with unobserved numerical discrete nodes "
                     "requires NumPyro enumeration of a fixed zero-based integer "

@@ -19,7 +19,7 @@ from pylimid import (
     infer,
     solve,
 )
-from pylimid.numpyro import samples
+from pylimid._numpyro.samplers import samples
 from pylimid.solver.api import (
     _initialize_policy,
     _score_loss,

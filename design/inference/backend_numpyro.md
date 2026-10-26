@@ -1,28 +1,19 @@
 # NumPyro translation and sampling
 
-The bridge between the backend-agnostic graph layer and NumPyro lives in `pylimid.numpyro`. The [graph principles](../graph/diagram.md) settle the container and callable convention; this note covers execution. The [NumPyro-only ADR](../ADR/25_08_2026_numpyro_only_engine.md) records why the exact engines were retired.
+The internal bridge between the graph layer and NumPyro lives in `pylimid._numpyro`. Its modules expose shared operations to other pylimid modules; the package does not expose a supported user API. The [graph principles](../graph/diagram.md) settle the container and callable convention; this note covers execution. The [NumPyro-only ADR](../ADR/25_08_2026_numpyro_only_engine.md) records why the exact engines were retired.
 
 ## Translation
 
-`to_model(snapshot, observed, policy)` consumes a validated `DiagramSnapshot` and captures its nodes in topological order. The returned model resolves parent values by name and handles each node as follows:
+`build_model(snapshot, observed, policy_rules)` consumes a validated `DiagramSnapshot`, observed values, and already-bound decision rules. It captures the nodes in topological order. The returned model resolves parent values by name and handles each node as follows:
 
 - A chance node constructs its distribution with `node.dist(**parent_values)` and emits a `numpyro.sample` site. Observed values are clamped; unobserved discrete sites carry parallel-enumeration metadata.
 - A fixed decision is a degenerate observed site at its chosen action index.
-- A contingent decision looks up its action from the policy table using its realized information-set values and emits a deterministic site.
+- A supplied table or deterministic function selects an action using its realized information-set values and emits a deterministic site. A fitted categorical rule emits a sample site with its local action distribution.
 - A utility node is skipped by the translator. When a utility is queried, the sampling wrapper evaluates its callable on each joint draw of its parents.
 
-`infer()` in `pylimid.inference.api` validates the whole diagram, then retains the ancestors of the queries and evidence. Only decisions that influence those nodes need a binding. It separates fixed actions from contingent tables before calling the sampling layer. Policy tables use integer state indices in the decision's parent order; their validation and array construction live in `pylimid.policy._binding`. The public `pylimid.policy` package exposes graph-independent families and fitted rules without eagerly importing binding helpers. NumPyro distribution checks live in `pylimid.numpyro._distributions` and are shared by inference and optimization.
+`infer()` in `pylimid.inference.api` validates the whole diagram, then retains the ancestors of the queries and evidence. Only decisions that influence those nodes need a binding. It separates fixed actions from supplied policies before calling the sampling layer. Policy tables use integer state indices in the decision's parent order; their validation and array construction live in `bind_policy_rules` in `pylimid.policy._binding`. The public `pylimid.policy` package exposes graph-independent families and fitted rules without eagerly importing binding helpers. NumPyro distribution checks live in `pylimid._numpyro.distributions` and are shared by inference and optimization.
 
-The translator constructs a model; the caller chooses how to execute it. For a Bayesian network:
-
-```python
-import jax
-from numpyro.infer import Predictive
-from pylimid.numpyro import to_model
-
-model = to_model(diagram.snapshot())
-prior = Predictive(model, num_samples=10_000)(jax.random.PRNGKey(0))
-```
+The sampling layer binds supplied policies once and passes the resulting rules to the model builder. User-facing queries go through `infer`; model translation and raw sampling remain internal operations. The backend package initializer does not re-export those operations.
 
 ## Sampling and results
 

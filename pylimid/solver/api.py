@@ -7,12 +7,12 @@ import jax
 import jax.numpy as jnp
 from jax.example_libraries.optimizers import adam
 
+from pylimid._numpyro.distributions import validate_chance_distribution
 from pylimid.errors import SolveError
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.numpyro._distributions import _validate_chance_distribution
 from pylimid.policy import CategoricalPolicy
 from pylimid.solver.solution import Solution
 
@@ -150,7 +150,7 @@ def _initialize_policy(
         if isinstance(node, ChanceNode):
             assert node.dist is not None
             distribution = node.dist(**parents)
-            _validate_chance_distribution(node, distribution)
+            validate_chance_distribution(node, distribution)
             values[name] = distribution.sample(next(keys))
         else:
             assert node.states is not None
@@ -218,7 +218,7 @@ def _trajectory(snapshot, templates):
                 assert isinstance(node, ChanceNode)
                 assert node.dist is not None
                 distribution = node.dist(**parents)
-                _validate_chance_distribution(node, distribution)
+                validate_chance_distribution(node, distribution)
                 values[name] = distribution.sample(next(keys))
         total = 0.0
         for node in utility_nodes:
