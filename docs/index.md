@@ -111,5 +111,5 @@ resources/count_distributions
 api/index
 api/pylimid
 api/graph
-api/solvers
+api/policy
 ```

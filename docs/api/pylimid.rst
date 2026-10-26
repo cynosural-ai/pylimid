@@ -1,15 +1,20 @@
-pylimid
-=======
+Inference and solving
+=====================
 
-Use `infer` to query chance and utility nodes, and `solve` to find a policy that maximises expected total utility. Both functions validate the diagram before running and return Monte Carlo estimates.
+Use `infer` to query chance and utility nodes, and `solve` to fit decision policies that maximise expected total utility. Both functions validate the diagram before running. Inference returns Monte Carlo draws; solving returns fitted stochastic rules and an independent Monte Carlo estimate of their expected utility.
 
-The node classes and `InfluenceDiagram` are also available directly from ``pylimid``; their reference is under :doc:`graph`.
-
-Posterior inference and its result types are also available from ``pylimid.inference``. Solver selection and solution results are available from ``pylimid.solver``. ``pylimid.policy`` defines the shared policy type, and ``pylimid.errors`` defines the error shared by inference and solving.
-
-``Posterior.is_categorical`` replaces ``Posterior.is_discrete``. It distinguishes named categories, summarised with ``marginal()``, from numerical values, summarised with ``mean()``, ``std()`` or ``hdi()``. It does not infer mathematical discreteness from the draws' dtype.
+These functions and their result and error types are available directly from ``pylimid``. Inference is also available from ``pylimid.inference``; optimization and solution results are available from ``pylimid.solver``. See :doc:`graph` for diagram construction and :doc:`policy` for policy families and rule representations.
 
 .. currentmodule:: pylimid
+
+Entry points
+------------
+
+`infer` accepts a `Policy` containing fixed actions, complete deterministic tables, deterministic functions or fitted `CategoricalPolicy` rules. Functions and fitted rules support forward evaluation without observed chance nodes; conditioning through them remains unsupported. Only decisions relevant to the query or evidence need a rule.
+
+`solve` always uses policy gradients to jointly fit the `PolicyFamily` declared on every decision. Its ``num_samples`` is the number of scenarios per training update and in the independent final evaluation; ``num_steps`` controls the number of updates, and ``learning_rate`` controls the Adam step size. The returned rules remain stochastic. Training has no convergence or optimality guarantee, and increasing evaluation samples only reduces estimation noise.
+
+Both functions default to ``num_samples=10_000`` and use a fixed default random key. The optimizer defaults to ``num_steps=500`` and ``learning_rate=0.05``. Their generated signatures and parameter descriptions below give the complete contract.
 
 .. autosummary::
    :toctree: generated
@@ -17,45 +22,35 @@ Posterior inference and its result types are also available from ``pylimid.infer
 
    infer
    solve
-   InferenceError
+
+Results
+-------
+
+`Posterior` holds draws for one query variable. Numerical summaries retain the node's shape as JAX arrays; scalar summaries are zero-dimensional arrays. `Posterior.is_categorical` identifies named categories, whose probabilities are read with `Posterior.marginal`. Numerical counts use numerical summaries rather than category probabilities.
+
+`Solution` contains a `FittedPolicy` and its independently estimated expected utility. `Solution.render` uses the labels stored in the fitted rules and takes no diagram argument.
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
    Posterior
    Solution
-   LinearSoftmax
-   SoftmaxPolicy
-   TabularSoftmax
-   TabularPolicy
-
-Data types
-----------
-
-These aliases describe the mappings and solver names used by the functions above.
 
 .. py:data:: InferenceResult
+   :canonical: pylimid.inference.posterior.InferenceResult
    :type: dict[str, Posterior]
 
-   One `Posterior` per query variable. Each posterior stores a JAX array with shape ``(num_samples, *node_shape)``. Entries at the same position in each posterior's ``values`` belong to the same joint draw.
+   One `Posterior` per queried variable. Each posterior stores a JAX array with shape ``(num_samples, *node_shape)``. Entries at the same position in each posterior's ``values`` belong to the same joint draw, so joint events and utility combinations can be computed from aligned draws.
 
-.. py:data:: Policy
-   :type: dict[str, dict[tuple[int, ...], int] | collections.abc.Callable[..., int | jax.Array] | SoftmaxPolicy | TabularPolicy]
+Errors
+------
 
-   A policy maps each decision name to a deterministic action table, a deterministic function, or a fitted stochastic `SoftmaxPolicy` or `TabularPolicy`. Each deterministic table maps a tuple of parent-state indices, in the decision's ``parents`` order, to an action index in its ``states``. A decision with no parents uses the empty tuple ``()`` as its only key.
+The error classes below are also exported by ``pylimid.errors``. Invalid diagram configuration and optimizer settings raise `ValueError`; unknown queried or observed node names raise `KeyError`. Relevant function or fitted rules combined with chance-node evidence raise `NotImplementedError`. The entry-point docstrings list the conditions for each error.
 
-   Table solvers return deterministic tables and require categorical information sets. ``solve(method="policy_gradient")`` jointly fits all decisions, each declaring `LinearSoftmax` or `TabularSoftmax`, and returns a `SoftmaxPolicy` or `TabularPolicy` per decision. A `TabularPolicy` contains independent action logits for every scalar categorical parent-state assignment; its final axis follows the action labels. Each rule receives only its declared information parents; the joint policy is the mapping of all local rules. `infer` accepts these rules and fixed action indices through ``policy``. Tables, functions, and fitted rules can be mixed during evaluation.
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
 
-   Function rules accept their declared information parents by keyword and return a scalar integer action index. They must be deterministic and JAX-traceable; use ``jnp`` operations rather than Python conditionals on parent values. For example, a decision observing a continuous ``signal`` could use:
-
-   .. code-block:: python
-
-      policy = {"action": lambda signal: jnp.where(signal > 0, 1, 0)}
-
-   This supplies a complete rule for evaluation, rather than asking the solver to learn one. Function rules currently support forward evaluation only: combining a relevant function rule with chance-node evidence raises ``NotImplementedError``. Sampled function actions are checked against the decision's ``states``. Fitted stochastic rules also support forward evaluation only; their actions are sampled from their learned probabilities. Posterior inference through function and fitted stochastic rules remains unsupported.
-
-.. py:data:: SolverName
-   :type: Literal["backward_induction", "scan", "policy_gradient"]
-
-   The solver that produced a `Solution`.
-
-.. py:data:: SolveMethod
-   :type: Literal["auto", "backward_induction", "scan", "policy_gradient"]
-
-   Solver selection for `solve`.
+   InferenceError
+   SolveError
