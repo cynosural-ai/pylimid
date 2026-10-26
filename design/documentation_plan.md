@@ -1,6 +1,6 @@
 # Documentation maintenance
 
-Maintenance guide for the published documentation in `docs/` and the project `README.md`. The engine has been refactored to policy-gradient-only optimization. The API reference and quickstart now describe the current contract; the user guides and README examples still describe the earlier solver API and await migration. Progress and verification are tracked in [the documentation update checklist](documentation_update_todo.md). Read this before changing published pages, and update it when the structure or conventions change. Public API details belong in docstrings and the API reference; build instructions live in [docs/README.md](../docs/README.md).
+Maintenance guide for the published documentation in `docs/` and the project `README.md`. The engine has been refactored to policy-gradient-only optimization. The API reference, quickstart, and Building a diagram guide now describe the current contract; the remaining guides and README examples await migration. Progress and verification are tracked in [the documentation update checklist](documentation_update_todo.md). Read this before changing published pages, and update it when the structure or conventions change. Public API details belong in docstrings and the API reference; build instructions live in [docs/README.md](../docs/README.md).
 
 ## Site structure and scope
 
@@ -28,6 +28,7 @@ Keep the quickstart and README's order menu at 0–200. The Solving guide delibe
 - Use “we” for the author and reader building models and interpreting results. Use “the owner” or “the shop” for the example's decisions, avoiding pronouns for the owner. Introduce scenarios directly, for example “Suppose today is sunny”.
 - Use present tense for walkthrough steps and API behaviour; past tense for earlier steps and conditionals for hypothetical alternatives.
 - Keep pages short by choosing what to include. Keep explanations, code and output that help readers understand the example; put reusable debugging examples in Common pitfalls.
+- Follow the revised quickstart's pacing: explain what the current step needs, keep captions brief, and leave forward navigation to the end of the page.
 - Write **PyLIMID** in prose and `pylimid` for the package, imports, extras and URLs. Use **node** for diagram structure and **variable** for the represented value. A diagram can combine discrete and continuous variables; a single variable is not “mixed”.
 - Format specific node names, Python identifiers and literal state labels as code; keep ordinary concepts in plain text.
 - Let Markdown lines flow; do not wrap at 80 characters.

@@ -9,11 +9,12 @@ Update the existing documentation for the policy-gradient-only API, preserving t
 | Starting-point inventory and baseline build | Complete. The baseline build reported 83 warnings. |
 | API reference, public type targets, and navigation | Complete. The updated API pages produce no warnings, and their checked local links resolve. |
 | Quickstart | Complete. Both models use a declared family, display fitted action probabilities in text and grouped bar charts, and execute successfully. |
-| Building a diagram | Next. Introduce decision-family configuration while preserving the build, validate, edit, and draw progression. |
+| Building a diagram | Complete. Uses `TabularSoftmax`, retains the construction and editing examples, and executes successfully. |
+| Distributions and utilities | Next. Update decision configuration and the comparison of combined and split utilities. |
 | Remaining guides, resources, README, and figures | Pending. Follow the page-by-page checklist below. |
 | Full strict documentation build | Failing with 13 warnings: five notebook failures with paired traceback warnings, plus three old references in the Solving guide. |
 
-The API reference and quickstart are complete, but the documentation migration is still in progress. The current quickstart update is uncommitted. The build evidence and checks are recorded in the [verification log](#verification-log).
+The API reference, quickstart, and Building a diagram guide are complete, but the documentation migration is still in progress. The current Building a diagram update is uncommitted. The build evidence and checks are recorded in the [verification log](#verification-log).
 
 ## Starting point
 
@@ -22,7 +23,7 @@ The API reference and quickstart are complete, but the documentation migration i
 - [x] Inventory outdated API names, solver descriptions, imports, examples, outputs, and figure scripts across the published site and README. Findings are recorded under [Baseline inventory](#baseline-inventory).
 - [x] Run the current strict documentation build and record the failures as the baseline. Results are recorded under [Baseline build](#baseline-build).
 
-The starting-point audit is complete. Its findings are retained as the baseline; the API reference and quickstart have since been migrated. The remaining items stay open until their content and examples have been checked.
+The starting-point audit is complete. Its findings are retained as the baseline; the completed migrations are listed in the current status above. The remaining items stay open until their content and examples have been checked.
 
 ## Preserve throughout
 
@@ -54,7 +55,7 @@ For each page, read the existing prose first, update the example and its interpr
 
 - [x] `docs/api/`: update the entry points, results, errors, policy families, rules, aliases, and graph references. Replace or retire the obsolete individual-solvers reference and repair its navigation and incoming links. Ensure public names used in signatures and docstrings have resolvable targets.
 - [x] `docs/getting_started/quickstart.md`: adapt the small ice cream example without expanding it into an optimizer tutorial; update the policy display and result interpretation.
-- [ ] `docs/user_guide/building_a_diagram.md`: introduce the required decision configuration while preserving the build, validate, and draw progression.
+- [x] `docs/user_guide/building_a_diagram.md`: introduce the required decision configuration while preserving the build, validate, and draw progression.
 - [ ] `docs/user_guide/distributions_and_utilities.md`: check model consistency, JAX requirements, inference claims, examples, and demand figures.
 - [ ] `docs/user_guide/solving.md`: explain fitting a policy, choosing a family, controlling training and evaluation, reading stochastic results, and checking the expanded order menu.
 - [ ] `docs/user_guide/inference.md`: evaluate fitted policies with the current API while preserving the intentional booking-information variant, aligned draws, comparisons, and inference figures.
@@ -85,7 +86,7 @@ For each page, read the existing prose first, update the example and its interpr
 
 Reviewed on 2026-10-26 against `0b7f054`, including published Markdown and API sources, the README, the four figure scripts, and searches through the excluded tutorial drafts. API claims were checked against the current entry points, public exports, policy classes, and policy binding. Findings below are source observations unless the build results explicitly confirm execution.
 
-This table records the original state before migration. The API-reference and quickstart findings have been addressed in their update entries below; the other walkthrough findings remain pending.
+This table records the original state before migration. Completed work is recorded in the update entries below; the remaining walkthrough findings stay pending.
 
 | Area | Findings and migration work |
 | --- | --- |
@@ -190,6 +191,15 @@ Added on 2026-10-26 without committing. The Solving section and Bayesian-prior e
 - Re-ran the strict full build with forced notebook execution. The quickstart succeeds with no warnings, and both new figures appear in the rendered page, which now has eight image references. The full build still exits with code **1** and the same **13 warnings** from pending pages. Log: `docs/_build/quickstart-policy-build.log`.
 - Full test suite: **404 passed**. Ruff lint, formatting, type checks, and `git diff --check` pass. Figure-generation and test logs are under `docs/_build/quickstart-policy-figures.log` and `docs/_build/quickstart-policy-tests.log`.
 
+### Building a diagram update
+
+Completed on 2026-10-26 without committing. The example declares `TabularSoftmax()` as in the quickstart. Removed the old solver-selection discussion from the information-set note and added one sentence distinguishing diagram validation from the family requirement checked by `solve()`. Construction, editing, rendering, and the hotel-booking extension are preserved.
+
+- All **12 code cells** execute successfully. Verified the missing-distribution and stale-signature messages, both empty validation results after repairs, and generated diagrams.
+- The page produces no warnings. Checked **117 local page and anchor links** and **four image references**; all resolve.
+- The strict full build still exits with code **1** and the same **13 warnings** from pending pages. Log: `docs/_build/building-diagram-update.log`.
+- Ruff lint, formatting, type checks, and `git diff --check` pass. No library code or figure scripts changed.
+
 ## Next step
 
-Update `docs/user_guide/building_a_diagram.md` to introduce the decision's policy family and remove the obsolete solver-selection advice. Preserve the incremental construction, validation, editing, and rendering examples, including the hotel-booking extension. Keep the distinction between diagram validation and the additional family requirement checked by `solve()` explicit.
+Update `docs/user_guide/distributions_and_utilities.md`: declare the policy family and replace fitted-policy dictionary equality with a suitable comparison of action probabilities and expected utility. Preserve the distribution explanations, shared model, additive-utility example, and JAX guidance.
