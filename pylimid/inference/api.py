@@ -13,7 +13,7 @@ from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.node import NodeKind
 from pylimid.inference.posterior import InferenceResult, Posterior
 from pylimid.numpyro import samples
-from pylimid.policy_family import SoftmaxPolicy, TabularPolicy
+from pylimid.policy import CategoricalPolicy
 
 __all__ = ["infer"]
 
@@ -28,8 +28,7 @@ def infer(
         int
         | dict[tuple[int, ...], int]
         | Callable[..., int | jax.Array]
-        | SoftmaxPolicy
-        | TabularPolicy,
+        | CategoricalPolicy,
     ]
     | None = None,
     num_samples: int = 2000,
@@ -44,7 +43,7 @@ def infer(
     integer action clamps it, while a table policy selects an action from its
     information-set assignment. A deterministic function can select an action from
     continuous or mixed observations during forward evaluation. A fitted
-    `SoftmaxPolicy` or `TabularPolicy` samples actions using its learned probabilities.
+    `CategoricalPolicy` samples actions using its learned probabilities.
     Functions and fitted stochastic rules support forward evaluation only. A decision
     outside the relevant ancestors needs no policy.
 
@@ -72,9 +71,9 @@ def infer(
         observed: Map from chance node name to its observed value: an integer state
             index for a categorical variable, an actual count for a numerical discrete
             variable, or a real value for a continuous one.
-        policy: Map from decision names to fixed integer actions, contingent
-            action tables in the format returned by `solve`, or JAX-traceable
-            deterministic functions, or fitted `SoftmaxPolicy` or `TabularPolicy` rules.
+        policy: Map from decision names to fixed integer actions, contingent action
+            tables mapping parent-state tuples to action indices, JAX-traceable
+            deterministic functions, or fitted `CategoricalPolicy` rules.
             Functions accept information parents by keyword and return a scalar
             integer action index.
             Functions and fitted rules support forward evaluation only, without
@@ -140,16 +139,13 @@ def infer(
     )
     contingent_policy: dict[
         str,
-        dict[tuple[int, ...], int]
-        | Callable[..., int | jax.Array]
-        | SoftmaxPolicy
-        | TabularPolicy,
+        dict[tuple[int, ...], int] | Callable[..., int | jax.Array] | CategoricalPolicy,
     ] = {}
     bound: dict[str, int] = {}
     for name, rule in policy.items():
         if name not in relevant:
             continue
-        if isinstance(rule, (dict, SoftmaxPolicy, TabularPolicy)):
+        if isinstance(rule, (dict, CategoricalPolicy)):
             contingent_policy[name] = rule
         elif callable(rule):
             contingent_policy[name] = cast(Callable[..., int | jax.Array], rule)

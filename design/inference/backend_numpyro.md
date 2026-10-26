@@ -11,7 +11,7 @@ The bridge between the backend-agnostic graph layer and NumPyro lives in `pylimi
 - A contingent decision looks up its action from the policy table using its realized information-set values and emits a deterministic site.
 - A utility node is skipped by the translator. When a utility is queried, the sampling wrapper evaluates its callable on each joint draw of its parents.
 
-`infer()` in `pylimid.inference.api` validates the whole diagram, then retains the ancestors of the queries and evidence. Only decisions that influence those nodes need a binding. It separates fixed actions from contingent tables before calling the sampling layer. Policy tables use integer state indices in the decision's parent order; their validation and array construction are shared through `pylimid.policy`.
+`infer()` in `pylimid.inference.api` validates the whole diagram, then retains the ancestors of the queries and evidence. Only decisions that influence those nodes need a binding. It separates fixed actions from contingent tables before calling the sampling layer. Policy tables use integer state indices in the decision's parent order; their validation and array construction live in `pylimid.policy._binding`. The public `pylimid.policy` package exposes graph-independent families and fitted rules without eagerly importing binding helpers. NumPyro distribution checks live in `pylimid.numpyro._distributions` and are shared by inference and optimization.
 
 The translator constructs a model; the caller chooses how to execute it. For a Bayesian network:
 

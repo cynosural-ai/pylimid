@@ -16,11 +16,11 @@ import numpy as np
 import numpyro.distributions as dist
 
 from pylimid import (
+    CategoricalPolicy,
     ChanceNode,
     DecisionNode,
     InfluenceDiagram,
     Policy,
-    TabularPolicy,
     TabularSoftmax,
     UtilityNode,
     infer,
@@ -98,8 +98,8 @@ def _probability_tables(policy):
     tables = []
     for name, cards in (("test", ()), ("buy", (2, 3))):
         rule = policy[name]
-        if isinstance(rule, TabularPolicy):
-            scores = np.asarray(rule.logits, dtype=np.float64)
+        if isinstance(rule, CategoricalPolicy):
+            scores = np.asarray(rule.parameters["logits"], dtype=np.float64)
             weights = np.exp(scores - np.max(scores, axis=-1, keepdims=True))
             probabilities = weights / weights.sum(axis=-1, keepdims=True)
         else:
@@ -119,7 +119,7 @@ def exact_policy_value(policy: Policy) -> float:
     No Monte Carlo estimates or optimizer internals enter the calculation.
 
     Args:
-        policy: Complete deterministic tables or fitted `TabularPolicy` rules for
+        policy: Complete deterministic tables or fitted `CategoricalPolicy` rules for
             ``test`` and ``buy``, using the example's parent and state orders.
 
     Returns:
@@ -155,7 +155,7 @@ def main() -> None:
         num_samples=args.samples,
         rng_key=jax.random.PRNGKey(args.seed),
     )
-    print(solution.render(diagram))
+    print(solution.render())
     exact = exact_policy_value(solution.policy)
     print(f"\nExact value of the stochastic policy: {exact:.6f} million")
     print(f"Loss against the analytic optimum of 721: {721.0 - exact:.6f} million")

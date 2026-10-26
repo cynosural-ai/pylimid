@@ -24,9 +24,11 @@ The baseline is the previous batch's mean utility; the first baseline is zero. E
 
 `LinearSoftmax` flattens numerical information and one-hot encodes categorical parents before computing linear action scores. `TabularSoftmax` stores an independent action-score row for each scalar categorical information assignment. Both produce stochastic categorical action distributions.
 
+Families implement `PolicyFamily.initialize` and `PolicyFamily.logits`. Initialization receives an explicit random key and sampled information values; logits operate on one information assignment and a potentially nested parameter dictionary. The shared `CategoricalPolicy` binds the family, fitted parameters, information metadata, and action labels, and owns normalization, sampling, and log probabilities. The optimizer and inference backend use this common rule without dispatching on the family.
+
 The graph controls information access. A rule receives only its declared parents; remembering an earlier observation or action requires an explicit information arc. Several families can be trained jointly, including decisions whose earlier actions change later observations.
 
-`solve(diagram, num_steps=..., num_samples=..., learning_rate=..., rng_key=...)` is the public entry point. There is no solver selector or structural solution-ordering gate. `Solution` contains the fitted joint policy and independently estimated expected utility. Its rules can be inspected, sampled, and reused through forward `infer` calls.
+`solve(diagram, num_steps=..., num_samples=..., learning_rate=..., rng_key=...)` is the public entry point and contains the training orchestration and private helpers. There is no solver selector or structural solution-ordering gate. `Solution` contains only the fitted joint policy and independently estimated expected utility. Its rules can be inspected, sampled, and reused through forward `infer` calls. `Solution.render()` uses the labels stored in its fitted rules, without requiring the original diagram.
 
 ## Verification
 

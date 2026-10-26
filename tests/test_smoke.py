@@ -13,7 +13,7 @@ def test_version_is_set() -> None:
 def test_top_level_exports_the_public_api() -> None:
     """The main names import from pylimid directly."""
     import pylimid
-    from pylimid import graph, inference, solver
+    from pylimid import graph, inference, policy, solver
     from pylimid.errors import InferenceError
     from pylimid.policy import Policy
 
@@ -28,3 +28,7 @@ def test_top_level_exports_the_public_api() -> None:
     assert pylimid.InferenceResult is inference.InferenceResult
     assert pylimid.InferenceError is InferenceError
     assert pylimid.Policy is Policy
+    assert pylimid.PolicyFamily is policy.PolicyFamily
+    assert pylimid.LinearSoftmax is policy.LinearSoftmax
+    assert pylimid.TabularSoftmax is policy.TabularSoftmax
+    assert pylimid.CategoricalPolicy is policy.CategoricalPolicy

@@ -4,7 +4,7 @@ A `DecisionNode` specifies a controlled variable with a finite action menu, the 
 
 - `states` labels the available actions. Values passed to downstream functions are integer indices into that tuple. `states=None` means the node is unconfigured; continuous actions are not yet supported.
 - `parents` names exactly the observed variables. Earlier actions and observations are remembered only through explicit arcs. Information arcs do not represent chance distributions.
-- `policy_family` declares `LinearSoftmax` or `TabularSoftmax` for optimization. The creator chooses the family, and `solve` fits its parameters jointly with the other decisions. A missing family is allowed for supplied-policy evaluation, but not for optimization.
+- `policy_family` declares a `PolicyFamily`, such as `LinearSoftmax` or `TabularSoftmax`, for optimization. The creator chooses the family, and `solve` fits its parameters jointly with the other decisions. A missing family is allowed for supplied-policy evaluation, but not for optimization.
 
 The decision is structurally configured once its action states are declared. Policy-family compatibility is checked by the optimizer using the actual sampled information shapes and declared categorical labels. Adding an information arc does not change the action space.
 

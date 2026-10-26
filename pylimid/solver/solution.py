@@ -1,19 +1,9 @@
-"""
-Fitted policy and expected utility — the result of `solve`.
-
-Returned by `solve`. Expected utility is a Monte Carlo estimate.
-"""
-
-from __future__ import annotations
+"""Fitted stochastic policies and independently estimated expected utility."""
 
 from dataclasses import dataclass
 from itertools import product
 
-import jax
-
-from pylimid.graph.diagram import InfluenceDiagram
-from pylimid.policy import Policy
-from pylimid.policy_family import SoftmaxPolicy, TabularPolicy
+from pylimid.policy import CategoricalPolicy, TabularSoftmax
 
 __all__ = ["Solution"]
 
@@ -21,99 +11,66 @@ __all__ = ["Solution"]
 @dataclass(frozen=True)
 class Solution:
     """
-    Result of solving an influence diagram.
+    Result of joint policy-gradient optimization.
 
     Attributes:
-        policy: One fitted stochastic rule per decision, jointly trained using
-            only its declared information parents. Supplied deterministic tables
-            and functions can also be evaluated and rendered.
+        policy: One fitted `CategoricalPolicy` per decision, using only its declared
+            information parents. Each rule retains its family, parameters, and labels.
         expected_utility: Independent Monte Carlo estimate of expected total utility
-            under the final stochastic policy. This is an approximate result with
-            no optimality or convergence guarantee.
+            under the final stochastic policy, with no optimality or convergence
+            guarantee.
     """
 
-    policy: Policy
+    policy: dict[str, CategoricalPolicy]
     expected_utility: float
 
-    def render(self, diagram: InfluenceDiagram) -> str:
+    def render(self) -> str:
         """
-        Render the policy with state labels instead of indices.
+        Render the fitted policies using their stored information and action labels.
 
-        The first line shows the estimated expected utility. It is
-        followed by one block per decision: a header naming the decision and its parents
-        in information-set order, then one line per situation reading the
-        chosen action's label. A decision with no parents has the single
-        situation ``always``. Fitted stochastic tables show action probabilities per
-        assignment. Function and fitted linear rules are identified without enumerating
-        their observation space.
-
-        Args:
-            diagram: The diagram this solution was computed from; supplies
-                the state labels.
+        Tabular families show the action probabilities for every information
+        assignment. Other families are identified by name, with probabilities shown
+        for decisions without parents. Continuous information is not enumerated.
 
         Returns:
-            A multi-line string, for ``print`` or notebook display.
+            A multi-line string headed by the estimated expected total utility.
         """
         lines = [f"expected utility: {self.expected_utility:.2f}"]
         for name, rule in self.policy.items():
-            decision = diagram[name]
-            if isinstance(rule, SoftmaxPolicy):
-                lines += [
-                    "",
-                    f"{name} ({', '.join(rule.parents) or 'no parents'})",
-                    "  fitted linear-softmax policy (stochastic)",
-                ]
-                continue
-            if isinstance(rule, TabularPolicy):
-                lines += [
-                    "",
-                    f"{name} ({', '.join(rule.parents) or 'no parents'})",
-                    "  fitted tabular-softmax policy (stochastic)",
-                ]
-                assignments = product(
-                    *(range(len(states)) for states in rule.parent_states)
-                )
-                probabilities = (
-                    jax.nn.softmax(rule.logits, axis=-1)
-                    .reshape(-1, len(rule.states))
-                    .tolist()
-                )
-                for assignment, row in zip(assignments, probabilities, strict=True):
+            lines += [
+                "",
+                f"{name} ({', '.join(rule.parents) or 'no parents'})",
+                f"  fitted {type(rule.family).__name__} policy (stochastic)",
+            ]
+            if isinstance(rule.family, TabularSoftmax):
+                labels = []
+                for states in rule.parent_states:
+                    assert states is not None
+                    labels.append(states)
+                assignments = product(*(range(len(states)) for states in labels))
+                for assignment in assignments:
+                    row = rule.probabilities(
+                        **dict(zip(rule.parents, assignment, strict=True))
+                    ).tolist()
                     situation = (
                         ", ".join(
                             f"{parent}={states[state]}"
                             for parent, states, state in zip(
-                                rule.parents,
-                                rule.parent_states,
-                                assignment,
-                                strict=True,
+                                rule.parents, labels, assignment, strict=True
                             )
                         )
                         or "always"
                     )
-                    actions = ", ".join(
-                        f"{state}={probability:.3f}"
-                        for state, probability in zip(rule.states, row, strict=True)
-                    )
-                    lines.append(f"  {situation} -> {actions}")
-                continue
-            if callable(rule):
-                lines += [
-                    "",
-                    f"{name} ({', '.join(decision.parents) or 'no parents'})",
-                    "  deterministic function policy",
-                ]
-                continue
-            rows = [
-                ", ".join(
-                    f"{parent}={diagram.states_of(parent)[state]}"
-                    for parent, state in zip(decision.parents, key, strict=True)
-                )
-                or "always"  # for when the decision node has no parents
-                for key in rule
-            ]
-            width = max(len(row) for row in rows)
-            lines += ["", f"{name} ({', '.join(decision.parents) or 'no parents'})"]
-            for row, action in zip(rows, rule.values(), strict=True):
-                lines.append(f"  {row:<{width}} -> {diagram.states_of(name)[action]}")
+                    lines.append(_row(situation, rule.states, row))
+            elif not rule.parents:
+                lines.append(_row("always", rule.states, rule.probabilities().tolist()))
         return "\n".join(lines)
+
+
+def _row(situation, states, probabilities):
+    """Format an information assignment and its labeled action probabilities."""
+    actions = ", ".join(
+        f"{state}={probability:.3f}"
+        for state, probability in zip(states, probabilities, strict=True)
+    )
+    return f"  {situation} -> {actions}"

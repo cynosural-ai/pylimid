@@ -13,7 +13,7 @@ enumeration bounds during JAX tracing. Observed nodes skip enumeration; numerica
 distributions permitting only zero are clamped to that value.
 
 Fixed decisions become degenerate observed sites. Contingent tables and functions
-produce deterministic sites; fitted `SoftmaxPolicy` and `TabularPolicy` rules produce
+produce deterministic sites; fitted `CategoricalPolicy` rules produce
 categorical sample sites from their information sets. Utility nodes are skipped
 — a payoff is never sampled and is never a parent.
 
@@ -31,13 +31,13 @@ import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
 
-from pylimid._distributions import _is_zero_count, _validate_chance_distribution
 from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.utility_node import UtilityNode
-from pylimid.policy import Policy, _policy_rules
-from pylimid.policy_family import SoftmaxPolicy, TabularPolicy
+from pylimid.numpyro._distributions import _is_zero_count, _validate_chance_distribution
+from pylimid.policy import CategoricalPolicy, Policy
+from pylimid.policy._binding import _policy_rules
 
 __all__ = ["to_model"]
 
@@ -82,12 +82,11 @@ def to_model(
         observed: Mapping of node names to observed values. Chance nodes
             present here are conditioned on their given value; chance nodes
             absent are treated as latent. Fixed decisions are bound here.
-        policy: Decision names mapped to complete action tables or deterministic
-            functions. Functions accept declared information parents by keyword and
-            return a scalar integer action index in the decision's ``states``.
-            Functions must be JAX-traceable. Fitted `SoftmaxPolicy` and `TabularPolicy`
-            rules sample actions from their learned probabilities. Functions and fitted
-            rules support
+        policy: Decision names mapped to complete action tables, JAX-traceable
+            deterministic functions, or fitted `CategoricalPolicy` rules. Functions
+            accept declared information parents by keyword and return a scalar integer
+            action index in the decision's ``states``. Fitted rules sample actions
+            from their learned probabilities. Functions and fitted rules support
             forward evaluation only. `samples` checks function actions against the
             action space; direct NumPyro callers must respect that output contract.
 
@@ -112,7 +111,7 @@ def to_model(
 def _to_model(
     snapshot: DiagramSnapshot,
     observed: dict[str, Any],
-    policy_rules: dict[str, Callable[..., jax.Array] | SoftmaxPolicy | TabularPolicy],
+    policy_rules: dict[str, Callable[..., jax.Array] | CategoricalPolicy],
 ) -> Callable[[], dict[str, Any]]:
     """Build a model using already validated decision rules."""
     nodes = snapshot.nodes
@@ -126,7 +125,7 @@ def _to_model(
                 if name in policy_rules:
                     parent_values = {parent: values[parent] for parent in node.parents}
                     rule = policy_rules[name]
-                    if isinstance(rule, (SoftmaxPolicy, TabularPolicy)):
+                    if isinstance(rule, CategoricalPolicy):
                         values[name] = numpyro.sample(
                             name, rule._distribution(parent_values)
                         )

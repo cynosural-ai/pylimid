@@ -1,10 +1,10 @@
-"""Decision policies represented by tables, functions, or fitted stochastic rules."""
+"""Validate and bind supplied decision policies to a diagram."""
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from itertools import product
-from typing import TypeAlias, cast
+from typing import cast
 
 import jax
 import jax.numpy as jnp
@@ -14,23 +14,7 @@ from pylimid.graph.chance_node import ChanceNode
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.node import _signature_matches
-from pylimid.policy_family import SoftmaxPolicy, TabularPolicy
-
-__all__ = ["Policy"]
-
-#: Decision names mapped to action tables, deterministic functions, or fitted rules.
-#: Tables map parent-state tuples to action indices. Functions accept information
-#: parents by keyword and return a scalar integer action index. Functions and fitted
-#: stochastic rules currently support forward evaluation only.
-Policy: TypeAlias = dict[
-    str,
-    dict[tuple[int, ...], int]
-    | Callable[..., int | jax.Array]
-    | SoftmaxPolicy
-    | TabularPolicy,
-]
-
-_TablePolicy: TypeAlias = dict[str, dict[tuple[int, ...], int]]
+from pylimid.policy.rules import CategoricalPolicy, Policy
 
 
 def _info_assignments(
@@ -77,7 +61,7 @@ def _policy_rules(
     snapshot: DiagramSnapshot,
     policy: Policy,
     observed: Mapping[str, object],
-) -> dict[str, Callable[..., jax.Array] | SoftmaxPolicy | TabularPolicy]:
+) -> dict[str, Callable[..., jax.Array] | CategoricalPolicy]:
     """Validate rules and bind tables and functions to one evaluation interface."""
     nodes = dict(snapshot.nodes)
     node_map = {
@@ -94,7 +78,7 @@ def _policy_rules(
         decision = nodes[name]
         if not isinstance(decision, DecisionNode):
             raise InferenceError(f"Policy for {name!r} must bind a decision node.")
-        if isinstance(rule, (SoftmaxPolicy, TabularPolicy)):
+        if isinstance(rule, CategoricalPolicy):
             if (
                 set(rule.parents) != set(decision.parents)
                 or rule.states != decision.states
@@ -111,7 +95,7 @@ def _policy_rules(
                 )
             if has_chance_evidence:
                 raise NotImplementedError(
-                    "Softmax policies support forward evaluation only."
+                    "Fitted categorical policies support forward evaluation only."
                 )
             rules[name] = rule
             continue

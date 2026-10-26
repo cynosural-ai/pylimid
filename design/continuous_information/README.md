@@ -8,11 +8,11 @@ PyLIMID optimizes finite-action influence diagrams through policy gradients. Cha
 
 `TabularSoftmax` stores independent logits for every scalar categorical parent assignment. Its leading parameter axes follow the parent-state order and its last axis follows the action labels. A parentless decision has one action-score vector. The number of rows grows as the product of parent cardinalities, and rarely visited rows can receive little training.
 
-Each fitted rule exposes action probabilities, sampling with an explicit random key, and action log probabilities. The solver returns the final stochastic policies; taking an argmax creates a different deterministic policy and requires separate evaluation.
+Both families return the same fitted `CategoricalPolicy` representation. Each rule retains its family, a potentially nested parameter dictionary, information metadata, and action labels. The common wrapper exposes action probabilities, sampling with an explicit random key, and action log probabilities. The solver returns the final stochastic policies; taking an argmax creates a different deterministic policy and requires separate evaluation.
 
 ## Binding and execution
 
-Initialization walks the graph under uniform initial policies to determine information shapes. Every later training batch simulates complete scenarios under the current policies. Earlier actions can change downstream observations. Each decision sees only its declared parents, including remembered actions or observations.
+Initialization walks the graph under the initial policies to determine information shapes. Built-in families initialize to zero parameters and uniform action probabilities. Each family receives an explicit initialization key; custom families can use it to break parameter symmetry. Every later training batch simulates complete scenarios under the current policies. Earlier actions can change downstream observations. Each decision sees only its declared parents, including remembered actions or observations.
 
 The [optimizer design](../solver/algorithms.md) describes score gradients, the previous-batch baseline, and independent evaluation. The public call is `solve(diagram, num_steps=..., num_samples=..., learning_rate=..., rng_key=...)`; policy gradients are the only optimization engine.
 
@@ -24,8 +24,8 @@ Analytic and exact-action gradient tests cover one or several decisions, zero an
 
 Three errors must be distinguished: approximation imposed by the family, incomplete optimization, and Monte Carlo evaluation noise. More evaluation draws address only the last. The optimizer reports no convergence or optimality certificate.
 
-## Future extensions
+## Custom families and future extensions
 
-A custom-family interface should separate trainable parameters and initialization from fitted-rule execution. User-defined neural networks could supply action logits, with the categorical policy wrapper owning normalization and sampling. Random initialization, any additional network randomness, and mutable network state need explicit contracts.
+Custom families subclass `PolicyFamily` and implement `initialize` and `logits`. Initialization returns a dictionary containing trainable JAX arrays, including nested parameter structures. Logits receive those parameters and one information assignment in declared parent order, and return one score per action. Both methods must be pure and JAX-compatible. The categorical wrapper owns normalization and sampling. Stochastic network layers and mutable network state need additional contracts; they are not part of this interface.
 
 Other future work includes richer baselines, checkpoint selection, optimizer diagnostics, and finite-action sums for variance reduction. Continuous actions require explicit domains and suitable policy distributions or other gradient estimators; they are separate from continuous observations.

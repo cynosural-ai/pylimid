@@ -9,11 +9,11 @@ import numpyro.distributions as dist
 import pytest
 
 from pylimid import (
+    CategoricalPolicy,
     ChanceNode,
     DecisionNode,
     InferenceError,
     InfluenceDiagram,
-    TabularPolicy,
     TabularSoftmax,
     UtilityNode,
     infer,
@@ -104,7 +104,7 @@ def test_counts_with_chance_and_decision_parents_feed_utilities(family, executio
     else:
         result = solve(diagram, num_steps=200, num_samples=1500)
         rule = result.policy["action"]
-        assert isinstance(rule, TabularPolicy)
+        assert isinstance(rule, CategoricalPolicy)
         for weather in range(2):
             assert rule.probabilities(weather=jnp.array(weather))[weather] > 0.98
         assert result.expected_utility == pytest.approx(expected_utility, abs=0.4)

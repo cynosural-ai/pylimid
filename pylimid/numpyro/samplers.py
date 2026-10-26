@@ -21,15 +21,15 @@ import jax.numpy as jnp
 from numpyro import handlers
 from numpyro.infer import MCMC, NUTS, Predictive
 
-from pylimid._distributions import _supports_count_enumeration
 from pylimid.errors import InferenceError
 from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.node import NodeKind
 from pylimid.graph.utility_node import UtilityNode
+from pylimid.numpyro._distributions import _supports_count_enumeration
 from pylimid.numpyro.model import _to_model
-from pylimid.policy import Policy, _policy_rules
-from pylimid.policy_family import SoftmaxPolicy, TabularPolicy
+from pylimid.policy import CategoricalPolicy, Policy
+from pylimid.policy._binding import _policy_rules
 
 __all__ = ["samples"]
 
@@ -63,8 +63,8 @@ def samples(
         snapshot: A validated, topologically-ordered view of an influence
             diagram. Utility nodes never affect the draws.
         observed: Node-name to observed-value map, holding the observed
-            chance nodes and fixed decisions. Empty or ``None`` means
-            forward (prior) sampling of a chance-node-only diagram.
+            chance nodes and fixed decisions. Empty or ``None`` means forward
+            sampling, using ``policy`` for any decisions.
         query: Names of the nodes to return. ``None`` (the default) returns
             every chance and decision node; observed nodes appear as their
             clamped value broadcast over the draws. A utility node in
@@ -73,10 +73,10 @@ def samples(
         num_warmup: NUTS warmup steps; ignored on the forward and
             enumeration paths.
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``.
-        policy: Decision names mapped to complete action tables or JAX-traceable
-            deterministic functions. Functions receive only declared information
-            parents as keyword arguments and return a scalar integer action index.
-            Fitted `SoftmaxPolicy` and `TabularPolicy` rules sample actions from learned
+        policy: Decision names mapped to complete action tables, JAX-traceable
+            deterministic functions, or fitted `CategoricalPolicy` rules. Functions
+            receive only declared information parents as keyword arguments and return
+            a scalar integer action index. Fitted rules sample actions from learned
             probabilities. Functions and fitted rules support forward evaluation only.
 
     Returns:
@@ -109,7 +109,7 @@ def samples(
             continue
         assert isinstance(node, DecisionNode)
         rule = policy_rules[name]
-        if isinstance(rule, (SoftmaxPolicy, TabularPolicy)):
+        if isinstance(rule, CategoricalPolicy):
             continue
         if node.parents:
             draws[name] = jax.vmap(rule)(

@@ -5,12 +5,12 @@ import numpyro.distributions as dist
 import pytest
 
 from pylimid import (
+    CategoricalPolicy,
     ChanceNode,
     DecisionNode,
     InferenceError,
     InfluenceDiagram,
     LinearSoftmax,
-    TabularPolicy,
     TabularSoftmax,
     UtilityNode,
     solve,
@@ -39,7 +39,7 @@ def test_solve_trains_declared_categorical_policy_without_method_selection():
     )
     solution = solve(diagram, num_steps=200, num_samples=512)
     rule = solution.policy["umbrella"]
-    assert isinstance(rule, TabularPolicy)
+    assert isinstance(rule, CategoricalPolicy)
     for rain in range(2):
         assert rule.probabilities(rain=jnp.array(rain))[rain] > 0.98
     assert solution.expected_utility > 0.98

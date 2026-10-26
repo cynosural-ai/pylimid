@@ -33,10 +33,11 @@ Ruff and ty also run on every commit through pre-commit.
 | Path | Contents |
 | --- | --- |
 | `pylimid/graph/` | Node types, the mutable `InfluenceDiagram`, validation, and rendering |
+| `pylimid/policy/` | Trainable families, fitted rules, and supplied-policy binding |
 | `pylimid/inference/` | Posterior queries and posterior result types |
 | `pylimid/solver/` | Joint policy-gradient optimisation and fitted policy results |
-| `pylimid/numpyro/` | NumPyro model translation and sampling |
-| `pylimid/policy.py`, `pylimid/errors.py` | Shared policy representation and errors |
+| `pylimid/numpyro/` | Distribution checks, NumPyro model translation, and sampling |
+| `pylimid/errors.py` | Shared inference and optimization errors |
 | `tests/` | Graph, inference, and optimizer tests with analytic utility and gradient references |
 | `docs/` | The published Sphinx site (see `docs/README.md` for build details) |
 | `design/` | Contributor-facing decision records and design notes; not published |

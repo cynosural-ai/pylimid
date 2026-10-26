@@ -5,10 +5,10 @@ import numpyro.distributions as dist
 import pytest
 
 from pylimid import (
+    CategoricalPolicy,
     ChanceNode,
     DecisionNode,
     InfluenceDiagram,
-    TabularPolicy,
     TabularSoftmax,
     UtilityNode,
     infer,
@@ -102,7 +102,7 @@ def test_supported_distributions_with_chance_and_decision_parents(
         assert jnp.array_equal(result["payoff"].values, 10 + result["outcome"].values)
     else:
         rule = result.policy["action"]
-        assert isinstance(rule, TabularPolicy)
+        assert isinstance(rule, CategoricalPolicy)
         for weather in range(2):
             assert rule.probabilities(weather=jnp.array(weather))[weather] > 0.98
         assert result.expected_utility == pytest.approx(10.5, abs=0.2)
