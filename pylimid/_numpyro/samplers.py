@@ -18,10 +18,10 @@ from numpyro.infer import MCMC, NUTS, Predictive
 from pylimid._numpyro.distributions import supports_count_enumeration
 from pylimid._numpyro.model import build_model
 from pylimid.errors import InferenceError
-from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import DiagramSnapshot
-from pylimid.graph.node import NodeKind
-from pylimid.graph.utility_node import UtilityNode
+from pylimid.graph.nodes.decision_node import DecisionNode
+from pylimid.graph.nodes.node import NodeKind
+from pylimid.graph.nodes.utility_node import UtilityNode
 from pylimid.policy import CategoricalPolicy, Policy
 from pylimid.policy._binding import bind_policy_rules
 

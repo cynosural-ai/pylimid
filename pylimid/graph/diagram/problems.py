@@ -1,14 +1,4 @@
-"""
-Validation — the problem model shared by the diagram's checks.
-
-The graph layer's checking surface is a list of `DiagramProblem` instances:
-`InfluenceDiagram.validate` collects structural issues (dangling parents,
-cycles, unconfigured or stale nodes, utility sinks), and
-`InfluenceDiagram.probe_discrete_parents` adds the runtime
-parent-sensitivity warning. The model lives here, separate from the
-container, because it is the API a UI or LLM renders and acts on — and
-because the checking surface is the part of the layer most likely to grow.
-"""
+"""Structured problems returned by diagram validation and runtime probes."""
 
 from __future__ import annotations
 

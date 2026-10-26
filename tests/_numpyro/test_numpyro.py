@@ -13,9 +13,9 @@ import pytest
 from pylimid._numpyro.model import build_model
 from pylimid._numpyro.samplers import samples
 from pylimid.errors import InferenceError
-from pylimid.graph.chance_node import ChanceNode
-from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import InfluenceDiagram
+from pylimid.graph.nodes.chance_node import ChanceNode
+from pylimid.graph.nodes.decision_node import DecisionNode
 
 # --- helpers ----------------------------------------------------------------
 

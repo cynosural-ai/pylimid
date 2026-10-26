@@ -33,14 +33,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from pylimid.graph.chance_node import ChanceNode, DistFactory
-from pylimid.graph.decision_node import DecisionNode
-from pylimid.graph.node import Consistency, Node
+from pylimid.graph.diagram._probe import probe_discrete_parents
+from pylimid.graph.diagram._topology import children_of, topological_sort
+from pylimid.graph.diagram._validation import validate_nodes
+from pylimid.graph.diagram.problems import DiagramProblem
+from pylimid.graph.nodes.chance_node import ChanceNode, DistFactory
+from pylimid.graph.nodes.decision_node import DecisionNode
+from pylimid.graph.nodes.node import Node
 from pylimid.graph.render.graphviz import available as graphviz_available
 from pylimid.graph.render.graphviz import to_svg
 from pylimid.graph.render.mermaid import to_mermaid
-from pylimid.graph.utility_node import UtilityNode
-from pylimid.graph.validation import DiagramProblem, DiagramProblemKind
+
+__all__ = ["DiagramSnapshot", "InfluenceDiagram"]
 
 
 @dataclass(frozen=True)
@@ -203,13 +207,7 @@ class InfluenceDiagram:
         Raises:
             ValueError: If the diagram contains a cycle.
         """
-        order = self._kahn_order()
-        if len(order) != len(self._nodes):
-            raise ValueError(
-                "Diagram has a cycle; cannot topologically sort. "
-                "Run validate() to locate it."
-            )
-        return tuple(order)
+        return topological_sort(self._nodes)
 
     def parents_of(self, name: str) -> tuple[str, ...]:
         """
@@ -237,11 +235,7 @@ class InfluenceDiagram:
         Returns:
             Child names in insertion order, or an empty tuple if none refer to ``name``.
         """
-        return tuple(
-            other_name
-            for other_name, other in self._nodes.items()
-            if name in other.parents
-        )
+        return children_of(self._nodes, name)
 
     def states_of(self, name: str) -> tuple[str, ...]:
         """
@@ -282,72 +276,7 @@ class InfluenceDiagram:
         Returns:
             The detected problems, or an empty list if these checks pass.
         """
-        problems: list[DiagramProblem] = []
-
-        # Dangling parents: a declared parent not present in the diagram.
-        for name, node in self._nodes.items():
-            for parent in node.parents:
-                if parent not in self._nodes:
-                    problems.append(
-                        DiagramProblem(
-                            kind=DiagramProblemKind.DANGLING_PARENT,
-                            node=name,
-                            message=(
-                                f"Parent {parent!r} of {name!r} is not in the diagram."
-                            ),
-                        )
-                    )
-
-        # Per-node consistency: inference needs every node CONSISTENT. The
-        # wording is owned by the node (its configurable field differs by kind
-        # — `dist`, `values`, action `states`), so the message comes from the
-        # node's own `consistency_message`.
-        for name, node in self._nodes.items():
-            state = node.consistency
-            if state is Consistency.UNCONFIGURED:
-                problems.append(
-                    DiagramProblem(
-                        kind=DiagramProblemKind.UNCONFIGURED,
-                        node=name,
-                        message=node.consistency_message(state),
-                    )
-                )
-            elif state is Consistency.STALE:
-                problems.append(
-                    DiagramProblem(
-                        kind=DiagramProblemKind.STALE,
-                        node=name,
-                        message=node.consistency_message(state),
-                    )
-                )
-
-        # A utility node is a payoff, so it must be terminal.
-        for name, node in self._nodes.items():
-            if node.is_sink and self.children_of(name):
-                problems.append(
-                    DiagramProblem(
-                        kind=DiagramProblemKind.UTILITY_NOT_SINK,
-                        node=name,
-                        message=(
-                            f"Utility node {name!r} must be terminal but has "
-                            f"children {self.children_of(name)!r}."
-                        ),
-                    )
-                )
-
-        blocked = set(self._nodes) - set(self._kahn_order())
-        if blocked:
-            cycle = self._find_cycle(blocked)
-            path = " -> ".join(repr(name) for name in (*cycle, cycle[0]))
-            problems.append(
-                DiagramProblem(
-                    kind=DiagramProblemKind.CYCLE,
-                    node=cycle[0],
-                    message=f"Diagram contains a cycle: {path}.",
-                )
-            )
-
-        return problems
+        return validate_nodes(self._nodes)
 
     def probe_discrete_parents(self) -> list[DiagramProblem]:
         """
@@ -371,43 +300,7 @@ class InfluenceDiagram:
             One `DiagramProblem` per node and categorical parent whose output is
             unchanged at the tested inputs. Unconfigured functions are skipped.
         """
-        problems: list[DiagramProblem] = []
-        for name, node in self._nodes.items():
-            if isinstance(node, ChanceNode):
-                callable_ = node.dist
-            elif isinstance(node, UtilityNode):
-                callable_ = node.values
-            else:
-                continue
-            if callable_ is None:
-                continue  # UNCONFIGURED — validate() reports it
-            for parent in node.parents:
-                parent_node = self._nodes.get(parent)
-                if not isinstance(parent_node, (ChanceNode, DecisionNode)):
-                    continue  # dangling or not a chance or decision node
-                states = parent_node.states
-                if states is None:
-                    continue
-                fixed = {p: 0 for p in node.parents if p != parent}
-                fingerprints = {
-                    _distribution_fingerprint(callable_(**{**fixed, parent: value}))
-                    for value in range(len(states))
-                }
-                if len(fingerprints) == 1:
-                    problems.append(
-                        DiagramProblem(
-                            kind=DiagramProblemKind.DIST_IGNORES_PARENT,
-                            node=name,
-                            message=(
-                                f"The callable for node {name!r} returns the same "
-                                f"distribution for every value of parent "
-                                f"{parent!r}; {parent} appears to have no "
-                                f"effect. Warning: a deliberately independent "
-                                f"node looks identical."
-                            ),
-                        )
-                    )
-        return problems
+        return probe_discrete_parents(self._nodes)
 
     def snapshot(self) -> DiagramSnapshot:
         """
@@ -498,89 +391,3 @@ class InfluenceDiagram:
         if not graphviz_available():
             return None
         return to_svg(self)
-
-    # --- internal helpers ---------------------------------------------------
-
-    def _kahn_order(self) -> list[str]:
-        """
-        Kahn's algorithm, stopping where a cycle blocks it.
-
-        Returns every node when the diagram is acyclic. Otherwise the nodes
-        left out are those on a cycle or downstream of one.
-        """
-        nodes = self._nodes
-        indegree: dict[str, int] = dict.fromkeys(nodes, 0)
-        children = {name: [] for name in nodes}
-        for name, node in nodes.items():
-            for parent in node.parents:
-                if parent in nodes:
-                    children[parent].append(name)
-                    indegree[name] += 1
-        queue = [name for name, degree in indegree.items() if degree == 0]
-        order: list[str] = []
-        while queue:
-            current = queue.pop(0)
-            order.append(current)
-            for child in children[current]:
-                indegree[child] -= 1
-                if indegree[child] == 0:
-                    queue.append(child)
-        return order
-
-    def _find_cycle(self, blocked: set[str]) -> tuple[str, ...]:
-        """
-        One cycle among the nodes Kahn's algorithm could not order.
-
-        Every blocked node has a blocked parent, so walking up parents from
-        any of them must eventually repeat a node. Returned in arc order
-        (parent before child), starting from the repeated node.
-        """
-        current = min(blocked)
-        path: list[str] = []
-        position: dict[str, int] = {}
-        while current not in position:
-            position[current] = len(path)
-            path.append(current)
-            current = next(p for p in self._nodes[current].parents if p in blocked)
-        return tuple(reversed(path[position[current] :]))
-
-
-def _distribution_fingerprint(output) -> tuple[object, ...]:
-    """
-    A comparable snapshot of a callable's output.
-
-    NumPyro distributions expose their defining parameters uniformly via
-    ``get_args()`` (``{'loc': ..., 'scale': ...}``), so two distributions
-    are compared exactly: equal parameters mean equal distributions. A
-    plain scalar (a utility ``values`` payoff) is its own fingerprint.
-    Anything else fails loudly — the library's contract is that ``dist``
-    returns a distribution object and ``values`` returns a number. Equal
-    fingerprints are treated as "the same output" by
-    `InfluenceDiagram.probe_discrete_parents`.
-    """
-    get_args = getattr(output, "get_args", None)
-    if get_args is not None:
-        args = get_args()
-        if args:
-            return tuple(
-                (name, _comparable(value)) for name, value in sorted(args.items())
-            )
-    return (float(output),)
-
-
-def _comparable(value) -> object:
-    """Convert an array-like parameter to a hashable, comparable form."""
-    tolist = getattr(value, "tolist", None)
-    if tolist is not None:
-        return _freeze(tolist())
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return value
-
-
-def _freeze(value):
-    """Convert nested lists to nested tuples so they can be hashed."""
-    if isinstance(value, list):
-        return tuple(_freeze(item) for item in value)
-    return value
