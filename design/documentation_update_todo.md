@@ -15,10 +15,11 @@ Update the existing documentation for the policy-gradient-only API, preserving t
 | Inference | Complete. Uses fitted policies with direct chance-node conditioning, and the examples, figures, and API-reference boundaries have been checked. |
 | Multiple decisions | Complete. Jointly fits the promotion and order rules, explains explicit memory and rarely used rows, and evaluates aligned total-profit draws. |
 | Common pitfalls | Complete. Retains indexing and parent-effect checks, and adds state-index, joint-draw, and fitted-policy examples. |
-| Remaining resources, README, and site checks | Pending. Follow the page-by-page checklist below. |
-| Full strict documentation build | Failing with two warnings: the Count distributions notebook failure and its paired traceback warning. All five core user guides execute without warnings. |
+| Count distributions | Complete, awaiting review. Fits capacity policies before and after observing a numerical count, and retains the supported posterior examples and limits. |
+| Remaining site and README checks | Pending. Follow the page-by-page checklist below. |
+| Full strict documentation build | Passing with no Sphinx warnings and forced execution of all published examples. |
 
-The API reference, quickstart, all five core user guides, and Common pitfalls are complete, but the documentation migration is still in progress. The build evidence and checks are recorded in the [verification log](#verification-log).
+The API reference, quickstart, all five core user guides, and resource pages are complete, but the documentation migration is still in progress. The Count distributions update is uncommitted and awaiting review. The build evidence and checks are recorded in the [verification log](#verification-log).
 
 ## Starting point
 
@@ -65,7 +66,7 @@ For each page, read the existing prose first, update the example and its interpr
 - [x] `docs/user_guide/inference.md`: evaluate fitted policies with the current API while preserving the intentional booking-information variant, aligned draws, comparisons, and inference figures.
 - [x] `docs/user_guide/multiple_decisions.md`: preserve the promotion story and explain joint fitting with explicit information parents and memory.
 - [x] `docs/resources/common_pitfalls.md`: retain the existing indexing and parent-effect diagnostics, and add standalone examples for state indices, joint draws, and changing fitted policies.
-- [ ] `docs/resources/count_distributions.md`: update standalone examples and diagnostics, and remove obsolete solver advice while retaining relevant modeling and inference limits.
+- [x] `docs/resources/count_distributions.md`: update standalone examples and diagnostics, and remove obsolete solver advice while retaining relevant modeling and inference limits.
 - [ ] `docs/index.md`, `docs/getting_started/installation.md`, and `README.md`: align claims, quick examples, links, and terminology with the updated guides. Keep the README example consistent with the quickstart.
 - [ ] Review excluded tutorial drafts for stale references and record remaining work separately. Keep unreviewed tutorials excluded; publishing or rewriting them is outside this migration's initial scope.
 - [ ] Finalize `design/documentation_plan.md` when the migration is complete. The new API structure and current migration status are already recorded there. Check `docs/README.md` if build instructions change.
@@ -74,7 +75,7 @@ For each page, read the existing prose first, update the example and its interpr
 
 - [ ] Re-run figure scripts affected by example changes and visually inspect their outputs. Confirm their parameters match the corresponding pages.
 - [ ] Search published sources, docstrings, and figure scripts for removed names, solver-selection claims, outdated defaults, and deterministic-policy assumptions. Check remaining matches in context.
-- [ ] Build with warnings treated as errors and force every published example to execute, following [the build instructions](../docs/README.md):
+- [x] Build with warnings treated as errors and force every published example to execute, following [the build instructions](../docs/README.md):
 
   ```bash
   uv run sphinx-build -W -E -a -D nb_execution_mode=force docs docs/_build/html
@@ -261,6 +262,16 @@ Updated on 2026-10-27. Retained the table-indexing and parent-effect sections, c
 - Checked **112 local links and anchors** and **one image reference** in the rendered page. All resolve.
 - Ruff lint, formatting, type checks, and `git diff --check` pass. No library code, figure scripts, or image assets changed. Runtime verification used direct section execution and Sphinx notebook execution.
 
+### Count distributions update
+
+Completed on 2026-10-27 without committing. The capacity decision now declares `TabularSoftmax()`, and the example uses the current `Solution.render()` interface. Added a variant that chooses capacity after observing the customer count, using an explicit information arc and `LinearSoftmax`. Its fitted policy is evaluated with an observed Poisson count. The page separates policy-family information requirements from the enumeration requirements for counts left unknown during posterior inference.
+
+- All **seven code cells** execute successfully, both directly and through Sphinx. The original policy favours capacity **20**, with probability about **0.999**, and estimates expected profit at **39.99**. The count-informed policy favours capacity **10** for **8** waiting customers and **20** for **16**. Evaluating the latter queue gives a rounded mean profit of **60.0**.
+- The sampling example estimates mean arrivals at **12.0541** and the probability of at least twenty arrivals at **0.0238**. The rate example gives a posterior mean of about **2.524**, and the alarm example gives a mean defect count of **3.0672**. Existing numerical-count, fixed-support, and unsupported-domain explanations are preserved.
+- The strict full build with fresh Sphinx processing and forced execution succeeds with **no Sphinx warnings**. All published notebooks execute without errors. Logs: `docs/_build/count-distributions-update.log` and `docs/_build/count-distributions-example-check.log`.
+- Checked **118 local links and anchors** and **one image reference** in the rendered page. All resolve.
+- Ruff lint, formatting, type checks, and `git diff --check` pass. No library code, figure scripts, or image assets changed. Runtime verification used direct page execution and Sphinx notebook execution.
+
 ## Next step
 
-Migrate `docs/resources/count_distributions.md` to address the remaining notebook failure. The site overview, README, installation review, and final verification checklist items follow separately.
+Review the uncommitted Count distributions update, then update the site overview and README, review installation guidance, and complete the remaining final verification checklist items.
