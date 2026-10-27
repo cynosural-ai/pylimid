@@ -128,7 +128,19 @@ for steps, seed in ((100, 0), (500, 0), (500, 1)):
 
 All three runs favour orders of 80 and 200, but after 100 updates their probabilities are only about 55% and 68%. After 500 updates, both are above 98%.
 
-A good habit before relying on a result is to solve it several times with different `rng_key` values. If the policy changes, some actions may be nearly as good as each other, or training may need more samples per update (`num_samples`) or more updates (`num_steps`).
+```{admonition} Choosing a training budget
+:class: info
+
+More samples, more updates and different random keys help in different ways:
+
+- Increase `num_samples` to reduce noise in each training gradient estimate. This also makes the final expected-utility estimate more precise.
+- Increase `num_steps` to give the optimizer more opportunities to improve the policy. More updates do not guarantee a better result.
+- Try several `rng_key` values to check how consistently training finds similar policies and obtain candidates to compare.
+
+When actions have similar expected payoffs, variation between simulated scenarios can make their differences hard to learn. It can be useful to try several random keys alongside a larger training budget.
+
+Compare the fitted action probabilities and evaluate candidate policies on fresh scenarios with {py:func}`infer`, as described in [Inference](inference.md). Use enough evaluation draws to distinguish differences that matter for the decision. More evaluation draws improve our estimate of an existing policy's utility. Improving the policy itself requires training.
+```
 
 ### What if a situation never appears?
 

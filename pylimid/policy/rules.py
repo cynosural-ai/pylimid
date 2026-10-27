@@ -24,8 +24,9 @@ type ActionTable = dict[tuple[int, ...], int]
 #: A contingent rule for one decision: an `ActionTable`, a deterministic function,
 #: or a fitted stochastic `CategoricalPolicy`. Functions receive the decision's
 #: declared information parents by keyword and return a scalar integer action index
-#: as a Python ``int`` or JAX array. Functions must be JAX-traceable. Functions and
-#: fitted rules currently support forward evaluation without chance-node evidence.
+#: as a Python ``int`` or JAX array. Functions must be JAX-traceable and support
+#: forward evaluation only. Fitted rules support forward evaluation and posterior
+#: conditioning on chance-node evidence.
 type DecisionRule = ActionTable | Callable[..., int | jax.Array] | CategoricalPolicy
 
 #: Decision names mapped to fixed action indices or contingent `DecisionRule` values.
@@ -37,7 +38,8 @@ type Policy = Mapping[str, int | DecisionRule]
 #: The joint policy returned by `solve`: decision names mapped exclusively to fitted
 #: stochastic `CategoricalPolicy` rules. Each rule retains its family, parameters,
 #: information metadata, and action labels. Pass this mapping directly to `infer`
-#: for forward evaluation; actions remain stochastic under the fitted rules.
+#: for forward evaluation or conditioning on chance-node evidence. Action
+#: probabilities contribute to the joint model during posterior inference.
 type FittedPolicy = dict[str, CategoricalPolicy]
 
 
@@ -47,8 +49,9 @@ class CategoricalPolicy:
     A fitted categorical rule with parameters, local information, and action labels.
 
     `CategoricalPolicy.probabilities` inspects the action distribution;
-    `CategoricalPolicy.sample` samples an action with an explicit random key. Forward
-    evaluation through ``infer(policy=...)`` preserves its stochastic behavior.
+    `CategoricalPolicy.sample` samples an action with an explicit random key.
+    Evaluation through ``infer(policy=...)`` preserves its stochastic behavior;
+    conditioning includes its action probabilities in the joint model.
     Taking the largest probability defines a different policy requiring evaluation.
 
     Observation methods accept one information assignment by keyword. Categorical

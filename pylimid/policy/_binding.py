@@ -46,8 +46,8 @@ def bind_policy_rules(
             incomplete table or invalid action.
         KeyError: If a policy names a node outside the snapshot.
         ValueError: If a table policy has a parent without named finite states.
-        NotImplementedError: If functions or fitted rules are combined with
-            observed chance-node evidence.
+        NotImplementedError: If function policies are combined with observed
+            chance-node evidence.
     """
     nodes = dict(snapshot.nodes)
     node_map = {
@@ -78,10 +78,6 @@ def bind_policy_rules(
                 raise InferenceError(
                     f"Policy for {name!r} has incompatible information "
                     "or action states."
-                )
-            if has_chance_evidence:
-                raise NotImplementedError(
-                    "Fitted categorical policies support forward evaluation only."
                 )
             rules[name] = rule
             continue

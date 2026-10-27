@@ -16,6 +16,7 @@ import numpyro
 import numpyro.distributions as dist
 
 from pylimid._numpyro.distributions import is_zero_count, validate_chance_distribution
+from pylimid._numpyro.policies import policy_distribution
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.nodes import ChanceNode, DecisionNode, UtilityNode
 from pylimid.policy import CategoricalPolicy
@@ -31,10 +32,11 @@ def build_model(
     Build a NumPyro model using a validated snapshot and bound decision rules.
 
     The model walks nodes in topological order and resolves parents from upstream
-    values. Unobserved discrete distributions that support enumeration carry
-    parallel-enumeration metadata; observed chance nodes and fixed decisions are
-    clamped. Numerical counts permitting only zero are clamped exactly. Utilities
-    are evaluated separately by the sampling layer.
+    values. Unobserved discrete chance nodes and fitted categorical decisions carry
+    parallel-enumeration metadata when their distributions support enumeration;
+    observed chance nodes and fixed decisions are clamped. Numerical counts
+    permitting only zero are clamped exactly. Utilities are evaluated separately by
+    the sampling layer.
 
     Args:
         snapshot: A validated, topologically ordered diagram snapshot.
@@ -48,12 +50,14 @@ def build_model(
 
     Raises:
         ValueError: If a chance distribution conflicts with its declared states
-            when the returned model executes.
+            or fitted policy inputs have incompatible shapes when the returned
+            model executes.
 
     Note:
         Enumeration may add dimensions to parent values. Index multi-parent
         probability tables as ``T[a, b]`` rather than ``T[a][b]`` to preserve
-        NumPyro's posterior weights.
+        NumPyro's posterior weights. Fitted policies broadcast these leading
+        dimensions while preserving each parent's fitted value shape.
     """
     nodes = snapshot.nodes
 
@@ -68,7 +72,9 @@ def build_model(
                     rule = policy_rules[name]
                     if isinstance(rule, CategoricalPolicy):
                         values[name] = numpyro.sample(
-                            name, rule._distribution(parent_values)
+                            name,
+                            policy_distribution(rule, parent_values),
+                            infer={"enumerate": "parallel"},
                         )
                     else:
                         value = rule(**parent_values)

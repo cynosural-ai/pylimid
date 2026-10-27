@@ -28,7 +28,7 @@ figures = [
         "recommended_policy_profit.png",
     ),
     (
-        namespace["sunny_profit"],
+        namespace["sunny_profit"].values,
         "Profit on a sunny day with high hotel bookings",
         "sunny_policy_profit.png",
     ),

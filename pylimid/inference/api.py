@@ -35,26 +35,36 @@ def infer(
     integer action clamps it, while a table policy selects an action from its
     information-set assignment. A deterministic function can select an action from
     continuous or mixed observations during forward evaluation. A fitted
-    `CategoricalPolicy` samples actions using its learned probabilities.
-    Functions and fitted stochastic rules support forward evaluation only. A decision
-    outside the relevant ancestors needs no policy.
+    `CategoricalPolicy` supplies a conditional action distribution using its learned
+    probabilities, supporting both forward evaluation and conditioning on chance
+    evidence. Its information parents may be categorical, continuous, or mixed.
+    Function policies support forward evaluation only. A decision outside the
+    relevant ancestors needs no policy.
+
+    Under fitted policies, evidence downstream of a decision updates beliefs about
+    its action and information parents. Fitted parameters stay fixed, and each rule
+    uses only its declared information parents. Decisions remain internal variables;
+    queries return chance variables and utilities.
 
     A utility in *query* is computed from its parents in every draw, which
     gives the distribution of the payoff under the bound actions and the
     evidence. Utilities never affect the posterior of other variables.
 
     With no observed chance node, draws come from forward sampling. With evidence,
-    NumPyro uses exact enumeration for categorical variables and supported finite
-    counts, and NUTS when continuous latents remain. Scalar count latents require
-    NumPyro enumeration of a fixed integer range starting at zero. For Binomial, use a
-    Python integer ``total_count``; probabilities may depend on other variables.
+    NumPyro uses exact enumeration for categorical chance variables, fitted actions,
+    and supported finite counts, and NUTS when continuous latents remain. Scalar
+    count latents require NumPyro enumeration of a fixed integer range starting at
+    zero. For Binomial, use a Python integer ``total_count``; probabilities may depend
+    on other variables.
     Unbounded, shifted and batched count latents remain unsupported. NumPyro and JAX
     report errors if enumeration bounds are non-static, including parent-dependent
     trial counts. Counts with only one possible value, zero, are clamped exactly.
     Returned draws and their summaries are Monte Carlo estimates in all cases.
 
     The whole diagram is validated before selecting the relevant nodes. Chance
-    distributions and utility functions must be JAX-traceable.
+    distributions and utility functions must be JAX-traceable. Custom policy
+    families must also support JAX transformations and differentiation with respect
+    to continuous latent information used in the likelihood for NUTS.
 
     Args:
         diagram: The influence diagram to query. Validation runs automatically.
@@ -67,13 +77,14 @@ def infer(
             tables mapping parent-state tuples to action indices, JAX-traceable
             deterministic functions, or fitted `CategoricalPolicy` rules.
             Functions accept information parents by keyword and return a scalar
-            integer action index.
-            Functions and fitted rules support forward evaluation only, without
-            observed chance nodes. A table maps each
-            tuple of parent-state indices, in the decision's ``parents`` order, to an
-            action index in its ``states``. A decision with no parents uses ``()`` as
-            its table key. Every decision that is an ancestor of a query or observed
-            node must appear.
+            integer action index; they support forward evaluation only, without
+            observed chance nodes. Fitted rules contribute their conditional action
+            probabilities to forward sampling and posterior conditioning.
+            Numerical information parents retain their fitted scalar or array shapes.
+            A table maps each tuple of parent-state indices, in the decision's
+            ``parents`` order, to an action index in its ``states``. A decision with
+            no parents uses ``()`` as its table key. Every decision that is an
+            ancestor of a query or observed node must appear.
         num_samples: Number of posterior draws per query variable. NUTS
             runs 500 warmup steps before them.
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``, so
@@ -98,9 +109,9 @@ def infer(
             diagram.
         ValueError: If the diagram fails `InfluenceDiagram.validate`, or a table policy
             has an information-set parent without named states, or a relevant chance
-            distribution conflicts with its ``states``.
-        NotImplementedError: If a relevant function or fitted stochastic policy uses
-            chance-node evidence.
+            distribution conflicts with its ``states``, or fitted policy inputs have
+            incompatible shapes.
+        NotImplementedError: If a relevant function policy uses chance-node evidence.
     """
     observed = observed or {}
     policy = policy or {}
@@ -165,7 +176,8 @@ def _validate_query(snapshot, query: list[str]) -> None:
         if node.kind is NodeKind.DECISION:
             raise InferenceError(
                 f"query= names chance and utility nodes only; {name!r} is a "
-                "decision node. Decisions are clamped by policy=, not inferred."
+                "decision node. Bind decision behavior with policy= and query "
+                "chance variables or utilities."
             )
 
 

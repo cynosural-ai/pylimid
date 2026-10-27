@@ -38,7 +38,7 @@ The following aliases distinguish a rule for one decision from a mapping of rule
    :canonical: pylimid.policy.rules.DecisionRule
    :type: ActionTable | collections.abc.Callable[..., int | jax.Array] | CategoricalPolicy
 
-   A contingent rule for one decision: a deterministic `ActionTable`, a deterministic function or a fitted stochastic `CategoricalPolicy`. A function accepts its information parents by keyword and returns a scalar integer action index as a Python ``int`` or JAX array. It must be JAX-traceable. Functions and fitted rules support forward evaluation without chance-node evidence.
+   A contingent rule for one decision: a deterministic `ActionTable`, a deterministic function or a fitted stochastic `CategoricalPolicy`. A function accepts its information parents by keyword and returns a scalar integer action index as a Python ``int`` or JAX array. It must be JAX-traceable and supports forward evaluation only. Fitted rules also support conditioning on chance-node evidence.
 
 .. py:data:: Policy
    :canonical: pylimid.policy.rules.Policy
@@ -50,7 +50,7 @@ The following aliases distinguish a rule for one decision from a mapping of rule
    :canonical: pylimid.policy.rules.FittedPolicy
    :type: dict[str, CategoricalPolicy]
 
-   The joint policy returned by `solve`, containing a fitted stochastic rule for every decision. Each rule retains its family, parameters, information metadata and action labels. Pass the mapping directly to ``infer(policy=solution.policy)`` for forward evaluation; its actions remain stochastic.
+   The joint policy returned by `solve`, containing a fitted stochastic rule for every decision. Each rule retains its family, parameters, information metadata and action labels. Pass the mapping directly to ``infer(policy=solution.policy)`` for forward evaluation or combine it with ``observed=`` to condition on chance-node evidence. Its action probabilities contribute to the joint model.
 
 Family inputs and parameters
 ----------------------------

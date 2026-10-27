@@ -56,8 +56,9 @@ def solve(
 
     Fresh complete scenarios supply score-function gradients for Adam updates. The
     returned policy is the final training iterate, evaluated on independent scenarios.
-    Its actions remain stochastic during forward evaluation with `infer`. Training
-    has no global or local optimality guarantee, even within the declared families.
+    Pass the policy to `infer` for forward evaluation or conditioning on chance-node
+    evidence. Its action probabilities contribute to the joint model. Training has
+    no global or local optimality guarantee, even within the declared families.
 
     Chance distributions and utility functions must be JAX-traceable. Use ``jnp``
     operations rather than Python conditionals or casts on sampled values.

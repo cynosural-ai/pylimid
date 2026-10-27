@@ -119,16 +119,16 @@ recommended_profit = infer(
 round(recommended_profit.mean().item(), 1)
 ```
 
-The result is a {py:class}`Posterior` object whose `values` are a JAX array containing the profit draws. Each draw represents the profit on one possible day (i.e., the model draws values for weather, `busyness`, hotel bookings and demand, and the policy samples an order from its fitted probabilities).
+The result is a {py:class}`Posterior` object whose `values` are a JAX array containing the profit draws. Each draw represents the profit on one possible day (i.e., the model draws values for weather, `busyness`, hotel bookings and demand, and the policy samples an order from its fitted probabilities). When we query several nodes in the same call, values at the same position in their arrays describe the same day.
 
-Numerical summaries such as `mean()` also return JAX arrays. For this scalar profit node, the mean is a zero-dimensional array; `.item()` converts it to a Python number for display above.
+Numerical summaries such as `mean()` also return JAX arrays. For this scalar profit node, the mean is a zero-dimensional array. `.item()` converts it to a Python number for display above.
 
 Here `num_samples` is the number of days to simulate. `rng_key` controls their randomness and defaults to a fixed key, so repeated calls with the same model and settings are reproducible.
 
 ```{admonition} Why the estimates differ
 :class: info
 
-Here {py:func}`solve` estimates an expected profit of \$632, while {py:func}`infer` estimates \$634, both under the same policy. This small mismatch comes from using different simulated days.
+Here {py:func}`solve` estimates an expected profit of \$626.5, while {py:func}`infer` estimates \$631.2, both under the same policy. This small mismatch comes from using different simulated days.
 ```
 
 If we plot the resulting draws, we get the following long-tailed distribution:
@@ -138,7 +138,7 @@ If we plot the resulting draws, we get the following long-tailed distribution:
 :width: 90%
 ```
 
-The spikes at \$720 and \$2,340 correspond to selling all 80 ice creams on a cloudy day or all 260 ice creams on a sunny day. However, once the shop sells out, higher demand cannot increase that day's profit.
+The main spikes at \$720 and \$2,340 correspond to selling all 80 ice creams on a cloudy day or all 260 ice creams on a sunny day, the orders favoured by the fitted policy. Once the shop sells out, higher demand cannot increase that day's profit.
 
 ### What if today is sunny and hotel bookings are high?
 
@@ -162,23 +162,22 @@ report_solution = solve(report_diagram)
 print(report_solution.render())
 ```
 
-We can now use {py:func}`infer` to see the distribution of profits for sunny days with high bookings under that policy. Fitted policies currently support forward simulation without `observed`, so we draw weather, bookings and profit together, then keep the days matching the report. Values at the same position in each array belong to the same simulated day:
+We can now use {py:func}`infer` to see the distribution of profits for sunny days with high bookings under that policy. We pass both observations through `observed`, using state index `1` for `"sunny"` and `"high"`:
 
 ```{code-cell} ipython3
-report_draws = infer(
+sunny_profit = infer(
     report_diagram,
-    query=["weather", "bookings", "profit"],
+    query=["profit"],
+    observed={"weather": 1, "bookings": 1},
     policy=report_solution.policy,
     num_samples=50_000,
-)
-sunny_high = (report_draws["weather"].values == 1) & (
-    report_draws["bookings"].values == 1
-)
-sunny_profit = report_draws["profit"].values[sunny_high]
+)["profit"]
 round(sunny_profit.mean().item(), 1)
 ```
 
-The new policy recommends ordering 280 ice creams, with an estimated average profit of about \$1,310. We can also see the distribution of profits for that day:
+These 50,000 draws describe days consistent with both observations. `infer` uses the policy's learned action probabilities when conditioning the model. We can also combine fitted policies with `observed` when their information parents are continuous or mixed.
+
+For sunny days with high bookings, the fitted rule assigns about 70% probability to ordering 260 ice creams. Its probabilities are less concentrated than in the other rows, and this combination of weather and bookings appears less often during training. The estimated average profit is about \$1,309. We can also see the distribution of profits for that day:
 
 ```{figure} /_static/figures/inference/sunny_policy_profit.png
 :alt: Histogram of profit on a sunny day with high hotel bookings under the policy that uses both variables, with a line marking its mean.
@@ -199,7 +198,7 @@ alternative_profit = infer(
 round(alternative_profit.mean().item(), 1)
 ```
 
-The mean of these draws gives an estimated expected profit of about \$562, compared with \$634 under the recommended policy. We can also compare both distributions, using no observations in either case:
+The mean of these draws gives an estimated expected profit of about \$562, compared with \$631 under the recommended policy. We can also compare both distributions, using no observations in either case:
 
 ```{figure} /_static/figures/inference/policy_comparison.png
 :alt: Histograms comparing profit under the recommended weather-based policy and a fixed order of 160 ice creams, with lines marking their means.
@@ -237,3 +236,5 @@ To estimate the probability of running out, we count how many demand draws excee
 stockout_probability = (sunny_demand.values > 150).mean()
 f"{stockout_probability:.1%}"
 ```
+
+Under this model, demand exceeds the available stock on about 43% of sunny days.

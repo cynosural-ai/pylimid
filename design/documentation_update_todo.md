@@ -12,11 +12,11 @@ Update the existing documentation for the policy-gradient-only API, preserving t
 | Building a diagram | Complete. Uses `TabularSoftmax`, retains the construction and editing examples, and executes successfully. |
 | Distributions and utilities | Complete. The combined and split utility models produce matching fitted probabilities and expected profit. |
 | Solving a diagram | Complete. Fitted-policy summaries, training comparisons, wider order menu, cart coordination, and continuous information examples execute successfully. |
-| Inference | Next. Update fitted-policy evaluation and the sunny/high-bookings scenario within the current support boundaries. |
+| Inference | Complete. Uses fitted policies with direct chance-node conditioning, and the examples, figures, and API-reference boundaries have been checked. |
 | Remaining guides, resources, README, and figures | Pending. Follow the page-by-page checklist below. |
-| Full strict documentation build | Failing with six warnings: notebook failures and paired traceback warnings in Inference, Multiple decisions, and Count distributions. |
+| Full strict documentation build | Failing with four warnings: notebook failures and paired traceback warnings in Multiple decisions and Count distributions. The inference page executes without warnings. |
 
-The API reference, quickstart, and first three user guides are complete, but the documentation migration is still in progress. The current Solving update is uncommitted. The build evidence and checks are recorded in the [verification log](#verification-log).
+The API reference, quickstart, and first four user guides are complete, but the documentation migration is still in progress. The build evidence and checks are recorded in the [verification log](#verification-log).
 
 ## Starting point
 
@@ -49,7 +49,7 @@ The API reference now covers the current contract. Unchecked items in this secti
 - [ ] Update errors and examples for `InferenceError`, `SolveError`, and configuration `ValueError`s according to the implementation.
 - [ ] Repair imports and cross-references for the graph, diagram, node, and policy packages. Keep internal helpers out of the public API reference.
 - [ ] Explain that fitted actions remain stochastic, expected utility is estimated on independent scenarios, and training gives no convergence or optimality guarantee. Distinguish evaluation noise from policy quality and explain poorly visited or impossible tabular rows where relevant.
-- [ ] Preserve the current inference and distribution boundaries: finite categorical actions, JAX-traceable functions, explicit information and memory arcs, count-support limits, and unsupported posterior inference through relevant function or fitted policy rules.
+- [ ] Preserve the current inference and distribution boundaries: finite categorical actions, JAX-traceable functions, explicit information and memory arcs, count-support limits, posterior conditioning through fitted categorical policies, and forward-only evaluation of supplied deterministic function policies.
 
 ## Page-by-page work
 
@@ -60,7 +60,7 @@ For each page, read the existing prose first, update the example and its interpr
 - [x] `docs/user_guide/building_a_diagram.md`: introduce the required decision configuration while preserving the build, validate, and draw progression.
 - [x] `docs/user_guide/distributions_and_utilities.md`: check model consistency, JAX requirements, inference claims, examples, and demand figures.
 - [x] `docs/user_guide/solving.md`: explain fitting a policy, choosing a family, controlling training and evaluation, reading stochastic results, and checking the expanded order menu.
-- [ ] `docs/user_guide/inference.md`: evaluate fitted policies with the current API while preserving the intentional booking-information variant, aligned draws, comparisons, and inference figures.
+- [x] `docs/user_guide/inference.md`: evaluate fitted policies with the current API while preserving the intentional booking-information variant, aligned draws, comparisons, and inference figures.
 - [ ] `docs/user_guide/multiple_decisions.md`: preserve the promotion story and explain joint fitting with explicit information parents and memory.
 - [ ] `docs/resources/common_pitfalls.md` and `docs/resources/count_distributions.md`: update standalone examples and diagnostics; remove obsolete solver advice while retaining relevant modeling and inference limits.
 - [ ] `docs/index.md`, `docs/getting_started/installation.md`, and `README.md`: align claims, quick examples, links, and terminology with the updated guides. Keep the README example consistent with the quickstart.
@@ -220,6 +220,23 @@ Completed on 2026-10-26 without committing. Updated the shared model, fitted-rul
 - The page produces no warnings. The strict full build now exits with code **1** and **six warnings**, all from the remaining Inference, Multiple decisions, and Count distributions notebook failures and their traceback reports. Removed-name references no longer produce warnings. Log: `docs/_build/solving-update.log`.
 - Checked **116 local page and anchor links** and **three image references**; all resolve. Ruff lint, formatting, type checks, and `git diff --check` pass. No library code or figure scripts changed.
 
+### Inference update
+
+Updated on 2026-10-27. The sunny/high-bookings scenario now passes `observed={"weather": 1, "bookings": 1}` together with the fitted policy and obtains 50,000 conditional profit draws directly. The hotel-report information arc and refitting example remain, along with the original weather-based policy, fixed-order comparison, and sunny-day stockout question. The page explains aligned draws and support for fitted rules with continuous or mixed information. The inference and policy API pages now describe the same support boundary.
+
+- All **nine code cells** execute successfully, with no notebook errors or inference-page warnings. Verified the displayed policy probabilities and numerical outputs against the executed notebook.
+- The original policy's independently estimated expected profit is **626.50**, and the inference draws estimate **631.16**. For sunny days with high bookings, the refitted rule assigns about **70%** probability to ordering **260** ice creams and the conditional mean profit is **1309.28**. The fixed-order comparison estimates **562.20**, sunny-day demand averages **150.44**, and the stockout probability is **43.0%**. Prose and figure labels use the corresponding rounded values.
+- Regenerated and visually inspected all four inference figures. The recommended-profit and sunny/high-bookings images changed. The comparison and sunny-demand images are unchanged. The plotting script now reads conditional profit draws from their `Posterior` object. Log: `docs/_build/inference-conditioning-figures.log`.
+- The strict full build with forced notebook execution exits with code **1** and **four warnings**, all from the pending Multiple decisions and Count distributions notebook failures and their traceback reports. Log: `docs/_build/inference-conditioning-build.log`. The subsequent incremental build of the updated API references succeeds without warnings. Log: `docs/_build/inference-conditioning-api-build.log`.
+- Checked **113 local links and anchors** and **seven image references** in the rendered inference page. All resolve.
+- Full test suite: **410 passed**. Ruff lint, formatting, type checks, and `git diff --check` pass. Test log: `docs/_build/inference-conditioning-tests.log`. No library code changed.
+
+### Solving training-budget advice
+
+Added on 2026-10-27. Expanded the existing reliability advice into an info box distinguishing samples per training update, number of updates, and independent random keys. It recommends comparing fitted action probabilities and evaluating candidate policies on fresh scenarios, while distinguishing evaluation precision from policy improvement. The advice is general and includes no results from the separate training-budget experiments.
+
+The Solving guide executes without errors, and the info box and its API and guide links render correctly. The full build retains the same four warnings from Multiple decisions and Count distributions. Log: `docs/_build/solving-training-advice-build.log`. No example code or library code changed.
+
 ## Next step
 
-Update `docs/user_guide/inference.md` for fitted stochastic policies, preserving the questions about recommended profit, an alternative order, and sunny-day demand. Adapt the sunny/high-bookings profit scenario through a supported representation: relevant fitted policies cannot currently be combined with observed chance-node evidence. Re-run the examples and regenerate affected figures without replacing the fitted rules with deterministic actions.
+Continue with `docs/user_guide/multiple_decisions.md`, preserving the promotion story and explicit-memory lesson while adapting it to joint stochastic policy fitting. Count distributions and the remaining checklist items follow separately.
