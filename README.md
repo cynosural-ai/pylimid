@@ -18,13 +18,14 @@ Rather than requiring every chance and utility node to be represented as a table
 - **Flexible distributions.** A chance node is a NumPyro distribution whose parameters can be any JAX expression of its parents, so you are not limited to a conditional probability table.
 - **Bayesian priors.** Represent uncertain model parameters as chance nodes with prior distributions.
 - **Utilities as functions.** A utility is a Python function of its parents written with JAX, so it can express thresholds, nonlinearities, or risk preferences instead of a lookup table.
+- **Policy fitting.** Policy gradient jointly fits the decision rules within declared policy families. Decisions can use categorical observations, numerical observations, or both, depending on the family.
 - **Mixed inference.** Posteriors use exact enumeration for categorical nodes and supported finite counts, and MCMC sampling (NUTS) for continuous ones. Numerical counts also support forward simulation and observed likelihoods.
 
 ## Limitations
 
-- **Decisions are discrete.** A decision node must choose among a finite set of actions, and tabular policies require information-set parents with named finite states. Continuous decisions and numerical counts as policy-table inputs are not yet supported.
+- **Decisions are discrete.** A decision node must choose among a finite set of actions. `TabularSoftmax` requires information parents with named finite states, while `LinearSoftmax` and custom families can use numerical observations.
 - **Count posteriors need fixed enumerable support.** Scalar Binomial counts with a concrete number of trials are supported. Unknown unbounded counts, shifted ranges and batched counts remain unsupported. Parent-dependent bounds do not have a supported enumeration path.
-- **Results are approximate.** Inference and solving both return Monte Carlo estimates rather than exact answers, and they get more precise with more samples. For purely discrete diagrams, an exact solver like [pyAgrum](https://pyagrum.readthedocs.io) is the better choice.
+- **Results are approximate.** Inference summaries and expected utility are estimated from samples. More evaluation samples reduce estimation noise, while policy quality also depends on the chosen family and training. Training does not guarantee an optimal policy. For discrete diagrams that meet its solver's requirements, consider [pyAgrum](https://pyagrum.readthedocs.io) when you need an exact solution.
 
 ## Installation
 
@@ -34,14 +35,14 @@ PyLIMID uses Python 3.12. Installing it also pulls in NumPyro and JAX:
 pip install pylimid
 ```
 
-By default, JAX is installed in its CPU-only version. If you have an NVIDIA GPU, install the extra that matches your CUDA version:
+The default installation uses the CPU. For NVIDIA GPUs on Linux (x86_64 or aarch64), choose a CUDA extra compatible with your GPU and NVIDIA driver:
 
 ```bash
 pip install "pylimid[cuda12]"  # CUDA 12
 pip install "pylimid[cuda13]"  # CUDA 13
 ```
 
-They do not support native Windows or macOS. See the [JAX installation guide](https://docs.jax.dev/en/latest/installation.html) for GPU and driver requirements.
+These extras install the CUDA libraries automatically. They do not support native Windows or macOS. GPU support under Windows WSL2 is experimental. See the [JAX installation guide](https://docs.jax.dev/en/latest/installation.html) for GPU and driver requirements.
 
 ## Example
 
@@ -53,7 +54,14 @@ We express that belief with a Bayesian prior on a positive `busyness` multiplier
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
-from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, solve
+from pylimid import (
+    ChanceNode,
+    DecisionNode,
+    InfluenceDiagram,
+    TabularSoftmax,
+    UtilityNode,
+    solve,
+)
 
 WEATHER_STATES = ("cloudy", "sunny")
 DEMAND_MEANS = jnp.array([40.0, 120.0])
@@ -93,21 +101,23 @@ diagram.add_node(
 )
 diagram.add_node(
     DecisionNode(
-        name="order", parents=("weather",), states=tuple(str(n) for n in ORDERS)
+        name="order",
+        parents=("weather",),
+        states=tuple(str(n) for n in ORDERS),
+        policy_family=TabularSoftmax(),
     )
 )
 diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=profit))
 
-solution = solve(diagram, num_samples=50_000)
-for info, action in solution.policy["order"].items():
-    print(f"{WEATHER_STATES[info[0]]}: stock {int(ORDERS[action])}")
-# cloudy: stock 80
-# sunny: stock 200
+solution = solve(diagram)
+print(solution.render())
 ```
 
 `weather` is a discrete chance node, `busyness` and `demand` are continuous ones, `order` is the decision, and `profit` is the utility. The decision's parents are what is known when it is made, so `order` sees the weather while `busyness` and `demand` remain unknown. Note that `order` is the index of the chosen action, which is why `profit` looks the stock level up in `ORDERS`.
 
-The shop should stock far more than the average demand: a missed sale loses \$9 of margin, while a leftover ice cream only costs \$1. The sunny-day order reaches the maximum possible order of 200. The [quickstart](https://pylimid.readthedocs.io/en/latest/getting_started/quickstart.html) walks through this example step by step.
+`TabularSoftmax` learns a separate set of action probabilities for each weather forecast. The fitted rule puts most probability on stocking 80 ice creams on cloudy days and 200 on sunny days. Following it means sampling an order from those probabilities, and the displayed expected profit estimates the result of following the whole rule.
+
+These stock levels are far above average demand: a missed sale loses \$9 of margin, while a leftover ice cream only costs \$1. The most likely sunny-day order reaches the menu's maximum of 200. The [quickstart](https://pylimid.readthedocs.io/en/latest/getting_started/quickstart.html) walks through this example step by step, and the [Solving guide](https://pylimid.readthedocs.io/en/latest/user_guide/solving.html) explores a wider menu and training settings.
 
 ## Documentation
 

@@ -4,11 +4,11 @@ from typing import Any
 
 import pytest
 
-from pylimid.graph.chance_node import ChanceNode
-from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import InfluenceDiagram
+from pylimid.graph.nodes.chance_node import ChanceNode
+from pylimid.graph.nodes.decision_node import DecisionNode
+from pylimid.graph.nodes.utility_node import UtilityNode
 from pylimid.graph.render import graphviz as graphviz_render
-from pylimid.graph.utility_node import UtilityNode
 
 # --- helpers ----------------------------------------------------------------
 

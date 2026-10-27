@@ -9,12 +9,13 @@ Rather than requiring every chance and utility node to be represented as a table
 - **Flexible distributions.** A chance node is a NumPyro distribution whose parameters can be any JAX expression of its parents, so you are not limited to a conditional probability table.
 - **Bayesian priors.** Represent uncertain model parameters as chance nodes with prior distributions.
 - **Utilities as functions.** A utility is a Python function of its parents written with JAX, so it can express thresholds, nonlinearities, or risk preferences instead of a lookup table.
+- **Policy fitting.** {py:func}`solve` uses policy gradient to jointly fit the decision rules within declared policy families. Decisions can use categorical observations, numerical observations, or both, depending on the family.
 - **Mixed inference.** Posteriors use exact enumeration for categorical nodes and supported finite counts, and MCMC sampling (NUTS) for continuous ones. Numerical counts support forward simulation and observed likelihoods, but unbounded count latents remain unsupported.
 
 ## Limitations
 
 - **Decisions are discrete.** A decision node must choose among a finite set of actions (continuous decisions are not *yet* supported).
-- **Results are approximate.** Inference and solving both return Monte-Carlo estimates rather than exact answers, and they get more precise with more samples. For purely discrete diagrams, an exact solver like [pyAgrum](https://pyagrum.readthedocs.io) is the better choice.
+- **Results are approximate.** Inference summaries and expected utility are estimated from samples. More evaluation samples reduce estimation noise, while policy quality also depends on the chosen family and training. Training does not guarantee an optimal policy. The [Solving guide](user_guide/solving.md#how-much-can-we-trust-the-result) explains how to assess fitted policies. For discrete diagrams that meet its solver's requirements, consider [pyAgrum](https://pyagrum.readthedocs.io) when you need an exact solution.
 
 ```{admonition} Early development
 :class: warning
@@ -111,5 +112,5 @@ resources/count_distributions
 api/index
 api/pylimid
 api/graph
-api/solvers
+api/policy
 ```

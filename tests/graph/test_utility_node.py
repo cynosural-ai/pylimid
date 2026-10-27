@@ -1,11 +1,11 @@
-"""Tests for :mod:`pylimid.graph.utility_node`."""
+"""Tests for :mod:`pylimid.graph.nodes.utility_node`."""
 
 from typing import Any
 
 import pytest
 
-from pylimid.graph.node import Consistency, NodeKind
-from pylimid.graph.utility_node import UtilityNode
+from pylimid.graph.nodes.node import Consistency, NodeKind
+from pylimid.graph.nodes.utility_node import UtilityNode
 
 # --- helpers ----------------------------------------------------------------
 

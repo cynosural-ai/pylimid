@@ -33,11 +33,12 @@ Ruff and ty also run on every commit through pre-commit.
 | Path | Contents |
 | --- | --- |
 | `pylimid/graph/` | Node types, the mutable `InfluenceDiagram`, validation, and rendering |
+| `pylimid/policy/` | Trainable families, fitted rules, and supplied-policy binding |
 | `pylimid/inference/` | Posterior queries and posterior result types |
-| `pylimid/solver/` | Policy optimisation, solver selection, and solution results |
-| `pylimid/numpyro/` | NumPyro model translation and sampling |
-| `pylimid/policy.py`, `pylimid/errors.py` | Shared policy representation and errors |
-| `tests/` | The pytest suite; fully discrete models are cross-checked against pyAgrum |
+| `pylimid/solver/` | Joint policy-gradient optimisation and fitted policy results |
+| `pylimid/_numpyro/` | Internal distribution checks, NumPyro model translation, and sampling |
+| `pylimid/errors.py` | Shared inference and optimization errors |
+| `tests/` | Graph, inference, and optimizer tests with analytic utility and gradient references |
 | `docs/` | The published Sphinx site (see `docs/README.md` for build details) |
 | `design/` | Contributor-facing decision records and design notes; not published |
 | `AGENTS.md` | Detailed code style and design conventions |
@@ -46,6 +47,8 @@ Ruff and ty also run on every commit through pre-commit.
 
 The full conventions live in [AGENTS.md](AGENTS.md); the highlights:
 
+- Internal package directories and standalone internal modules start with an underscore; modules inside an internal package can use ordinary filenames. Shared operations within internal namespaces use ordinary descriptive names and module-local helpers use leading underscores. Members of public classes or modules retain leading underscores when they are implementation details.
+- Put public and shared entry points before internal helpers. In classes, place initialization first, then public methods, then internal helpers; keep related properties and protocol methods together. Supporting types needed to construct module constants stay with those constants.
 - Google-style docstrings for every public function, method, and class.
 - Public API names in single backticks (`` `DiagramSnapshot` ``), literals in double backticks (`` ``None`` ``).
 - No comments that reference design notes, ADRs, or ticket numbers; docstrings describe what the code does, not the history of the decision.
@@ -66,7 +69,7 @@ The `-W` flag turns warnings into errors. Prose pages are Markdown; pages with e
 
 - Keep each pull request focused on one change.
 - Fill in the repository's pull request template: summary, what changed, why, and how it was tested.
-- Add or update tests for behavior changes. For discrete models, pyAgrum provides the exact reference.
+- Add or update tests for behavior changes. Use analytic expectations or exact sums on small models to verify numerical behavior.
 - Update the docs when the public API or behavior changes.
 
 ## Releases

@@ -1,9 +1,9 @@
-"""Tests for :mod:`pylimid.graph.decision_node`."""
+"""Tests for :mod:`pylimid.graph.nodes.decision_node`."""
 
 import pytest
 
-from pylimid.graph.decision_node import DecisionNode
-from pylimid.graph.node import Consistency, NodeKind
+from pylimid.graph.nodes.decision_node import DecisionNode
+from pylimid.graph.nodes.node import Consistency, NodeKind
 
 # --- construction -----------------------------------------------------------
 

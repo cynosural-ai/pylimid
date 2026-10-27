@@ -1,10 +1,20 @@
 # TODO
 
-Forward plan. The engine work is done (numpyro-only, scan + batched scan + backward induction). The focus now is to finish the discrete-decision story before reaching for continuous decisions.
+PyLIMID focuses on flexible policy-gradient optimization for mixed influence diagrams. The earlier table-solving engines and pyAgrum comparison suites have been removed from this branch.
+
+## Policy-gradient engine
+
+`solve` jointly fits `LinearSoftmax` and `TabularSoftmax` rules using declared local information and evaluates the final stochastic policy on independent scenarios. There is no solver selection. See the [optimizer design](design/solver/algorithms.md) for the implementation boundary and analytic verification.
+
+Next work includes a common trainable-family interface, custom neural families, richer baselines, checkpoint selection, and convergence diagnostics. Continuous actions remain separate.
+
+## Documentation rewrite
+
+The published guides, README examples, and API reference still describe the previous solver API and await a separate rewrite. They are intentionally not migrated as part of the engine refactor.
 
 ## Continuous decisions (later)
 
-Strategy A — continuous actions and continuous information sets — is the likely next feature. The exploration map (feasibility, difficulty axes, guarantee change, validation plan, scope ladder, and the revisit trigger) lives in `design/continuous_decisions/` (on the unmerged `docs/continuous-decisions` branch, still under the old `docs/` path).
+Real-valued actions remain a separate extension, including action domains and suitable gradient estimators. The broader exploration is on the unmerged [`docs/continuous-decisions` draft](https://github.com/cynosural-ai/pylimid/pull/41), under `design/continuous_decisions/`. Its original grouping of continuous actions and continuous information is split by the proposal above; accepting continuous observations for discrete actions does not require continuous-action support.
 
 ## Tutorial extensions (later)
 
@@ -20,13 +30,6 @@ Found while writing the user guide. Ordered by how badly they can mislead a user
   - Catch the `KeyError` and re-raise it with a hint to index in one step, `T[a, b]`.
   - Investigate a check that calls each `dist` with parent values carrying an extra leading dimension and verifies the output shape; this might catch the silent case. Untested idea.
   - When the upstream PR that improves the `KeyError` lands, revisit the note in `design/inference/backend_numpyro.md`.
-
-### Situations that never come up in the simulation
-
-A situation is one combination of a decision's parent states. When no sample lands in one, the solver can't tell whether it is rare (it can happen, but the simulation missed it) or impossible (its probability is 0, such as "test not run, result positive").
-
-- **The scan gives unseen situations an arbitrary action without saying so.** Harmless for impossible situations, but a rare one that the simulation missed also gets an arbitrary action, and nothing tells the user. It should warn like backward induction does.
-- **The scan repeats work for impossible situations.** Policies that differ only in the action for an impossible situation get identical scores, so each impossible situation multiplies the number of policies by the decision's number of actions (the `no_results` idiom in the oil field would mean 2³ = 8 times more policies for `buy`). Possible fix: a short pilot simulation finds the situations that never come up, they get one fixed action, and the scan enumerates only the rest.
 
 ### Documentation
 

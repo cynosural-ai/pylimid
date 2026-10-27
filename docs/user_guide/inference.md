@@ -17,7 +17,7 @@ A small scalar-prior example could also show how an observation updates an uncer
 
 # Inference
 
-Finding the optimal solution to a decision problem is great, but PyLIMID's capabilities do not stop there. Following the ice cream shop example, the owner may have questions beyond how much to order. For instance:
+Finding a good policy for a decision problem is great, but PyLIMID's capabilities do not stop there. Following the ice cream shop example, the owner may have questions beyond how much to order. For instance:
 
 - What is the distribution of profits when following the recommended policy?
 - What happens if the owner follows a different policy?
@@ -31,7 +31,15 @@ We use [the same influence diagram as before](solving.md), with an order menu up
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
-from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, infer, solve
+from pylimid import (
+    ChanceNode,
+    DecisionNode,
+    InfluenceDiagram,
+    TabularSoftmax,
+    UtilityNode,
+    infer,
+    solve,
+)
 
 DEMAND_MEANS = jnp.array([40.0, 120.0])
 BUSYNESS_MEAN = 1.2
@@ -79,7 +87,10 @@ diagram.add_node(
 )
 diagram.add_node(
     DecisionNode(
-        name="order", parents=("weather",), states=tuple(str(n) for n in ORDERS)
+        name="order",
+        parents=("weather",),
+        states=tuple(str(n) for n in ORDERS),
+        policy_family=TabularSoftmax(),
     )
 )
 diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=profit))
@@ -92,8 +103,8 @@ diagram
 To see the range and shape of the outcomes under the recommended policy, we first solve the diagram:
 
 ```{code-cell} ipython3
-solution = solve(diagram, num_samples=50_000)
-print(solution.render(diagram))
+solution = solve(diagram)
+print(solution.render())
 ```
 
 And then we ask {py:func}`infer` for the distribution of the `profit` node, passing the policy from the solution:
@@ -108,14 +119,16 @@ recommended_profit = infer(
 round(recommended_profit.mean().item(), 1)
 ```
 
-The result is a {py:class}`Posterior` object whose `values` are a JAX array containing the profit draws. Each draw represents the profit on one possible day (i.e., the model draws values for weather, `busyness`, hotel bookings and demand, and the policy chooses the corresponding order value).
+The result is a {py:class}`Posterior` object whose `values` are a JAX array containing the profit draws. Each draw represents the profit on one possible day (i.e., the model draws values for weather, `busyness`, hotel bookings and demand, and the policy samples an order from its fitted probabilities). When we query several nodes in the same call, values at the same position in their arrays describe the same day.
 
-Numerical summaries such as `mean()` also return JAX arrays. For this scalar profit node, the mean is a zero-dimensional array; `.item()` converts it to a Python number for display above.
+Numerical summaries such as `mean()` also return JAX arrays. For this scalar profit node, the mean is a zero-dimensional array. `.item()` converts it to a Python number for display above.
+
+Here `num_samples` is the number of days to simulate. `rng_key` controls their randomness and defaults to a fixed key, so repeated calls with the same model and settings are reproducible.
 
 ```{admonition} Why the estimates differ
 :class: info
 
-Here {py:func}`solve` estimates an expected profit of \$632, while {py:func}`infer` estimates \$634, both under the same policy. This small mismatch comes from using different simulated days.
+Here {py:func}`solve` estimates an expected profit of \$626.5, while {py:func}`infer` estimates \$631.2, both under the same policy. This small mismatch comes from using different simulated days.
 ```
 
 If we plot the resulting draws, we get the following long-tailed distribution:
@@ -125,13 +138,13 @@ If we plot the resulting draws, we get the following long-tailed distribution:
 :width: 90%
 ```
 
-The spikes at \$720 and \$2,340 correspond to selling all 80 ice creams on a cloudy day or all 260 ice creams on a sunny day. However, once the shop sells out, higher demand cannot increase that day's profit.
+The main spikes at \$720 and \$2,340 correspond to selling all 80 ice creams on a cloudy day or all 260 ice creams on a sunny day, the orders favoured by the fitted policy. Once the shop sells out, higher demand cannot increase that day's profit.
 
 ### What if today is sunny and hotel bookings are high?
 
 The distribution above includes all kinds of days because we have not provided any observations. Suppose today is sunny and the owner obtains a report showing that bookings at nearby hotels are high. For simplicity, we assume that the report is free and accurately identifies the booking state.
 
-Current `solution.policy` does not take into account that the owner has information about hotel bookings. To represent this, we add `bookings` as a parent of `order`:
+The current `solution.policy` does not take into account that the owner has information about hotel bookings. To represent this, we add `bookings` as a parent of `order`:
 
 ```{code-cell} ipython3
 from copy import deepcopy
@@ -142,27 +155,29 @@ report_diagram.add_arc("bookings", "order")
 report_diagram
 ```
 
-If we run {py:func}`solve` again, we can see the new policy recommends an order for each combination of weather and hotel bookings:
+If we run {py:func}`solve` again, we can see the new policy assigns order probabilities for each combination of weather and hotel bookings:
 
 ```{code-cell} ipython3
-report_solution = solve(report_diagram, num_samples=50_000)
-print(report_solution.render(report_diagram))
+report_solution = solve(report_diagram)
+print(report_solution.render())
 ```
 
-We can now use {py:func}`infer` to see the distribution of profits for a sunny day with high bookings under that policy. The `observed` argument records these observations using state indices: `1` for sunny weather and `1` for high bookings. Busyness and demand remain unobserved:
+We can now use {py:func}`infer` to see the distribution of profits for sunny days with high bookings under that policy. We pass both observations through `observed`, using state index `1` for `"sunny"` and `"high"`:
 
 ```{code-cell} ipython3
 sunny_profit = infer(
     report_diagram,
     query=["profit"],
-    policy=report_solution.policy,
     observed={"weather": 1, "bookings": 1},
+    policy=report_solution.policy,
     num_samples=50_000,
 )["profit"]
 round(sunny_profit.mean().item(), 1)
 ```
 
-The new policy recommends ordering 280 ice creams, with an estimated average profit of about \$1,310. We can also see the distribution of profits for that day:
+These 50,000 draws describe days consistent with both observations. `infer` uses the policy's learned action probabilities when conditioning the model. We can also combine fitted policies with `observed` when their information parents are continuous or mixed.
+
+For sunny days with high bookings, the fitted rule assigns about 70% probability to ordering 260 ice creams. Its probabilities are less concentrated than in the other rows, and this combination of weather and bookings appears less often during training. The estimated average profit is about \$1,309. We can also see the distribution of profits for that day:
 
 ```{figure} /_static/figures/inference/sunny_policy_profit.png
 :alt: Histogram of profit on a sunny day with high hotel bookings under the policy that uses both variables, with a line marking its mean.
@@ -183,7 +198,7 @@ alternative_profit = infer(
 round(alternative_profit.mean().item(), 1)
 ```
 
-The mean of these draws gives an estimated expected profit of about \$562, compared with \$634 under the recommended policy. We can also compare both distributions, using no observations in either case:
+The mean of these draws gives an estimated expected profit of about \$562, compared with \$631 under the recommended policy. We can also compare both distributions, using no observations in either case:
 
 ```{figure} /_static/figures/inference/policy_comparison.png
 :alt: Histograms comparing profit under the recommended weather-based policy and a fixed order of 160 ice creams, with lines marking their means.
@@ -196,7 +211,7 @@ This policy orders more than the recommended 80 ice creams on cloudy days and fe
 
 So far, we have used {py:func}`infer` to explore profit under different policies, but we can also ask questions about other variables in the model. Suppose today is sunny and only 150 ice creams arrive from the supplier. How likely is it that demand exceeds the available stock?
 
-To answer this question, we ask for the distribution of `demand` given sunny weather. In this example, the owner has no hotel report, so bookings remain unknown:
+To answer this question, we ask for the distribution of `demand` given sunny weather. The `observed` argument records sunny weather as state index `1`. In this example, the owner has no hotel report, so bookings remain unknown:
 
 ```{code-cell} ipython3
 sunny_demand = infer(
@@ -221,3 +236,5 @@ To estimate the probability of running out, we count how many demand draws excee
 stockout_probability = (sunny_demand.values > 150).mean()
 f"{stockout_probability:.1%}"
 ```
+
+Under this model, demand exceeds the available stock on about 43% of sunny days.

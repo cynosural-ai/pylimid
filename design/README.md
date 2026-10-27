@@ -8,16 +8,17 @@ Read the graph principles first, then the notes relevant to the change:
 
 - [Diagram and validation](graph/diagram.md): mutable construction, consistency checks, and snapshots.
 - [Chance nodes](graph/chance_node.md): callable distributions, state indices, and deferred table sugar.
-- [Decision nodes](graph/decision_node.md): explicit information sets, finite actions, and future policy optimization.
+- [Decision nodes](graph/decision_node.md): explicit information sets, finite actions, and declared policy families.
 - [Utility nodes](graph/utility_node.md): callable payoffs, sink validation, and additive aggregation.
 - [NumPyro translation and sampling](inference/backend_numpyro.md): model construction, policy binding, and posterior draws.
-- [Solver algorithms](solver/algorithms.md): both scans, backward induction, validation references, and deferred single policy updating.
-- [Backward-induction estimator](solver/backward_induction.md): conditional value estimates, sampling coverage, and the solvability gate.
+- [Policy-gradient optimization](solver/algorithms.md): joint expected-utility training, local information, independent evaluation, and analytic verification.
 
 These notes explain the reasoning behind the current implementation. Public signatures and behavior belong in the API reference and docstrings rather than a second implementation-status table here.
 
 ## Proposals
 
+- [Posterior inference with fitted categorical policies](inference/fitted_policy_conditioning.md): conditioning semantics and implementation scope for categorical, continuous, and mixed decision information.
+- [Discrete decisions with continuous information](continuous_information/README.md): creator-selected policy families, solver-fitted parameters, and one policy abstraction for tables and functions, independently of continuous-action support.
 - [More expressive discrete chance nodes](graph/discrete_chance_nodes.md): a future proposal separating categorical and numerical semantics, finite computational domains, and display labels.
 - [Ride-hailing retention](proposals/ride_hailing.md): a future benchmark for continuous decisions and learning under uncertainty.
 

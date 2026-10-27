@@ -29,4 +29,4 @@ If PyLIMID is already installed, you can also add GPU support by upgrading JAX d
 pip install --upgrade "jax[cuda12]"
 ```
 
-These extras install the CUDA libraries automatically. They do not support native Windows or macOS; GPU support under Windows WSL2 is experimental. See the [JAX installation guide](https://docs.jax.dev/en/latest/installation.html) for GPU and driver requirements.
+These extras install the CUDA libraries automatically. They do not support native Windows or macOS. GPU support under Windows WSL2 is experimental. See the [JAX installation guide](https://docs.jax.dev/en/latest/installation.html) for GPU and driver requirements.

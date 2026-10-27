@@ -38,9 +38,9 @@ The current implementation gives `states` several responsibilities:
 
 The current runtime contract requires Categorical with one state label per category or Bernoulli with exactly two labels. Both probability and logit parameterizations are supported, and zero-probability outcomes still require labels. With `states=None`, continuous distributions and numerical discrete distributions with scalar events are supported. Batched scalar-event counts retain their array shape; vector discrete events such as Multinomial are rejected. Adding labels to Binomial, Poisson or another numerical count distribution is rejected.
 
-The [shared distribution validator](../../pylimid/_distributions.py) checks the constructed distribution before sampling or emitting a NumPyro sample site. It runs in inference and all three solvers, including for observed chance nodes. It uses concrete categorical classes, static category dimensions, event shape and support metadata rather than sample probes. `InfluenceDiagram.validate()` remains structural and declarative; `infer()` prunes nodes unrelated to its query and evidence before executing distributions. A separate posterior capability check rejects unbounded, shifted and batched count latents before either posterior sampling path runs. NumPyro performs enumeration and reports unsupported bounds. Tabular policies continue to require named finite states and cannot use count values as indices.
+The [shared distribution validator](../../pylimid/_numpyro/distributions.py) checks the constructed distribution before sampling or emitting a NumPyro sample site. It runs in inference and policy-gradient optimization, including for observed chance nodes. It uses concrete categorical classes, static category dimensions, event shape and support metadata rather than sample probes. `InfluenceDiagram.validate()` remains structural and declarative; `infer()` prunes nodes unrelated to its query and evidence before executing distributions. A separate posterior capability check rejects unbounded, shifted and batched count latents before either posterior sampling path runs. NumPyro performs enumeration and reports unsupported bounds. Tabular policies continue to require named finite states and cannot use count values as indices.
 
-See [the chance-node implementation](../../pylimid/graph/chance_node.py), [policy helpers](../../pylimid/policy.py), [NumPyro translation](../../pylimid/numpyro/model.py), [sampling dispatch](../../pylimid/numpyro/samplers.py), and [posterior summaries](../../pylimid/inference/posterior.py).
+See [the chance-node implementation](../../pylimid/graph/chance_node.py), [policy binding](../../pylimid/policy/_binding.py), [NumPyro translation](../../pylimid/_numpyro/model.py), [sampling dispatch](../../pylimid/_numpyro/samplers.py), and [posterior summaries](../../pylimid/inference/posterior.py).
 
 These responsibilities need not share one field. In the proposed representation, an unlabeled variable could be discrete, and a discrete variable could have numerical meaning. A finite domain could support computation without requiring a string label for every outcome.
 
@@ -114,7 +114,7 @@ The following table describes the intended boundaries after this proposal, not c
 
 Consequently, a model may support forward simulation and solving while a particular posterior query is unsupported. That difference should be documented and reported where the operation is requested. Unsupported inference should stop with an error, not trigger an unannounced approximation or a change of model.
 
-The regularity check remains a structural question about backward-induction applicability. Finite domains and numerical sampling coverage are separate prerequisites; adding count support does not change the regularity theorem.
+Policy-gradient training does not require a structural solution ordering. Finite domains and numerical sampling coverage are separate from graph validation and policy-family compatibility.
 
 ## Finite domains and policy indexing
 
@@ -128,7 +128,7 @@ Keep actual numeric counts in samples, observed evidence, utilities, and downstr
 
 Preserving the existing index-based `Policy` representation is a reasonable first implementation. A single domain mapping should encode numeric observations and decode rendered policy rows. Whether public policy keys should eventually use actual numeric values is a separate API decision; it must not change accidentally while replacing label lookups.
 
-All solvers must share the domain interpretation, including backward-induction group indices and both scan implementations. Declaring a finite domain must not hide out-of-domain values through JAX's indexing behavior.
+Inference, policy binding, and policy-gradient trajectories must share the domain interpretation. Declaring a finite domain must not hide out-of-domain values through JAX's indexing behavior.
 
 Larger domains still increase computational cost. Scan policy counts remain exponential in the number of information-set assignments, so automatically deriving a large finite domain does not make its policy search practical. Rare and impossible assignments also retain their existing sampling-coverage problems; domain representation alone does not solve those issues.
 
@@ -164,7 +164,7 @@ Unbounded discrete latent inference is a separate feature. NumPyro has additiona
 
 ## Implementation scope and sequence
 
-This affects more than `Posterior`. The current assumptions are spread across chance-node classification, graph helpers, inference dispatch, model translation, policy encoding, backward-induction grouping, both scan implementations, and policy rendering. Structural graph algorithms and decision action representation should mostly retain their current roles.
+This affects more than `Posterior`. The current assumptions are spread across chance-node classification, graph helpers, inference dispatch, model translation, policy encoding, policy-gradient training, and policy rendering. Structural graph algorithms and decision action representation should mostly retain their current roles.
 
 Categorical validation, classification separation, forward numerical counts, observed-count likelihoods and scalar fixed-range posteriors are complete. Tests cover exact Binomial and Beta-Binomial posterior masses and moments, categorical-parent updates, mixed continuous/discrete posteriors and preserved joint utility draws. They also check zero-trial counts, zero-probability outcomes, forward parent-dependent trial counts, native rejection of non-static enumeration and rejection of unsupported count domains. The remaining sequence is:
 
@@ -188,7 +188,7 @@ These criteria cover both implemented behavior and future extensions. Numerical 
 - Explicit domains cover all supported parent configurations; a pilot sample is never treated as proof of the domain or of impossibility.
 - Adding or changing display labels does not change numerical summaries, evidence values, policy meaning, or sampler selection.
 - Forward simulation of the five-or-ten-item batch model succeeds, while unsupported posterior enumeration fails. Any future fixed-domain enumeration workaround agrees with an exact small-model posterior.
-- Shared domain mappings work consistently in backward induction, batched scan, intervention scan, contingent-policy inference, and policy rendering. Domain sizes and mappings are not retained across invalidating diagram edits.
+- Shared domain mappings work consistently in policy-gradient training, contingent-policy inference, and policy rendering. Domain sizes and mappings are not retained across invalidating diagram edits.
 - Dirichlet and other array-valued continuous posteriors retain their draw shapes, component summaries, dtypes, and joint sample alignment.
 
 ## Recommendation

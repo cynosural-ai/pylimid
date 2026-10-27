@@ -8,10 +8,10 @@ import numpyro.distributions as dist
 import pytest
 
 from pylimid import InferenceError, Posterior, infer, solve
-from pylimid.graph.chance_node import ChanceNode
-from pylimid.graph.decision_node import DecisionNode
 from pylimid.graph.diagram import InfluenceDiagram
-from pylimid.graph.utility_node import UtilityNode
+from pylimid.graph.nodes.chance_node import ChanceNode
+from pylimid.graph.nodes.decision_node import DecisionNode
+from pylimid.graph.nodes.utility_node import UtilityNode
 
 # --- helpers -----------------------------------------------------------------
 
@@ -168,7 +168,7 @@ def test_probabilities_sum_to_one_with_observed():
 
 def test_continuous_posterior_keeps_raw_draws():
     """Continuous posteriors store raw draws and carry no states."""
-    result = infer(_continuous_diagram(), ["x"])
+    result = infer(_continuous_diagram(), ["x"], num_samples=2000)
     assert isinstance(result["x"], Posterior)
     assert result["x"].states is None
     assert not result["x"].is_categorical
@@ -303,7 +303,7 @@ def test_array_queries_preserve_event_dimensions(node_shape):
 
 def test_mixed_result_shape_follows_variable_type():
     """One Posterior type; states distinguish categories from numerical values."""
-    result = infer(_mixed_diagram(), ["rain", "temp"])
+    result = infer(_mixed_diagram(), ["rain", "temp"], num_samples=2000)
     assert isinstance(result["rain"], Posterior)
     assert result["rain"].states == ("no", "yes")
     assert result["rain"].marginal() == pytest.approx([0.8, 0.2], abs=0.04)
@@ -416,15 +416,15 @@ def test_contingent_policy_keeps_latent_information_parent_conditionable(
     assert jnp.all(result["payoff"].values == 1)
 
 
-@pytest.mark.parametrize("observed", [{}, {"evidence": 1}])
-def test_contingent_policy_accepts_solve_result(observed):
+def test_contingent_policy_accepts_solve_result_for_forward_evaluation():
+    from pylimid import TabularSoftmax
+
     diagram = _contingent_policy_diagram()
-    solution = solve(diagram, num_samples=500)
-    assert solution.method == "backward_induction"
-    payoff = infer(
-        diagram, ["payoff"], policy=solution.policy, observed=observed, num_samples=1000
-    )
-    assert jnp.all(payoff["payoff"].values == 2)
+    diagram["first"].policy_family = TabularSoftmax()
+    diagram["second"].policy_family = TabularSoftmax()
+    solution = solve(diagram, num_steps=200, num_samples=500)
+    payoff = infer(diagram, ["payoff"], policy=solution.policy, num_samples=2000)
+    assert payoff["payoff"].mean() > 1.95
 
 
 @pytest.mark.parametrize("reverse_policy", [False, True])
@@ -560,7 +560,7 @@ def test_policy_on_continuous_diagram():
             name="u", parents=("x", "d"), values=lambda x, d: float(x) * float(d)
         )
     )
-    result = infer(diag, ["x"], policy={"d": 1})
+    result = infer(diag, ["x"], policy={"d": 1}, num_samples=2000)
     assert isinstance(result["x"], Posterior)
     assert result["x"].states is None
     assert len(result["x"].values) == 2000
@@ -736,7 +736,7 @@ def _guess_diagram() -> InfluenceDiagram:
 
 
 def test_utility_query_returns_a_continuous_posterior():
-    result = infer(_shop_diagram(), ["profit"], policy={"stock": 0})
+    result = infer(_shop_diagram(), ["profit"], policy={"stock": 0}, num_samples=2000)
     assert result["profit"].states is None
     assert len(result["profit"].values) == 2000
 
