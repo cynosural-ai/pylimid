@@ -1,6 +1,6 @@
 # Documentation maintenance
 
-Maintenance guide for the published documentation in `docs/` and the project `README.md`. The engine has been refactored to policy-gradient-only optimization. Published guides, README examples, and the API reference still describe the earlier solver API and await a separate rewrite; do not migrate them as part of the engine refactor. Read this before changing published pages, and update it when the structure or conventions change. Public API details belong in docstrings and the API reference; build instructions live in [docs/README.md](../docs/README.md).
+Maintenance guide for the published documentation in `docs/` and the project `README.md`. The engine uses policy-gradient-only optimization. The API reference, quickstart, all five core user guides, resource pages, site overview, and README now describe the current contract. Installation guidance and the published examples have been checked. Migration progress and verification are recorded in [the documentation update checklist](documentation_update_todo.md). Read this before changing published pages, and update it when the structure or conventions change. Public API details belong in docstrings and the API reference. Build instructions live in [docs/README.md](../docs/README.md).
 
 ## Site structure and scope
 
@@ -10,9 +10,9 @@ The published order is **Getting started → User guide → Resources → API re
 - **User guide** answers how to do something and explains the behaviour where readers encounter it. Its five core pages cover building a diagram, distributions and utilities, solving, inference, and multiple decisions.
 - **Tutorials** tell the story of a complete alternative problem, with figures and interpretation of the results.
 - **Resources** contains Common pitfalls and Count distributions, directly under the sidebar heading. Entries are standalone examples with their own context and imports. Count distributions collects count-specific examples and limitations. Background and further reading can be added when useful.
-- **API reference** documents public classes, functions and methods, generated from docstrings.
+- **API reference** covers inference and solving, building diagrams, and policy families and rules. Classes, functions and methods are generated from docstrings; public type aliases are explained alongside their owning APIs. The policy page replaces the individual-solvers page.
 
-Contributor documentation belongs in `CONTRIBUTING.md`, `AGENTS.md` and `design/`. Explain architecture on the published site only when it helps users understand execution or trust a result. Link to NumPyro for distributions and MCMC; focus PyLIMID explanations on information sets, explicit memory, policies, solver selection, callable parents and decision-modelling patterns. Introduce theory beside the behaviour it explains, with a citation rather than a textbook derivation. The current optimizer objective and verification are described in the [solver design](solver/algorithms.md).
+Contributor documentation belongs in `CONTRIBUTING.md`, `AGENTS.md` and `design/`. Explain architecture on the published site only when it helps users understand execution or trust a result. Link to NumPyro for distributions and MCMC; focus PyLIMID explanations on information sets, explicit memory, policy families and fitting, callable parents and decision-modelling patterns. Introduce theory beside the behaviour it explains, with a citation rather than a textbook derivation. The current optimizer objective and verification are described in the [solver design](solver/algorithms.md).
 
 ### Shared example
 
@@ -28,13 +28,16 @@ Keep the quickstart and README's order menu at 0–200. The Solving guide delibe
 - Use “we” for the author and reader building models and interpreting results. Use “the owner” or “the shop” for the example's decisions, avoiding pronouns for the owner. Introduce scenarios directly, for example “Suppose today is sunny”.
 - Use present tense for walkthrough steps and API behaviour; past tense for earlier steps and conditionals for hypothetical alternatives.
 - Keep pages short by choosing what to include. Keep explanations, code and output that help readers understand the example; put reusable debugging examples in Common pitfalls.
+- Follow the revised quickstart's pacing: explain what the current step needs, keep captions brief, and leave forward navigation to the end of the page.
+- Do not use semicolons. Let related ideas flow through natural conjunctions, or use separate sentences when the thought changes.
+- Preserve character motivations and the explanations connecting choices to outcomes when updating APIs. Remove obsolete solver details without flattening the story around them.
 - Write **PyLIMID** in prose and `pylimid` for the package, imports, extras and URLs. Use **node** for diagram structure and **variable** for the represented value. A diagram can combine discrete and continuous variables; a single variable is not “mixed”.
 - Format specific node names, Python identifiers and literal state labels as code; keep ordinary concepts in plain text.
 - Let Markdown lines flow; do not wrap at 80 characters.
 
 ### Accuracy and examples
 
-- Check API claims against the implementation and API reference. `solve` always jointly trains the declared `LinearSoftmax` and `TabularSoftmax` families; there is no solver selector. Each rule receives only its declared information parents, including explicit memory arcs. Fitted policies remain stochastic during forward evaluation. Describe independent utility estimates as approximate results, with no convergence or optimality certificate. Posterior inference through fitted policies and supplied functions remains unsupported. Keep distribution contracts in `ChanceNode`.
+- Check API claims against the implementation and API reference. `solve` always jointly trains the declared policy families; the built-in families are `LinearSoftmax` and `TabularSoftmax`, and custom families implement `PolicyFamily`. There is no solver selector. Each rule receives only its declared information parents, including explicit memory arcs. Fitted policies contribute their learned action probabilities to forward evaluation and posterior conditioning, including with continuous or mixed information. Describe independent utility estimates as approximate results, with no convergence or optimality certificate. Supplied deterministic function policies still support forward evaluation only. Keep distribution contracts in `ChanceNode`.
 - Distributions and utilities must be JAX-traceable. Do not describe them as arbitrary Python code; explain the restrictions on casts and Python control flow where relevant.
 - Both `infer` and `solve` return Monte Carlo estimates. Distinguish exact discrete enumeration as a method from the accuracy of the returned summaries, including in mixed models. Explain sampling reliability where readers use estimates. Explain that rarely visited policy-table rows can receive little training and impossible rows do not affect expected utility.
 - Keep performance claims modest. Explain when pyAgrum's exact discrete solving may be a better choice.

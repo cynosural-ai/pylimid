@@ -23,23 +23,23 @@ for source in re.findall(
 
 figures = [
     (
-        namespace["recommended_profit"],
+        namespace["recommended_profit"].values,
         "Daily profit under the recommended policy",
         "recommended_policy_profit.png",
     ),
     (
-        namespace["sunny_profit"],
+        namespace["sunny_profit"].values,
         "Profit on a sunny day with high hotel bookings",
         "sunny_policy_profit.png",
     ),
 ]
 bins = np.linspace(
-    min(posterior.values.min().item() for posterior, _, _ in figures),
-    max(posterior.values.max().item() for posterior, _, _ in figures),
+    min(values.min().item() for values, _, _ in figures),
+    max(values.max().item() for values, _, _ in figures),
     71,
 )
-for posterior, title, filename in figures:
-    profits = np.asarray(posterior.values)
+for values, title, filename in figures:
+    profits = np.asarray(values)
     fig, ax = plt.subplots(figsize=(7.5, 4.2), layout="constrained")
     ax.hist(
         profits,
@@ -50,11 +50,11 @@ for posterior, title, filename in figures:
         linewidth=0.4,
     )
     ax.axvline(
-        posterior.mean(),
+        profits.mean(),
         color="#bb5500",
         linestyle="--",
         linewidth=1.8,
-        label=f"Mean profit: ${posterior.mean():,.0f}",
+        label=f"Mean profit: ${profits.mean():,.0f}",
     )
     ax.set(
         xlabel="Profit per day ($)",
@@ -67,7 +67,7 @@ for posterior, title, filename in figures:
     output = Path(__file__).with_name(filename)
     fig.savefig(output, dpi=180)
     plt.close(fig)
-    print(f"{title}: mean ${posterior.mean():.2f}; {profits.size} draws")
+    print(f"{title}: mean ${profits.mean():.2f} from {profits.size} draws")
     print(f"Saved {output}")
 
 policies = [

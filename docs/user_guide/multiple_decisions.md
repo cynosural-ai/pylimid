@@ -14,9 +14,9 @@ This page shows how to represent those choices, read their policies and explore 
 
 ## Adding the promotion decision
 
-The new {py:class}`DecisionNode`, `promotion`, has two actions, `skip` and `run`. It has no parents because the owner has neither the next day's weather nor the hotel bookings information when setting up the promotion.
+The new {py:class}`DecisionNode`, `promotion`, has two actions, `skip` and `run`. It has no parents because neither tomorrow's weather nor hotel bookings are known when the owner makes this choice.
 
-We add `promotion` as a parent of `demand` so the promotion can increase demand, and as a parent of `order` so the owner can take the earlier choice into account:
+We add `promotion` as a parent of `demand` so the promotion can increase demand, and as a parent of `order` so the owner can take the earlier choice into account. Both decisions use {py:class}`TabularSoftmax` to fit action probabilities for each situation the owner can observe:
 
 ```{code-cell} ipython3
 from copy import deepcopy
@@ -28,6 +28,7 @@ from pylimid import (
     ChanceNode,
     DecisionNode,
     InfluenceDiagram,
+    TabularSoftmax,
     UtilityNode,
     infer,
     solve,
@@ -80,7 +81,11 @@ diagram.add_node(
         dist=lambda: dist.Categorical(probs=jnp.array([5 / 7, 2 / 7])),
     )
 )
-diagram.add_node(DecisionNode(name="promotion", states=("skip", "run")))
+diagram.add_node(
+    DecisionNode(
+        name="promotion", states=("skip", "run"), policy_family=TabularSoftmax()
+    )
+)
 diagram.add_node(
     ChanceNode(
         name="demand",
@@ -93,6 +98,7 @@ diagram.add_node(
         name="order",
         parents=("weather", "promotion"),
         states=tuple(str(n) for n in ORDERS),
+        policy_family=TabularSoftmax(),
     )
 )
 diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=profit))
@@ -108,22 +114,22 @@ diagram
 
 We put the promotion cost in a separate utility node, so the total payoff is their sum, as explained in [Distributions and utilities](distributions_and_utilities.md). The cost is charged whenever the promotion runs, regardless of how many ice creams the shop sells.
 
-Notice that the two arcs from `promotion` have different meanings. For `demand`, the parent changes the distribution. For `order`, it says that the owner remembers the earlier choice. The weather is only a parent of `order`, so the promotion cannot be chosen in response to tomorrow's weather.
+Notice that the two arcs from `promotion` have different meanings. For `demand`, the parent changes the distribution. For `order`, it says that the owner remembers the earlier choice. Of the two decisions, only `order` has weather as a parent, so the promotion cannot be chosen in response to tomorrow's weather.
 
 ## Reading the two policies
 
-We can solve this diagram with the same {py:func}`solve` call as before:
+We use the same {py:func}`solve` call as before. It fits both policies together, using the total profit from the two utility nodes:
 
 ```{code-cell} ipython3
-solution = solve(diagram, num_samples=50_000)
-print(solution.render(diagram))
+solution = solve(diagram)
+print(solution.render())
 ```
 
-The owner should always run the promotion. After that choice, the recommended order depends on the weather: 100 ice creams on a cloudy day and 300 on a sunny day. The estimated total profit is about \$686.
+The fitted policy almost always runs the promotion. When it runs, the most likely orders are 100 ice creams on a cloudy day and 320 on a sunny day. The estimated total profit is about \$671.9. The rules still sample their actions, and the displayed probabilities are rounded.
 
-`solution.policy` has one entry for each decision. The `promotion` entry has the single key `()`, because it has no parents. The `order` keys contain two state indices, following its parent order: `(weather, promotion)`. Thus, `(1, 1)` means sunny weather and a promotion that runs.
+`solution.policy` contains one fitted {py:class}`CategoricalPolicy` for each decision. The `promotion` rule has no parents, so its probabilities for `skip` and `run` apply every day. The `order` rule has a row for each combination of weather and the earlier promotion choice. For example, `weather=1, promotion=1` means sunny weather and a promotion that runs.
 
-The order policy also contains rows for a skipped promotion because backward induction considers how the owner would order under either promotion choice before deciding which one is better. Those rows remain in the policy **even though the recommended promotion does not use them**.
+`TabularSoftmax` also shows order rows for days when the promotion is skipped. These rows receive training only when that situation occurs during simulation. Once skipping becomes rare, they receive little further training. We should read their probabilities with the same caution as the rarely visited rows discussed in [Solving](solving.md#what-if-a-situation-never-appears).
 
 ## Why memory must be explicit
 
@@ -137,22 +143,20 @@ forgetful_diagram["order"].parents
 
 The promotion still affects demand and still costs money. But the order decision can now only react to the weather, using the same rule whether the promotion ran or not. **This is a different decision problem**. PyLIMID does not automatically make an earlier choice available to a later decision.
 
-This change also affects the solver. We can check whether each diagram has an order in which backward induction can resolve its decisions:
+We can solve this version too. The order rule now has one row for each kind of weather:
 
 ```{code-cell} ipython3
-from pylimid.solver import is_solvable
-
-print("with memory:", is_solvable(diagram.snapshot()))
-print("without memory:", is_solvable(forgetful_diagram.snapshot()))
+forgetful_solution = solve(forgetful_diagram)
+print(forgetful_solution.render())
 ```
 
-The original diagram qualifies, but the version without memory does not. In that version, `solve(method="auto")` would select the scan, which evaluates every complete policy instead of resolving the decisions in turn.
+Both versions favour running the promotion and have the same most likely orders in this run. When the promotion is skipped, however, the version without memory must still use the same weather-based order probabilities.
 
-A later decision also needs an explicit parent for each earlier observation it should still use. **Information is not inherited through the earlier decision node**. The parents describe the information available at each choice, so they should reflect what the decision maker actually knows.
+A later decision also needs an explicit parent for each earlier observation it should still use. **Information is not inherited through the earlier decision node**. The parents should reflect what the owner actually knows at each choice.
 
 ## Exploring the outcomes
 
-We can use {py:func}`infer` to estimate the total profit under the recommended policies, adding the means of both utility nodes:
+We return to the diagram where the owner remembers the promotion choice. We use {py:func}`infer` to explore the total profit under its fitted policies, adding the draws from both utility nodes:
 
 ```{code-cell} ipython3
 outcomes = infer(
@@ -161,14 +165,14 @@ outcomes = infer(
     policy=solution.policy,
     num_samples=50_000,
 )
-total_profit = outcomes["profit"].mean() + outcomes["promotion_cost"].mean()
-round(total_profit.item(), 1)
+total_profit = outcomes["profit"].values + outcomes["promotion_cost"].values
+round(total_profit.mean().item(), 1)
 ```
 
-The estimated average total profit is about \$681 per day, including the promotion cost.
+Values at the same position in the two arrays belong to the same simulated day. Adding them gives that day's total profit, including the promotion cost. The estimated average is about \$677.5 per day.
 
 ```{admonition} Reminder: Monte Carlo estimates
 :class: info
 
-Both calls use the same policies. The estimates differ slightly because `solve` and `infer` use different simulated days.
+Here, `infer` evaluates `solution.policy`, the policy from the original diagram. The average above can differ from `solution.expected_utility` because the two estimates use different simulated days.
 ```

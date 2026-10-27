@@ -17,6 +17,7 @@ These notes explain the reasoning behind the current implementation. Public sign
 
 ## Proposals
 
+- [Posterior inference with fitted categorical policies](inference/fitted_policy_conditioning.md): conditioning semantics and implementation scope for categorical, continuous, and mixed decision information.
 - [Discrete decisions with continuous information](continuous_information/README.md): creator-selected policy families, solver-fitted parameters, and one policy abstraction for tables and functions, independently of continuous-action support.
 - [More expressive discrete chance nodes](graph/discrete_chance_nodes.md): a future proposal separating categorical and numerical semantics, finite computational domains, and display labels.
 - [Ride-hailing retention](proposals/ride_hailing.md): a future benchmark for continuous decisions and learning under uncertainty.
