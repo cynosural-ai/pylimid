@@ -32,10 +32,11 @@ def build_model(
     Build a NumPyro model using a validated snapshot and bound decision rules.
 
     The model walks nodes in topological order and resolves parents from upstream
-    values. Unobserved discrete distributions that support enumeration carry
-    parallel-enumeration metadata; observed chance nodes and fixed decisions are
-    clamped. Numerical counts permitting only zero are clamped exactly. Utilities
-    are evaluated separately by the sampling layer.
+    values. Unobserved discrete chance nodes and fitted categorical decisions carry
+    parallel-enumeration metadata when their distributions support enumeration;
+    observed chance nodes and fixed decisions are clamped. Numerical counts
+    permitting only zero are clamped exactly. Utilities are evaluated separately by
+    the sampling layer.
 
     Args:
         snapshot: A validated, topologically ordered diagram snapshot.
@@ -71,7 +72,9 @@ def build_model(
                     rule = policy_rules[name]
                     if isinstance(rule, CategoricalPolicy):
                         values[name] = numpyro.sample(
-                            name, policy_distribution(rule, parent_values)
+                            name,
+                            policy_distribution(rule, parent_values),
+                            infer={"enumerate": "parallel"},
                         )
                     else:
                         value = rule(**parent_values)
