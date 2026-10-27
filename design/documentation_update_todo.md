@@ -231,6 +231,12 @@ Updated on 2026-10-27. The sunny/high-bookings scenario now passes `observed={"w
 - Checked **113 local links and anchors** and **seven image references** in the rendered inference page. All resolve.
 - Full test suite: **410 passed**. Ruff lint, formatting, type checks, and `git diff --check` pass. Test log: `docs/_build/inference-conditioning-tests.log`. No library code changed.
 
+### Solving training-budget advice
+
+Added on 2026-10-27. Expanded the existing reliability advice into an info box distinguishing samples per training update, number of updates, and independent random keys. It recommends comparing fitted action probabilities and evaluating candidate policies on fresh scenarios, while distinguishing evaluation precision from policy improvement. The advice is general and includes no results from the separate training-budget experiments.
+
+The Solving guide executes without errors, and the info box and its API and guide links render correctly. The full build retains the same four warnings from Multiple decisions and Count distributions. Log: `docs/_build/solving-training-advice-build.log`. No example code or library code changed.
+
 ## Next step
 
 Continue with `docs/user_guide/multiple_decisions.md`, preserving the promotion story and explicit-memory lesson while adapting it to joint stochastic policy fitting. Count distributions and the remaining checklist items follow separately.
