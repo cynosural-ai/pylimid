@@ -13,10 +13,11 @@ Update the existing documentation for the policy-gradient-only API, preserving t
 | Distributions and utilities | Complete. The combined and split utility models produce matching fitted probabilities and expected profit. |
 | Solving a diagram | Complete. Fitted-policy summaries, training comparisons, wider order menu, cart coordination, and continuous information examples execute successfully. |
 | Inference | Complete. Uses fitted policies with direct chance-node conditioning, and the examples, figures, and API-reference boundaries have been checked. |
-| Remaining guides, resources, README, and figures | Pending. Follow the page-by-page checklist below. |
-| Full strict documentation build | Failing with four warnings: notebook failures and paired traceback warnings in Multiple decisions and Count distributions. The inference page executes without warnings. |
+| Multiple decisions | Complete, awaiting review. Jointly fits the promotion and order rules, explains explicit memory and rarely used rows, and evaluates aligned total-profit draws. |
+| Remaining resources, README, and site checks | Pending. Follow the page-by-page checklist below. |
+| Full strict documentation build | Failing with two warnings: the Count distributions notebook failure and its paired traceback warning. All five core user guides execute without warnings. |
 
-The API reference, quickstart, and first four user guides are complete, but the documentation migration is still in progress. The build evidence and checks are recorded in the [verification log](#verification-log).
+The API reference, quickstart, and all five core user guides are complete, but the documentation migration is still in progress. The Multiple decisions update is uncommitted and awaiting review. The build evidence and checks are recorded in the [verification log](#verification-log).
 
 ## Starting point
 
@@ -61,7 +62,7 @@ For each page, read the existing prose first, update the example and its interpr
 - [x] `docs/user_guide/distributions_and_utilities.md`: check model consistency, JAX requirements, inference claims, examples, and demand figures.
 - [x] `docs/user_guide/solving.md`: explain fitting a policy, choosing a family, controlling training and evaluation, reading stochastic results, and checking the expanded order menu.
 - [x] `docs/user_guide/inference.md`: evaluate fitted policies with the current API while preserving the intentional booking-information variant, aligned draws, comparisons, and inference figures.
-- [ ] `docs/user_guide/multiple_decisions.md`: preserve the promotion story and explain joint fitting with explicit information parents and memory.
+- [x] `docs/user_guide/multiple_decisions.md`: preserve the promotion story and explain joint fitting with explicit information parents and memory.
 - [ ] `docs/resources/common_pitfalls.md` and `docs/resources/count_distributions.md`: update standalone examples and diagnostics; remove obsolete solver advice while retaining relevant modeling and inference limits.
 - [ ] `docs/index.md`, `docs/getting_started/installation.md`, and `README.md`: align claims, quick examples, links, and terminology with the updated guides. Keep the README example consistent with the quickstart.
 - [ ] Review excluded tutorial drafts for stale references and record remaining work separately. Keep unreviewed tutorials excluded; publishing or rewriting them is outside this migration's initial scope.
@@ -237,6 +238,17 @@ Added on 2026-10-27. Expanded the existing reliability advice into an info box d
 
 The Solving guide executes without errors, and the info box and its API and guide links render correctly. The full build retains the same four warnings from Multiple decisions and Count distributions. Log: `docs/_build/solving-training-advice-build.log`. No example code or library code changed.
 
+### Multiple decisions update
+
+Completed on 2026-10-27 without committing. Both decisions declare `TabularSoftmax()`, and the page uses the default fitting budget and current `Solution.render()` interface. It explains joint fitting, parentless promotion probabilities, conditional order probabilities, and the limited training received by rarely used skipped-promotion rows. The promotion story, demand model, separate utility nodes, and explicit-memory lesson are preserved.
+
+- All **five code cells** execute successfully, both directly and through Sphinx. The fitted rules favour running the promotion and ordering **100** ice creams on cloudy days or **320** on sunny days when it runs. The independent total-utility estimate is **671.91**, and the separate inference estimate is **677.5**. Prose describes the stochastic rules and rounded probabilities rather than promising deterministic actions.
+- Replaced the removed `is_solvable` and automatic solver-selection example with an actual fit of the diagram without the memory arc. Its order rule receives only `weather`, and its estimated total utility is **670.04**. The page explains why similar fitted recommendations do not remove the information restriction.
+- Total-profit draws now add the two utility arrays by sample index before computing their mean. This preserves the relationship between sales profit and promotion cost in each simulated day.
+- The strict full build with fresh Sphinx processing and forced notebook execution exits with code **1** and **two warnings**, both from the pending Count distributions notebook failure and its traceback report. The Multiple decisions page executes without warnings. Logs: `docs/_build/multiple-decisions-update.log` and `docs/_build/multiple-decisions-example-check.log`.
+- Checked **107 local links and anchors** and **two image references** in the rendered page. All resolve. No new figure assets were needed.
+- Ruff lint, formatting, type checks, and `git diff --check` pass. No library code or figure scripts changed. Runtime verification used the direct and Sphinx notebook executions.
+
 ## Next step
 
-Continue with `docs/user_guide/multiple_decisions.md`, preserving the promotion story and explicit-memory lesson while adapting it to joint stochastic policy fitting. Count distributions and the remaining checklist items follow separately.
+Review the uncommitted Multiple decisions update, then review `docs/resources/common_pitfalls.md` and migrate `docs/resources/count_distributions.md`. The remaining site, README, and final verification checklist items follow separately.
