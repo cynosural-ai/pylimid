@@ -5,17 +5,15 @@ import numpyro.distributions as dist
 import pytest
 
 from pylimid import (
+    CategoricalPolicy,
     ChanceNode,
     DecisionNode,
-    InferenceError,
     InfluenceDiagram,
+    TabularSoftmax,
     UtilityNode,
     infer,
     solve,
 )
-from pylimid.solver.backward_induction import solve as backward_induction_solve
-from pylimid.solver.scan.batched import solve as batched_solve
-from pylimid.solver.scan.intervention import solve as intervention_solve
 
 
 @pytest.fixture(
@@ -48,7 +46,12 @@ def _decision_diagram(distribution):
         )
     )
     diagram.add_node(
-        DecisionNode(name="action", parents=("weather",), states=("no", "yes"))
+        DecisionNode(
+            name="action",
+            parents=("weather",),
+            states=("no", "yes"),
+            policy_family=TabularSoftmax(),
+        )
     )
     diagram.add_node(
         ChanceNode(
@@ -72,9 +75,9 @@ def _decision_diagram(distribution):
     return diagram
 
 
-@pytest.fixture(params=["inference", "backward_induction", "batched", "intervention"])
+@pytest.fixture(params=["inference", "policy_gradient"])
 def execution(request):
-    """Run a diagram through inference or one of the three simulation walks."""
+    """Run a diagram through inference or policy-gradient optimization."""
     return request.param
 
 
@@ -86,12 +89,7 @@ def _execute(diagram, execution):
             policy={"action": {(0,): 0, (1,): 1}},
             num_samples=256,
         )
-    solver = {
-        "backward_induction": backward_induction_solve,
-        "batched": batched_solve,
-        "intervention": intervention_solve,
-    }[execution]
-    return solver(diagram.snapshot(), num_samples=256)
+    return solve(diagram, num_samples=256, num_steps=200)
 
 
 def test_supported_distributions_with_chance_and_decision_parents(
@@ -103,7 +101,10 @@ def test_supported_distributions_with_chance_and_decision_parents(
         assert result["weather"].marginal() == pytest.approx([0.5, 0.5], abs=0.1)
         assert jnp.array_equal(result["payoff"].values, 10 + result["outcome"].values)
     else:
-        assert result.policy == {"action": {(0,): 0, (1,): 1}}
+        rule = result.policy["action"]
+        assert isinstance(rule, CategoricalPolicy)
+        for weather in range(2):
+            assert rule.probabilities(weather=jnp.array(weather))[weather] > 0.98
         assert result.expected_utility == pytest.approx(10.5, abs=0.2)
 
 
@@ -263,14 +264,6 @@ def test_parent_dependent_mismatch_is_rejected(execution, states):
     message = "3 outcomes.*exactly 3 labels" if states else "states=None.*discrete"
     with pytest.raises(ValueError, match=f"outcome.*{message}"):
         _execute(diagram, execution)
-
-
-@pytest.mark.parametrize("method", ["backward_induction", "scan"])
-def test_public_solve_uses_existing_inference_error_convention(method):
-    diagram = _decision_diagram(lambda p: dist.Bernoulli(probs=p))
-    diagram["weather"].states = ("only",)
-    with pytest.raises(InferenceError, match="weather.*2 outcomes"):
-        solve(diagram, method=method, num_samples=10)
 
 
 def test_invalid_unrelated_distribution_remains_pruned():

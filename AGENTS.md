@@ -32,6 +32,21 @@ def add_arc(self, parent: str, child: str) -> None:
     """
 ```
 
+## Imports
+
+- Within a package, import from defining modules rather than that package's `__init__.py`. For example, modules inside `pylimid.policy` import `PolicyFamily` from `pylimid.policy.families`.
+- Across package boundaries, use the nearest owning package's explicit public exports: `from pylimid.graph.diagram import DiagramSnapshot`, `from pylimid.graph.nodes import ChanceNode`, or `from pylimid.policy import CategoricalPolicy`. Do not import implementation dependencies through an enclosing package's re-exports; use the relevant subpackage or defining module, such as `pylimid.errors`.
+- Import internal names and names without a package export directly from their defining modules. Do not add public exports solely to shorten internal imports.
+- Keep public re-exports in `__init__.py`. Examples use public imports; tests import from the API or module they exercise, using defining modules for internal helpers.
+
+## Internal APIs and definition order
+
+- Prefix internal packages and standalone internal modules with `_`, such as `_numpyro/` and `policy/_binding.py`. Files inside an internal package can use ordinary names.
+- Within internal namespaces, shared functions use ordinary names and module-local helpers use `_`. Implementation details of public classes and modules retain `_`, even when used elsewhere in pylimid.
+- Public modules and package entry points define an alphabetically sorted `__all__` immediately after imports, listing only supported exports. Use an empty list when there are no exports.
+- Internal modules and packages omit `__all__`. Leave generated `_version.py` untouched.
+- Module order: imports, supporting types/constants, public/shared entry points, internal helpers. Class order: initialization, public methods, internal helpers. Keep related properties and protocol methods together, and supporting types before constants that instantiate them.
+
 ## Comments and docs in code
 - Do not reference intermediate design notes, ADRs-in-progress, option letters (A/B/C), ticket numbers, or `design/*.md` files from code comments or docstrings. Those files are temporary and will confuse readers later.
 - Docstrings describe what the code does and its inputs/outputs — not the history of the decision.

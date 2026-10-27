@@ -2,19 +2,19 @@
 pylimid — limited-memory influence diagrams with mixed-type variables.
 
 Build a diagram from chance, decision and utility nodes, then query it with
-`infer` or find the optimal policy with `solve`::
+`infer` or fit a policy with `solve`::
 
     from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
     from pylimid import infer, solve
 
 The graph layer (`pylimid.graph`) holds the node types and the diagram;
-`pylimid.inference` holds posterior inference, and `pylimid.solver` holds
-policy optimisation. `pylimid.numpyro` translates diagrams into NumPyro models
-and draws samples.
+`pylimid.policy` holds policy families and decision rules. `pylimid.inference` holds
+posterior inference, and `pylimid.solver` holds policy optimisation. The internal
+``pylimid._numpyro`` package translates diagrams into NumPyro models and draws samples.
 """
 
 from pylimid._version import __version__
-from pylimid.errors import InferenceError
+from pylimid.errors import InferenceError, SolveError
 from pylimid.graph import (
     ChanceNode,
     DecisionNode,
@@ -22,30 +22,39 @@ from pylimid.graph import (
     UtilityNode,
 )
 from pylimid.inference import InferenceResult, Posterior, infer
-from pylimid.policy import Policy
-from pylimid.policy_family import (
+from pylimid.policy import (
+    ActionTable,
+    CategoricalPolicy,
+    DecisionInformation,
+    DecisionRule,
+    FittedPolicy,
     LinearSoftmax,
-    SoftmaxPolicy,
-    TabularPolicy,
+    Policy,
+    PolicyFamily,
+    PolicyParameters,
     TabularSoftmax,
 )
-from pylimid.solver import Solution, SolveMethod, SolverName, solve
+from pylimid.solver import Solution, solve
 
 __all__ = [
+    "ActionTable",
+    "CategoricalPolicy",
     "ChanceNode",
+    "DecisionInformation",
     "DecisionNode",
+    "DecisionRule",
+    "FittedPolicy",
     "InferenceError",
     "InferenceResult",
     "InfluenceDiagram",
-    "Policy",
     "LinearSoftmax",
-    "SoftmaxPolicy",
-    "TabularSoftmax",
-    "TabularPolicy",
+    "Policy",
+    "PolicyFamily",
+    "PolicyParameters",
     "Posterior",
     "Solution",
-    "SolveMethod",
-    "SolverName",
+    "SolveError",
+    "TabularSoftmax",
     "UtilityNode",
     "__version__",
     "infer",

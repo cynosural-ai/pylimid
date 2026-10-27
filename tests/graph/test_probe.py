@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 
 from pylimid.graph import ChanceNode, InfluenceDiagram, UtilityNode
-from pylimid.graph.validation import DiagramProblemKind
+from pylimid.graph.diagram import DiagramProblemKind
 
 # --- helpers -----------------------------------------------------------------
 

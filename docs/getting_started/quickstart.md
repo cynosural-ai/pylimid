@@ -40,7 +40,14 @@ We start with the numbers. The owner chooses from a menu of stock levels, from 0
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
-from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode, solve
+from pylimid import (
+    ChanceNode,
+    DecisionNode,
+    InfluenceDiagram,
+    TabularSoftmax,
+    UtilityNode,
+    solve,
+)
 
 COST = 1.0
 PRICE = 10.0
@@ -76,7 +83,9 @@ def profit(order, demand):
 
 Note that `order` is the *index* of the chosen action, not the stock level itself, which is why `profit` looks it up in `ORDERS`. The same goes for `weather`: `0` is cloudy and `1` is sunny.
 
-Now we put the four nodes into an {py:class}`InfluenceDiagram`: `weather` and `demand` are each a {py:class}`ChanceNode`, `order` is a {py:class}`DecisionNode`, and `profit` is a {py:class}`UtilityNode`. A node's `parents` are the nodes it depends on. For a decision, the parents are what is known when the decision is made, so `order` lists `weather` but not `demand`:
+Now we put the four nodes into an {py:class}`InfluenceDiagram`: `weather` and `demand` are each a {py:class}`ChanceNode`, `order` is a {py:class}`DecisionNode`, and `profit` is a {py:class}`UtilityNode`. A node's `parents` are the nodes it depends on. For a decision, the parents are what is known when the decision is made, so `order` lists `weather` but not `demand`.
+
+We give `order` a {py:class}`TabularSoftmax` policy family. This lets it learn a separate set of probabilities over the available stock levels for each weather forecast. The family describes what we want to fit and `solve` will learn those probabilities from simulated days:
 
 ```{code-cell} ipython3
 diagram = InfluenceDiagram()
@@ -90,7 +99,10 @@ diagram.add_node(
 diagram.add_node(ChanceNode(name="demand", parents=("weather",), dist=demand_dist))
 diagram.add_node(
     DecisionNode(
-        name="order", parents=("weather",), states=tuple(str(n) for n in ORDERS)
+        name="order",
+        parents=("weather",),
+        states=tuple(str(n) for n in ORDERS),
+        policy_family=TabularSoftmax(),
     )
 )
 diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=profit))
@@ -112,19 +124,29 @@ diagram
 
 ## Solving the model
 
-{py:func}`solve` finds the policy with the highest expected profit, that is, how many ice creams to stock for each forecast. It returns a {py:class}`Solution`, whose `policy` maps each forecast to the index of the best order and whose `expected_utility` is the expected profit under that policy:
+{py:func}`solve` fits a policy to increase expected profit. It returns a {py:class}`Solution`, whose `policy` contains a fitted rule for `order` and whose `expected_utility` estimates the expected profit under that rule. {py:meth}`~Solution.render` shows the action probabilities for each forecast, using the labels stored in the rule:
 
 ```{code-cell} ipython3
-solution = solve(diagram, num_samples=50_000)
-
-for info, action in solution.policy["order"].items():
-    print(f"{WEATHER_STATES[info[0]]}: stock {int(ORDERS[action])}")
-print(f"expected profit: {float(solution.expected_utility):.1f}")
+solution = solve(diagram)
+print(solution.render())
 ```
 
-The shop should stock 60 ice creams on a cloudy day and 200 on a sunny day. This is far more than the average demand. Given the high margin on ice cream sales, it pays to carry extra stock in case the day is busy.
+In this run, the fitted rule puts about 98% probability on stocking 60 ice creams on a cloudy day and 94% on stocking 200 on a sunny day. This is far more than the average demand. Given the high margin on ice cream sales, it pays to carry extra stock in case the day is busy.
 
-Both the policy and the expected profit are Monte Carlo estimates, computed by simulating `num_samples` days. More samples give more precise results, and a run is reproducible: the same model and settings always give the same answer.
+We can also plot the probabilities for each stock level:
+
+```{figure} /_static/figures/quickstart/order_policy.png
+:alt: Paired bars show cloudy-day order probabilities in blue-grey and sunny-day probabilities in orange. Most probability is on 60 ice creams for cloudy days and 200 for sunny days.
+:width: 90%
+
+The fitted probability of each order, given the weather forecast.
+```
+
+The rule remains stochastic: following it means sampling an order from the displayed probabilities. Its expected profit is estimated under that whole distribution of orders, rather than always choosing the most likely one.
+
+By default, `solve` trains for 500 updates using 10,000 Monte Carlo simulated days per update. Its default random key makes repeated calls with the same model and settings reproducible. 
+
+However, training does not guarantee the *best* policy. We are following an approximate method and more samples reduce the noise in the profit estimate, but cannot fix incomplete training.
 
 ## Adding a Bayesian prior
 
@@ -168,17 +190,21 @@ prior_diagram.set_dist("demand", uncertain_demand_dist)
 prior_diagram
 ```
 
-{py:func}`solve` averages over possible `busyness` values when comparing stock levels:
+{py:func}`solve` now samples possible `busyness` values while fitting the policy and estimating its expected profit. We keep the same policy family because `order` still observes only the weather:
 
 ```{code-cell} ipython3
-prior_solution = solve(prior_diagram, num_samples=50_000)
-
-for info, action in prior_solution.policy["order"].items():
-    print(f"{WEATHER_STATES[info[0]]}: stock {int(ORDERS[action])}")
-print(f"expected profit: {prior_solution.expected_utility:.1f}")
+prior_solution = solve(prior_diagram)
+print(prior_solution.render())
 ```
 
-With this belief, the recommended cloudy-day stock rises from 60 to 80 ice creams. The sunny-day order stays at the menu's maximum of 200.
+With this belief, the recommended cloudy-day stock rises from 60 to 80 ice creams. The sunny-day order stays at the menu's maximum of 200:
+
+```{figure} /_static/figures/quickstart/prior_order_policy.png
+:alt: Cloudy-day order probabilities in blue-grey now concentrate on 80 ice creams, while sunny-day probabilities in orange remain concentrated on 200.
+:width: 90%
+
+The fitted order probabilities with the busyness prior.
+```
 
 ## Next steps
 

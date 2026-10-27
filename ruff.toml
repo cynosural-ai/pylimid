@@ -9,14 +9,15 @@ docstring-code-format = true
 
 [lint]
 select = [
-    "B",    # flake8-bugbear
-    "C",    # flake8-comprehensions
-    "D",    # pydocstyle
-    "D213", # docstring starts 2nd line
-    "E",    # pycodestyle errors
-    "F",    # pyflakes
-    "I",    # isort
-    "W"     # pycodestyle warnings
+    "B",      # flake8-bugbear
+    "C",      # flake8-comprehensions
+    "D",      # pydocstyle
+    "D213",   # docstring starts 2nd line
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "I",      # isort
+    "RUF022", # sorted __all__ exports
+    "W"       # pycodestyle warnings
 ]
 
 ignore = [

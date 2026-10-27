@@ -1,0 +1,393 @@
+"""
+Influence diagram — the graph container.
+
+Mutable workspace, validated gate
+---------------------------------
+The diagram is a workspace that an external author — a script, a UI, or an LLM
+driving the model over a tool interface — edits incrementally: drop a node
+here, wire an arc there, fill in a distribution later. Two consequences shape
+the API:
+
+- The diagram is allowed to be **incomplete** at all times. A node may declare
+  parents that are not yet in the diagram (a dangling reference); a node may
+  have no ``dist`` yet. These are legitimate intermediate states.
+- **Inference consumes a validated snapshot, never the live workspace.**
+  `InfluenceDiagram.validate` is the explicit gate: it collects every
+  problem that would block inference (dangling refs, cycles, unconfigured or
+  stale distributions) and returns them as structured
+  `DiagramProblem` instances. `InfluenceDiagram.snapshot` produces
+  a point-in-time view only when validation passes.
+
+Structural soundness is checked in one place. Editing methods only refuse
+requests they cannot carry out (a duplicate name, an arc into a node that is
+not in the diagram, a malformed field); cycles and utility nodes with children
+are reported by `InfluenceDiagram.validate`, however the diagram was built.
+
+Three node kinds live in one container: chance, decision, and utility (see
+`NodeKind`). They share the ``parents`` field, so topological ordering and
+cycle detection work uniformly across them. Utility nodes are *sinks*: a
+payoff with a child is reported as a problem.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass
+from typing import Any
+
+from pylimid.graph.diagram._probe import probe_discrete_parents
+from pylimid.graph.diagram._topology import children_of, topological_sort
+from pylimid.graph.diagram._validation import validate_nodes
+from pylimid.graph.diagram.problems import DiagramProblem
+from pylimid.graph.nodes import ChanceNode, DecisionNode, Node
+from pylimid.graph.render.graphviz import available as graphviz_available
+from pylimid.graph.render.graphviz import to_svg
+from pylimid.graph.render.mermaid import to_mermaid
+
+__all__ = ["DiagramSnapshot", "InfluenceDiagram"]
+
+
+@dataclass(frozen=True)
+class DiagramSnapshot:
+    """
+    A diagram's nodes in topological order, as used by inference and solvers.
+
+    Obtain a validated snapshot with `InfluenceDiagram.snapshot`. The snapshot holds
+    references to the original nodes, rather than copies. Take a new snapshot after
+    editing the diagram or its nodes.
+
+    Attributes:
+        nodes: ``(name, node)`` pairs in topological order.
+    """
+
+    nodes: tuple[tuple[str, Node], ...]
+
+    @property
+    def order(self) -> tuple[str, ...]:
+        """Node names in topological order (derived from nodes)."""
+        return tuple(name for name, _ in self.nodes)
+
+
+class InfluenceDiagram:
+    """
+    A mutable workspace for building an influence diagram.
+
+    Currently supports chance, decision, and utility nodes. A Bayesian network
+    is simply an `InfluenceDiagram` containing only chance nodes; the
+    moment a decision or utility node is added it becomes an influence diagram.
+
+    Nodes are registered by name. A node may be added before its parents exist, and
+    distributions and utility functions may be configured later. `validate` checks the
+    diagram's structure and configuration. `infer` and `solve` run this check
+    automatically before using the diagram.
+    """
+
+    def __init__(self) -> None:
+        """Initialize an empty diagram."""
+        self._nodes: dict[str, Node] = {}
+
+    # --- registration -------------------------------------------------------
+
+    def add_node(self, node: Node) -> None:
+        """
+        Register a node in the diagram.
+
+        The node's name must be unique. Its parents need *not* be present yet
+        — dangling references are tolerated during construction and caught by
+        `validate`.
+
+        Args:
+            node: The node to add.
+
+        Raises:
+            ValueError: If a node with this name is already registered.
+        """
+        if node.name in self._nodes:
+            raise ValueError(f"A node named {node.name!r} is already in the diagram.")
+        self._nodes[node.name] = node
+
+    def remove_node(self, name: str) -> Node:
+        """
+        Remove a node and its references from the remaining nodes' parents.
+
+        Functions on the affected nodes may need updating to match their new parents.
+
+        Args:
+            name: Name of the node to remove.
+
+        Returns:
+            The removed node.
+
+        Raises:
+            KeyError: If ``name`` is not in the diagram.
+        """
+        node = self._nodes.pop(name)
+        for survivor in self._nodes.values():
+            if name in survivor.parents:
+                survivor.remove_parent(name)
+        return node
+
+    # --- arcs --------------------------------------------------------------
+
+    def add_arc(self, parent: str, child: str) -> None:
+        """
+        Wire an arc ``parent -> child``.
+
+        The child must already be in the diagram. The parent may be added later. Adding
+        a parent may require updating the child's distribution or utility function to
+        accept it.
+
+        Structural problems (a cycle, a utility node with a child) are not
+        rejected here; `validate` reports them, as it does for arcs declared
+        in `add_node`. Adding an existing arc has no effect.
+
+        Args:
+            parent: Name of the parent node.
+            child: Name of the child node.
+
+        Raises:
+            KeyError: If the child is not in the diagram.
+            ValueError: If the arc is a self-loop.
+        """
+        if child not in self._nodes:
+            raise KeyError(f"Child {child!r} is not in the diagram.")
+        self._nodes[child].add_parent(parent)
+
+    def remove_arc(self, parent: str, child: str) -> None:
+        """
+        Remove the arc ``parent -> child`` if present; no-op otherwise.
+
+        Removing a parent may require updating the child's distribution or utility
+        function. A missing child or arc has no effect.
+
+        Args:
+            parent: Name of the parent node.
+            child: Name of the child node.
+        """
+        if child in self._nodes and parent in self._nodes[child].parents:
+            self._nodes[child].remove_parent(parent)
+
+    # --- distribution / state mutators --------------------------------------
+
+    def set_dist(self, name: str, dist: Callable[..., Any] | None) -> None:
+        """
+        Set the distribution function on a chance node.
+
+        Args:
+            name: Name of the chance node.
+            dist: Callable returning a NumPyro distribution from parent values, or
+                ``None`` to leave the node unconfigured.
+
+        Raises:
+            KeyError: If ``name`` is not in the diagram.
+            TypeError: If the node is not a chance node, or ``dist`` is neither callable
+                nor ``None``. Set a decision's ``states`` or a utility's ``values``
+                directly on that node.
+        """
+        node = self._nodes[name]
+        if not isinstance(node, ChanceNode):
+            raise TypeError(
+                f"`set_dist` applies to chance nodes only; {name!r} is a "
+                f"{node.kind.value} node."
+            )
+        node.dist = dist
+
+    # --- topology -----------------------------------------------------------
+
+    def topological_sort(self) -> tuple[str, ...]:
+        """
+        Return node names in a topological order (parents before children).
+
+        Missing parent references are ignored for ordering; `validate` reports them
+        separately.
+
+        Returns:
+            Node names with parents before children.
+
+        Raises:
+            ValueError: If the diagram contains a cycle.
+        """
+        return topological_sort(self._nodes)
+
+    def parents_of(self, name: str) -> tuple[str, ...]:
+        """
+        Return the declared parents of a node.
+
+        Args:
+            name: Name of the node.
+
+        Returns:
+            Parent names in their declared order, including any missing from the
+            diagram.
+
+        Raises:
+            KeyError: If ``name`` is not in the diagram.
+        """
+        return self._nodes[name].parents
+
+    def children_of(self, name: str) -> tuple[str, ...]:
+        """
+        Return the nodes that list a name as a parent.
+
+        Args:
+            name: Parent name to look up. It need not be in the diagram.
+
+        Returns:
+            Child names in insertion order, or an empty tuple if none refer to ``name``.
+        """
+        return children_of(self._nodes, name)
+
+    def states_of(self, name: str) -> tuple[str, ...]:
+        """
+        Return the state labels of a categorical chance or decision node.
+
+        Args:
+            name: Name of the node.
+
+        Returns:
+            The node's ``states`` labels.
+
+        Raises:
+            KeyError: If ``name`` is not in the diagram.
+            ValueError: If the node has no state labels — a numerical chance node,
+                an unconfigured decision, or a utility node.
+        """
+        node = self._nodes[name]
+        if not isinstance(node, (ChanceNode, DecisionNode)) or node.states is None:
+            raise ValueError(
+                f"Node {name!r} has no state labels; only categorical chance "
+                f"and decision nodes do."
+            )
+        return node.states
+
+    # --- validation ---------------------------------------------------------
+
+    def validate(self) -> list[DiagramProblem]:
+        """
+        Check the diagram's structure and node configuration.
+
+        Checks for missing parents, cycles, unconfigured nodes, callable signatures that
+        do not match their parents, and utility nodes with children. It does not
+        evaluate distribution or utility functions or check their numerical outputs.
+
+        `infer` and `solve` run this check automatically. Use `probe_discrete_parents`
+        separately to look for parents whose effects may be missing.
+
+        Returns:
+            The detected problems, or an empty list if these checks pass.
+        """
+        return validate_nodes(self._nodes)
+
+    def probe_discrete_parents(self) -> list[DiagramProblem]:
+        """
+        Look for categorical parents that have no effect at the tested inputs.
+
+        For each configured chance or utility function, vary each categorical parent
+        across its state indices while setting all other parents to zero, including
+        numerical parents. Compare distribution parameters or scalar utility values.
+        This can expose mistakes such as a lookup table with only one row for a parent
+        with several states.
+
+        The check executes the functions and propagates any errors they raise. It runs
+        only when called, never automatically through `validate` or `snapshot`.
+        Numerical parents are not varied.
+
+        Findings are warnings for inspection and do not block inference. A parent may be
+        intentionally ignored or have an effect only at other inputs. The check does not
+        establish that the model's numerical values are correct.
+
+        Returns:
+            One `DiagramProblem` per node and categorical parent whose output is
+            unchanged at the tested inputs. Unconfigured functions are skipped.
+        """
+        return probe_discrete_parents(self._nodes)
+
+    def snapshot(self) -> DiagramSnapshot:
+        """
+        Return a validated, point-in-time `DiagramSnapshot` of the diagram.
+
+        Returns:
+            A topologically ordered view that shares the diagram's node objects. Take a
+            new snapshot after editing the diagram or its nodes.
+
+        Raises:
+            ValueError: If `validate` reports any problem, with the
+                problems listed in the message.
+        """
+        problems = self.validate()
+        if problems:
+            formatted = "; ".join(p.message for p in problems)
+            raise ValueError(f"Diagram is not valid: {formatted}")
+        order = self.topological_sort()
+        nodes = tuple((name, self._nodes[name]) for name in order)
+        return DiagramSnapshot(nodes=nodes)
+
+    # --- lookups ------------------------------------------------------------
+
+    def __contains__(self, name: object) -> bool:
+        """Whether a node named ``name`` is registered."""
+        return name in self._nodes
+
+    def __getitem__(self, name: str) -> Node:
+        """Return the node registered under ``name``; raises ``KeyError`` if absent."""
+        return self._nodes[name]
+
+    def __len__(self) -> int:
+        """The number of nodes registered."""
+        return len(self._nodes)
+
+    def __iter__(self) -> Iterator[str]:
+        """Iterate over node names (insertion order, not topological)."""
+        return iter(self._nodes)
+
+    @property
+    def names(self) -> tuple[str, ...]:
+        """All node names in insertion order."""
+        return tuple(self._nodes)
+
+    def __repr__(self) -> str:
+        """A deterministic summary, used when Graphviz cannot draw a figure."""
+        return f"InfluenceDiagram({', '.join(self.names)})"
+
+    # --- rendering ----------------------------------------------------------
+
+    def to_mermaid(self) -> str:
+        """
+        Render the diagram as a Mermaid ``flowchart`` source string.
+
+        No validation is required. Missing parents appear as dashed placeholders, and
+        unconfigured or stale nodes are highlighted. Nodes appear in topological order,
+        falling back to insertion order if the diagram contains a cycle.
+
+        Returns:
+            Mermaid flowchart source; paste into a Mermaid renderer to view.
+        """
+        return to_mermaid(self)
+
+    def to_svg(self) -> str:
+        """
+        Render the diagram as an SVG string with Graphviz.
+
+        Requires the Graphviz ``dot`` program on ``PATH``. No validation is required, so
+        incomplete diagrams can also be drawn. In Jupyter, displaying the diagram uses
+        this rendering automatically when ``dot`` is available.
+
+        Returns:
+            SVG source.
+
+        Raises:
+            FileNotFoundError: If the ``dot`` binary is not on ``PATH``.
+            subprocess.CalledProcessError: If ``dot`` rejects the graph.
+        """
+        return to_svg(self)
+
+    def _repr_svg_(self) -> str | None:
+        """
+        Jupyter display hook: the SVG rendering, or ``None`` without ``dot``.
+
+        Returning ``None`` when the ``dot`` binary is missing makes Jupyter
+        fall back to the plain repr instead of failing the display.
+        """
+        if not graphviz_available():
+            return None
+        return to_svg(self)

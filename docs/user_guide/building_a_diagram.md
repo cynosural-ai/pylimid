@@ -25,9 +25,6 @@ A decision observes exactly its declared parents. In the shop model, `weather` i
 
 PyLIMID does not automatically make earlier choices or observations available to later decisions. Anything a later decision should remember must also be one of its parents.
 
-Decisions choose from a finite set of actions. Their tabular policies require parents with named finite states, so numerical counts and continuous variables cannot directly index a decision table.
-
-Supplied deterministic function policies can use continuous observations for forward evaluation with {py:func}`infer`. Table solvers still require categorical information sets. We can instead declare a {py:class}`LinearSoftmax` or {py:class}`TabularSoftmax` family on every decision and fit their joint policy with `solve(method="policy_gradient")`. `TabularSoftmax` gives every scalar categorical parent-state combination its own action probabilities; it can train alongside `LinearSoftmax` rules for numerical or mixed information. See [Solving a diagram](solving.md#fitting-a-policy-with-continuous-information) and {py:data}`Policy` for the rule contracts and evaluation limits.
 ```
 
 We start with the numbers and the `profit` function from the quickstart:
@@ -36,7 +33,13 @@ We start with the numbers and the `profit` function from the quickstart:
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
-from pylimid import ChanceNode, DecisionNode, InfluenceDiagram, UtilityNode
+from pylimid import (
+    ChanceNode,
+    DecisionNode,
+    InfluenceDiagram,
+    TabularSoftmax,
+    UtilityNode,
+)
 
 DEMAND_MEANS = jnp.array([40.0, 120.0])
 BUSYNESS_MEAN = 1.2
@@ -58,13 +61,16 @@ However, some invalid values still raise an error immediately. PyLIMID checks di
 - When we create or edit a node, PyLIMID rejects invalid values such as an empty name or repeated state labels.
 - When we call {py:meth}`~InfluenceDiagram.validate`, PyLIMID checks the whole diagram for missing parents, cycles, unconfigured nodes and functions whose arguments don't match their parents.
 
-For example, we can start with the `order` and `profit` nodes, before adding `weather`, `busyness` or `demand`:
+For example, we can start with the `order` and `profit` nodes, before adding `weather`, `busyness` or `demand`. We keep the {py:class}`TabularSoftmax` family from the quickstart:
 
 ```{code-cell} ipython3
 diagram = InfluenceDiagram()
 diagram.add_node(
     DecisionNode(
-        name="order", parents=("weather",), states=tuple(str(n) for n in ORDERS)
+        name="order",
+        parents=("weather",),
+        states=tuple(str(n) for n in ORDERS),
+        policy_family=TabularSoftmax(),
     )
 )
 diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=profit))
@@ -131,6 +137,8 @@ diagram.validate()
 ```
 
 An empty list means PyLIMID found no problems with the diagram's structure or node configuration. **This check does not evaluate the distributions or utility functions**. Also, we don't have to call `validate()` before solving: {py:func}`solve` and {py:func}`infer` check the diagram themselves and raise an error listing any problems.
+
+The policy family is checked separately by `solve`, which requires one on every decision before training.
 
 Each node also reports its own state through {py:attr}`~Node.consistency`, which is one of `UNCONFIGURED`, `STALE` or `CONSISTENT`:
 

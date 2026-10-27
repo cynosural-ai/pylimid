@@ -8,20 +8,19 @@ import numpyro.distributions as dist
 import pytest
 
 from pylimid import (
+    CategoricalPolicy,
     ChanceNode,
     DecisionNode,
     InferenceError,
     InfluenceDiagram,
     LinearSoftmax,
-    SoftmaxPolicy,
-    TabularPolicy,
     TabularSoftmax,
     UtilityNode,
     infer,
     solve,
 )
-from pylimid.numpyro import samples, to_model
-from pylimid.solver.policy_gradient import _initialize_policy, _score_loss, _trajectory
+from pylimid._numpyro.samplers import samples
+from pylimid.solver.api import _initialize_policy, _score_loss, _trajectory
 
 
 def _xor_diagram(family):
@@ -52,13 +51,13 @@ def _xor_diagram(family):
 
 def test_tabular_rows_preserve_parent_order_and_have_independent_parameters():
     logits = jnp.arange(18, dtype=float).reshape(3, 2, 3) / 10
-    rule = TabularPolicy(
+    rule = CategoricalPolicy(
         family=TabularSoftmax(),
         parents=("right", "left"),
         parent_states=(("red", "green", "blue"), ("no", "yes")),
         parent_shapes=((), ()),
         states=("low", "medium", "high"),
-        logits=logits,
+        parameters={"logits": logits},
     )
     information = {"left": jnp.array(1), "right": jnp.array(2)}
     probabilities = rule.probabilities(**information)
@@ -69,9 +68,9 @@ def test_tabular_rows_preserve_parent_order_and_have_independent_parameters():
     key = jax.random.PRNGKey(4)
     assert rule.sample(key, **information) == rule.sample(key, **information)
     gradient = jax.grad(
-        lambda scores: replace(rule, logits=scores).log_prob(
-            jnp.array(2), **information
-        )
+        lambda scores: replace(
+            rule, parameters={**rule.parameters, "logits": scores}
+        ).log_prob(jnp.array(2), **information)
     )(logits)
     assert gradient[2, 1] == pytest.approx(jnp.array([0.0, 0.0, 1.0]) - probabilities)
     assert jnp.count_nonzero(gradient.at[2, 1].set(0)) == 0
@@ -92,9 +91,14 @@ def test_tabular_score_gradient_matches_analytic_and_enumerated_expectation(
     if nonzero_parameters:
         rule = replace(
             rule,
-            logits=jnp.array([[[0.2, -0.3], [0.4, 0.1]], [[-0.5, 0.2], [0.3, -0.2]]]),
+            parameters={
+                **rule.parameters,
+                "logits": jnp.array(
+                    [[[0.2, -0.3], [0.4, 0.1]], [[-0.5, 0.2], [0.3, -0.2]]]
+                ),
+            },
         )
-    parameters = {"action": {"logits": rule.logits}}
+    parameters = {"action": {"logits": rule.parameters["logits"]}}
     left, right, action = jnp.indices((2, 2, 2)).reshape(3, -1)
     returns = jnp.where(action == (left != right), 1.0, 0.0)
 
@@ -102,7 +106,9 @@ def test_tabular_score_gradient_matches_analytic_and_enumerated_expectation(
         probabilities = jax.nn.softmax(parameters["action"]["logits"], axis=-1)
         return jnp.mean(2 * probabilities[left, right, action] * returns)
 
-    probabilities = jax.nn.softmax(rule.logits, axis=-1)[left, right, action]
+    probabilities = jax.nn.softmax(rule.parameters["logits"], axis=-1)[
+        left, right, action
+    ]
     gradients = jax.grad(_score_loss)(
         parameters,
         templates,
@@ -122,17 +128,17 @@ def test_tabular_score_gradient_matches_analytic_and_enumerated_expectation(
         )
 
 
-def test_tabular_solver_learns_xor_and_matches_categorical_reference_solvers():
+def test_tabular_solver_learns_xor_against_analytic_optimum():
     diagram = _xor_diagram(TabularSoftmax())
-    solution = solve(diagram, method="policy_gradient", num_steps=200, num_samples=512)
+    solution = solve(diagram, num_steps=200, num_samples=512)
     rule = solution.policy["action"]
-    assert isinstance(rule, TabularPolicy)
+    assert isinstance(rule, CategoricalPolicy)
     assert rule.family is diagram["action"].policy_family
     assert rule.parents == ("left", "right")
     assert rule.parent_states == (("no", "yes"), ("no", "yes"))
     assert rule.parent_shapes == ((), ())
     assert rule.states == ("off", "on")
-    assert rule.logits.shape == (2, 2, 2)
+    assert rule.parameters["logits"].shape == (2, 2, 2)
     for left in range(2):
         for right in range(2):
             assert (
@@ -141,19 +147,13 @@ def test_tabular_solver_learns_xor_and_matches_categorical_reference_solvers():
                 ]
                 > 0.97
             )
-    reference = _xor_diagram(None)
-    for method in ("scan", "backward_induction"):
-        exact_table = solve(reference, method=method, num_samples=2000)
-        assert exact_table.expected_utility == 1.0
-        assert solution.expected_utility == pytest.approx(
-            exact_table.expected_utility, abs=0.03
-        )
+    assert solution.expected_utility == pytest.approx(1.0, abs=0.03)
     payoff = infer(diagram, ["payoff"], policy=solution.policy, num_samples=5000)[
         "payoff"
     ]
     assert payoff.mean() > 0.97
-    rendered = solution.render(diagram)
-    assert "tabular-softmax policy (stochastic)" in rendered
+    rendered = solution.render()
+    assert "TabularSoftmax policy (stochastic)" in rendered
     assert "left=no, right=yes" in rendered
     assert "off=" in rendered and "on=" in rendered
 
@@ -161,22 +161,20 @@ def test_tabular_solver_learns_xor_and_matches_categorical_reference_solvers():
 def test_tabular_fitting_is_reproducible_and_evaluated_on_independent_scenarios():
     diagram = _xor_diagram(TabularSoftmax())
     key = jax.random.PRNGKey(9)
-    first = solve(
-        diagram, method="policy_gradient", num_steps=20, num_samples=64, rng_key=key
-    )
-    second = solve(
-        diagram, method="policy_gradient", num_steps=20, num_samples=64, rng_key=key
-    )
+    first = solve(diagram, num_steps=20, num_samples=64, rng_key=key)
+    second = solve(diagram, num_steps=20, num_samples=64, rng_key=key)
     first_rule, second_rule = first.policy["action"], second.policy["action"]
-    assert isinstance(first_rule, TabularPolicy)
-    assert isinstance(second_rule, TabularPolicy)
-    assert jnp.array_equal(first_rule.logits, second_rule.logits)
+    assert isinstance(first_rule, CategoricalPolicy)
+    assert isinstance(second_rule, CategoricalPolicy)
+    assert jnp.array_equal(
+        first_rule.parameters["logits"], second_rule.parameters["logits"]
+    )
     assert first.expected_utility == second.expected_utility
     information_key, _, _, evaluation_key = jax.random.split(key, 4)
     templates = _initialize_policy(diagram.snapshot(), information_key)
     trajectory = _trajectory(diagram.snapshot(), templates)
     returns, _, _ = jax.jit(jax.vmap(trajectory, in_axes=(None, 0)))(
-        {"action": {"logits": first_rule.logits}},
+        {"action": {"logits": first_rule.parameters["logits"]}},
         jax.random.split(evaluation_key, 64),
     )
     assert first.expected_utility == float(jnp.mean(returns))
@@ -207,10 +205,10 @@ def test_joint_tabular_and_linear_training_with_action_dependent_observations():
             values=lambda signal, follow_up: signal * follow_up,
         )
     )
-    solution = solve(diagram, method="policy_gradient", num_steps=400, num_samples=1024)
+    solution = solve(diagram, num_steps=400, num_samples=1024)
     first, second = solution.policy["action"], solution.policy["follow_up"]
-    assert isinstance(first, TabularPolicy)
-    assert isinstance(second, SoftmaxPolicy)
+    assert isinstance(first, CategoricalPolicy)
+    assert isinstance(second, CategoricalPolicy)
     assert first.family is diagram["action"].policy_family
     assert second.family is diagram["follow_up"].policy_family
     assert second.parents == ("reading", "action")
@@ -233,7 +231,7 @@ def test_joint_tabular_and_linear_training_with_action_dependent_observations():
     )
     total = payoff["payoff"].mean() + payoff["later_payoff"].mean()
     assert total == pytest.approx(1.25, abs=0.04)
-    assert solution.render(diagram).count("stochastic") == 2
+    assert solution.render().count("stochastic") == 2
 
 
 @pytest.mark.parametrize(
@@ -251,7 +249,7 @@ def test_tabular_family_rejects_information_without_named_states(distribution):
         )
     )
     with pytest.raises(ValueError, match="named finite states.*'information'"):
-        solve(diagram, method="policy_gradient")
+        solve(diagram)
 
 
 def test_tabular_family_rejects_array_valued_categorical_information():
@@ -272,13 +270,7 @@ def test_tabular_family_rejects_array_valued_categorical_information():
         )
     )
     with pytest.raises(ValueError, match="scalar state index.*'information'"):
-        solve(diagram, method="policy_gradient")
-
-
-@pytest.mark.parametrize("method", ["auto", "scan", "backward_induction"])
-def test_table_solvers_reject_declared_tabular_softmax(method):
-    with pytest.raises(InferenceError, match="table solvers cannot"):
-        solve(_xor_diagram(TabularSoftmax()), method=method)
+        solve(diagram)
 
 
 def test_tabular_root_policy_preserves_stochastic_action_and_descendant_correlation():
@@ -292,21 +284,29 @@ def test_tabular_root_policy_preserves_stochastic_action_and_descendant_correlat
             dist=lambda first, second: dist.Delta(first + 2 * second),
         )
     )
-    rule = TabularPolicy(
-        TabularSoftmax(), (), (), (), ("off", "on"), jnp.log(jnp.array([0.3, 0.7]))
+    rule = CategoricalPolicy(
+        TabularSoftmax(),
+        (),
+        (),
+        (),
+        ("off", "on"),
+        {"logits": jnp.log(jnp.array([0.3, 0.7]))},
     )
     policy = {"first": rule, "second": {(0,): 1, (1,): 0}}
     draws = samples(diagram.snapshot(), policy=policy, num_samples=5000)
     assert jnp.mean(draws["first"]) == pytest.approx(0.7, abs=0.02)
     assert jnp.array_equal(draws["second"], 1 - draws["first"])
     assert jnp.array_equal(draws["outcome"], 2 - draws["first"])
-    for evaluate in (
-        lambda: samples(diagram.snapshot(), policy=policy, observed={"outcome": 1}),
-        lambda: to_model(diagram.snapshot(), policy=policy, observed={"outcome": 1}),
-        lambda: infer(diagram, ["outcome"], policy=policy, observed={"outcome": 1}),
-    ):
-        with pytest.raises(NotImplementedError, match="forward evaluation"):
-            evaluate()
+    posterior = samples(
+        diagram.snapshot(), policy=policy, observed={"outcome": 1}, num_samples=100
+    )
+    assert jnp.array_equal(posterior["first"], jnp.ones(100, dtype=int))
+    assert jnp.array_equal(posterior["second"], jnp.zeros(100, dtype=int))
+    assert jnp.array_equal(posterior["outcome"], jnp.ones(100, dtype=int))
+    result = infer(
+        diagram, ["outcome"], policy=policy, observed={"outcome": 1}, num_samples=100
+    )
+    assert jnp.array_equal(result["outcome"].values, posterior["outcome"])
 
 
 @pytest.mark.parametrize(

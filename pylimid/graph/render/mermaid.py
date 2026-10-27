@@ -53,10 +53,10 @@ def to_mermaid(diagram: InfluenceDiagram) -> str:
         Mermaid ``flowchart`` source. Paste into a Mermaid renderer (GitHub,
         Jupyter, mermaid.live) to view it.
     """
-    return render(build_scene(diagram))
+    return _render(build_scene(diagram))
 
 
-def render(scene: Scene) -> str:
+def _render(scene: Scene) -> str:
     """Format *scene* as Mermaid ``flowchart`` source."""
     lines = ["flowchart LR"]
     for node in scene.nodes:
