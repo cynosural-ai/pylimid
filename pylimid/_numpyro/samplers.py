@@ -73,8 +73,9 @@ def samples(
         policy: Decision names mapped to complete action tables, JAX-traceable
             deterministic functions, or fitted `CategoricalPolicy` rules. Functions
             receive only declared information parents as keyword arguments and return
-            a scalar integer action index. Fitted rules sample actions from learned
-            probabilities. Functions and fitted rules support forward evaluation only.
+            a scalar integer action index. Fitted rules supply learned action
+            probabilities for forward sampling and posterior conditioning. Function
+            policies support forward evaluation only.
 
     Returns:
         Dict mapping node name to a JAX array with shape
@@ -87,9 +88,9 @@ def samples(
             non-scalar batch shape.
         KeyError: If a policy names a node that is not in the snapshot.
         ValueError: If a policy has an information-set parent without named states, or
-            a chance distribution conflicts with its ``states``.
-        NotImplementedError: If function or fitted stochastic policies use chance-node
-            evidence.
+            a chance distribution conflicts with its ``states``, or fitted policy
+            inputs have incompatible shapes.
+        NotImplementedError: If function policies use chance-node evidence.
     """
     observed = observed or {}
     if rng_key is None:

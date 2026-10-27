@@ -1,6 +1,6 @@
 # Posterior inference with fitted categorical policies
 
-Status: behavior contract for implementation. Fitted policies currently support forward evaluation only; this note defines the conditioning extension. Implementation, published documentation updates, and the inference guide revision follow separately.
+Status: conditioning is implemented through the existing `infer` API, including policy batching and action enumeration. This note records its behavior contract. Broader acceptance checks, published documentation updates, and the inference guide revision follow separately.
 
 ## Goal
 

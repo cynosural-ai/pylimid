@@ -494,7 +494,7 @@ def test_training_uses_mixed_declared_information_and_flattens_vector_values():
         rule.probabilities(signal=jnp.zeros((1, 2)), category=jnp.array(0))
 
 
-def test_forward_evaluation_preserves_stochastic_action_descendant_correlation():
+def test_evaluation_preserves_stochastic_action_descendant_correlation():
     diagram = InfluenceDiagram()
     diagram.add_node(DecisionNode("action", states=("off", "on")))
     diagram.add_node(DecisionNode("next", parents=("action",), states=("off", "on")))
@@ -510,8 +510,12 @@ def test_forward_evaluation_preserves_stochastic_action_descendant_correlation()
     assert jnp.mean(draws["action"]) == pytest.approx(0.5, abs=0.05)
     assert jnp.array_equal(draws["next"], 1 - draws["action"])
     assert jnp.array_equal(draws["outcome"], 2 - draws["action"])
-    with pytest.raises(NotImplementedError, match="forward evaluation"):
-        samples(diagram.snapshot(), policy=policy, observed={"outcome": 1})
+    posterior = samples(
+        diagram.snapshot(), policy=policy, observed={"outcome": 1}, num_samples=100
+    )
+    assert jnp.array_equal(posterior["action"], jnp.ones(100, dtype=int))
+    assert jnp.array_equal(posterior["next"], jnp.zeros(100, dtype=int))
+    assert jnp.array_equal(posterior["outcome"], jnp.ones(100, dtype=int))
 
 
 @pytest.mark.parametrize(

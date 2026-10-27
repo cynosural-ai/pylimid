@@ -297,12 +297,16 @@ def test_tabular_root_policy_preserves_stochastic_action_and_descendant_correlat
     assert jnp.mean(draws["first"]) == pytest.approx(0.7, abs=0.02)
     assert jnp.array_equal(draws["second"], 1 - draws["first"])
     assert jnp.array_equal(draws["outcome"], 2 - draws["first"])
-    for evaluate in (
-        lambda: samples(diagram.snapshot(), policy=policy, observed={"outcome": 1}),
-        lambda: infer(diagram, ["outcome"], policy=policy, observed={"outcome": 1}),
-    ):
-        with pytest.raises(NotImplementedError, match="forward evaluation"):
-            evaluate()
+    posterior = samples(
+        diagram.snapshot(), policy=policy, observed={"outcome": 1}, num_samples=100
+    )
+    assert jnp.array_equal(posterior["first"], jnp.ones(100, dtype=int))
+    assert jnp.array_equal(posterior["second"], jnp.zeros(100, dtype=int))
+    assert jnp.array_equal(posterior["outcome"], jnp.ones(100, dtype=int))
+    result = infer(
+        diagram, ["outcome"], policy=policy, observed={"outcome": 1}, num_samples=100
+    )
+    assert jnp.array_equal(result["outcome"].values, posterior["outcome"])
 
 
 @pytest.mark.parametrize(

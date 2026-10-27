@@ -51,9 +51,10 @@ class DecisionNode(Node):
 
     A decision chooses among a finite set of actions. Tabular policies require every
     parent to declare named finite states; numerical counts and continuous parents
-    cannot index these tables. Supplied deterministic functions and fitted
-    `CategoricalPolicy` rules can use continuous observations during forward evaluation
-    with `infer`. Declare a `PolicyFamily`, such as `LinearSoftmax` or
+    cannot index these tables. Supplied deterministic functions can use continuous
+    observations during forward evaluation with `infer`. Fitted `CategoricalPolicy`
+    rules also support conditioning on chance evidence with continuous or mixed
+    information. Declare a `PolicyFamily`, such as `LinearSoftmax` or
     `TabularSoftmax`, on every decision to fit their joint policy through `solve`.
     Its ``parents`` are the information available when it acts; earlier observations
     and decisions are remembered only when included explicitly.
