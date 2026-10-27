@@ -10,7 +10,7 @@ These functions and their result and error types are available directly from ``p
 Entry points
 ------------
 
-`infer` accepts a `Policy` containing fixed actions, complete deterministic tables, deterministic functions or fitted `CategoricalPolicy` rules. Functions and fitted rules support forward evaluation without observed chance nodes; conditioning through them remains unsupported. Only decisions relevant to the query or evidence need a rule.
+`infer` accepts a `Policy` containing fixed actions, complete deterministic tables, deterministic functions or fitted `CategoricalPolicy` rules. Fitted rules support forward evaluation and conditioning on chance-node evidence, including with continuous or mixed information parents. Deterministic functions support forward evaluation only. Only decisions relevant to the query or evidence need a rule.
 
 `solve` always uses policy gradients to jointly fit the `PolicyFamily` declared on every decision. Its ``num_samples`` is the number of scenarios per training update and in the independent final evaluation; ``num_steps`` controls the number of updates, and ``learning_rate`` controls the Adam step size. The returned rules remain stochastic. Training has no convergence or optimality guarantee, and increasing evaluation samples only reduces estimation noise.
 
@@ -46,7 +46,7 @@ Results
 Errors
 ------
 
-The error classes below are also exported by ``pylimid.errors``. Invalid diagram configuration and optimizer settings raise `ValueError`; unknown queried or observed node names raise `KeyError`. Relevant function or fitted rules combined with chance-node evidence raise `NotImplementedError`. The entry-point docstrings list the conditions for each error.
+The error classes below are also exported by ``pylimid.errors``. Invalid diagram configuration and optimizer settings raise `ValueError`. Unknown queried or observed node names raise `KeyError`. Relevant deterministic function policies combined with chance-node evidence raise `NotImplementedError`. The entry-point docstrings list the conditions for each error.
 
 .. autosummary::
    :toctree: generated
