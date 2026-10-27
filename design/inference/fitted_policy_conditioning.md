@@ -1,6 +1,6 @@
 # Posterior inference with fitted categorical policies
 
-Status: conditioning is implemented through the existing `infer` API, including policy batching and action enumeration. This note records its behavior contract. Broader acceptance checks, published documentation updates, and the inference guide revision follow separately.
+Status: conditioning and acceptance checks are implemented through the existing `infer` API, including policy batching and action enumeration. This note records its behavior contract and validation results. Published documentation updates and the inference guide revision follow separately.
 
 ## Goal
 
@@ -66,7 +66,7 @@ Smooth fitted policies such as `LinearSoftmax` fit the existing gradient-based p
 
 ## Acceptance checks
 
-Validate the following behaviors with direct calculations or numerical integration on small models and the existing test suite. New test files are outside the currently authorized work.
+Validate the following behaviors with exact sums, numerical integration on small models, direct checks, and the existing test suite.
 
 - A stochastic categorical table conditioned on an outcome agrees with an explicit sum over chance states and actions.
 - Observing a continuous information parent uses the fitted probabilities at the supplied value.
@@ -76,4 +76,17 @@ Validate the following behaviors with direct calculations or numerical integrati
 - Parentless fitted rules, observed parents, and irrelevant policies follow the existing pruning and binding behavior.
 - Forward evaluation, fixed actions, deterministic tables, utilities, sample alignment, and existing unsupported-input behavior retain their established contracts.
 
-Implementation starts with the policy-evaluation adapter and action-site enumeration, then removes the fitted-policy evidence rejection after the paths work together. Published documentation and inference-page examples are updated afterwards.
+## Validation results
+
+Acceptance checks completed on 2026-10-27. The [fitted-policy regression module](../../tests/inference/test_fitted_policies.py) adds six cases covering:
+
+- The full discrete joint posterior for two fitted decisions, mixed policy families, differently sized categorical parents, declared parent order, remembered actions, and aligned utility draws, compared with an explicit probability sum.
+- Mixed categorical and vector information under `LinearSoftmax`, and matrix information under a nonlinear custom family with nested parameters, compared with two-dimensional Gaussian quadrature. The categorical information parent itself depends on the continuous signal. Checks include continuous and categorical posterior summaries, action-dependent utility, retained array shapes, sample alignment, and unchanged fitted parameters.
+- An observed continuous information parent, with and without an observed downstream outcome, compared with the conditional action probabilities.
+- Multiple fitted decisions with an earlier action affecting later continuous information, compared with Gaussian quadrature for marginal and joint moments.
+
+Additional direct checks confirmed finite fixed-bound Binomial information and joint utilities, pruning of irrelevant fitted policies, zero-probability actions, continued rejection of unsupported Poisson and batched count latents, and rejection of changed numerical information shapes. Earlier public-API checks also reused a policy returned by `solve` and compared its posterior results with Gaussian quadrature.
+
+The full suite passed with 410 tests, including the existing function-policy, fixed-action, deterministic-table, count-domain, and API-boundary checks. Ruff lint, Ruff format checking, and ty checking passed. These checks found no additional implementation gaps within the declared scope; the existing backend boundaries above still apply.
+
+Published documentation and inference-page examples are updated afterwards.
