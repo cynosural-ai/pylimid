@@ -15,11 +15,11 @@ Update the existing documentation for the policy-gradient-only API, preserving t
 | Inference | Complete. Uses fitted policies with direct chance-node conditioning, and the examples, figures, and API-reference boundaries have been checked. |
 | Multiple decisions | Complete. Jointly fits the promotion and order rules, explains explicit memory and rarely used rows, and evaluates aligned total-profit draws. |
 | Common pitfalls | Complete. Retains indexing and parent-effect checks, and adds state-index, joint-draw, and fitted-policy examples. |
-| Count distributions | Complete, awaiting review. Fits capacity policies before and after observing a numerical count, and retains the supported posterior examples and limits. |
-| Remaining site and README checks | Pending. Follow the page-by-page checklist below. |
+| Count distributions | Complete. Fits capacity policies before and after observing a numerical count, and retains the supported posterior examples and limits. |
+| Remaining site and README checks | Complete, awaiting review of the final changes. The README uses fitted rules, the overview pages distinguish training quality from estimation noise, and installation guidance has been verified. |
 | Full strict documentation build | Passing with no Sphinx warnings and forced execution of all published examples. |
 
-The API reference, quickstart, all five core user guides, and resource pages are complete, but the documentation migration is still in progress. The Count distributions update is uncommitted and awaiting review. The build evidence and checks are recorded in the [verification log](#verification-log).
+The published documentation migration is complete. The final README, overview, installation wording, and verification-record changes are uncommitted for review. Excluded tutorial drafts remain a separate migration task. The build evidence and checks are recorded in the [verification log](#verification-log).
 
 ## Starting point
 
@@ -41,18 +41,18 @@ The starting-point audit is complete. Its findings are retained as the baseline;
 
 ## API changes across the documentation
 
-The API reference now covers the current contract. Unchecked items in this section track the work still needed in walkthroughs, resources, README examples, and figures; they do not mean those topics are missing from the reference.
+The API reference, walkthroughs, resources, README example, and figure scripts now cover the current contract. The completed items below apply to published pages. Excluded tutorial work is recorded separately.
 
-- [ ] Replace solver selection and the removed backward-induction and scan APIs with the single `solve()` workflow. Remove references to `method`, `SolveMethod`, `SolverName`, and `Solution.method` where they describe current behavior.
-- [ ] Declare a `PolicyFamily` on each decision used by `solve()`. Explain when to use `TabularSoftmax` or `LinearSoftmax`, including their information requirements.
-- [ ] Replace `SoftmaxPolicy` and `TabularPolicy` with `CategoricalPolicy`. Explain the distinction between a trainable family, a fitted rule, and the joint policy.
-- [ ] Update `Solution.render()` calls and explanations: fitted rules retain the labels, so rendering no longer takes a diagram.
-- [ ] Explain `num_samples`, `num_steps`, `learning_rate`, and `rng_key` using the current signatures and defaults. Both public entry points default to 10,000 samples; in `solve()`, the budget applies to each training update and to independent final evaluation.
+- [x] Replace solver selection and the removed backward-induction and scan APIs with the single `solve()` workflow. Remove references to `method`, `SolveMethod`, `SolverName`, and `Solution.method` where they describe current behavior.
+- [x] Declare a `PolicyFamily` on each decision used by `solve()`. Explain when to use `TabularSoftmax` or `LinearSoftmax`, including their information requirements.
+- [x] Replace `SoftmaxPolicy` and `TabularPolicy` with `CategoricalPolicy`. Explain the distinction between a trainable family, a fitted rule, and the joint policy.
+- [x] Update `Solution.render()` calls and explanations: fitted rules retain the labels, so rendering no longer takes a diagram.
+- [x] Explain `num_samples`, `num_steps`, `learning_rate`, and `rng_key` using the current signatures and defaults. Both public entry points default to 10,000 samples; in `solve()`, the budget applies to each training update and to independent final evaluation.
 - [x] Document `ActionTable`, `DecisionRule`, `Policy`, `FittedPolicy`, `DecisionInformation`, and `PolicyParameters` with their intended meanings. Distinguish the policies accepted by `infer()` from those returned by `solve()`, and single information assignments from batches.
-- [ ] Update errors and examples for `InferenceError`, `SolveError`, and configuration `ValueError`s according to the implementation.
-- [ ] Repair imports and cross-references for the graph, diagram, node, and policy packages. Keep internal helpers out of the public API reference.
-- [ ] Explain that fitted actions remain stochastic, expected utility is estimated on independent scenarios, and training gives no convergence or optimality guarantee. Distinguish evaluation noise from policy quality and explain poorly visited or impossible tabular rows where relevant.
-- [ ] Preserve the current inference and distribution boundaries: finite categorical actions, JAX-traceable functions, explicit information and memory arcs, count-support limits, posterior conditioning through fitted categorical policies, and forward-only evaluation of supplied deterministic function policies.
+- [x] Update errors and examples for `InferenceError`, `SolveError`, and configuration `ValueError`s according to the implementation.
+- [x] Repair imports and cross-references for the graph, diagram, node, and policy packages. Keep internal helpers out of the public API reference.
+- [x] Explain that fitted actions remain stochastic, expected utility is estimated on independent scenarios, and training gives no convergence or optimality guarantee. Distinguish evaluation noise from policy quality and explain poorly visited or impossible tabular rows where relevant.
+- [x] Preserve the current inference and distribution boundaries: finite categorical actions, JAX-traceable functions, explicit information and memory arcs, count-support limits, posterior conditioning through fitted categorical policies, and forward-only evaluation of supplied deterministic function policies.
 
 ## Page-by-page work
 
@@ -67,24 +67,24 @@ For each page, read the existing prose first, update the example and its interpr
 - [x] `docs/user_guide/multiple_decisions.md`: preserve the promotion story and explain joint fitting with explicit information parents and memory.
 - [x] `docs/resources/common_pitfalls.md`: retain the existing indexing and parent-effect diagnostics, and add standalone examples for state indices, joint draws, and changing fitted policies.
 - [x] `docs/resources/count_distributions.md`: update standalone examples and diagnostics, and remove obsolete solver advice while retaining relevant modeling and inference limits.
-- [ ] `docs/index.md`, `docs/getting_started/installation.md`, and `README.md`: align claims, quick examples, links, and terminology with the updated guides. Keep the README example consistent with the quickstart.
-- [ ] Review excluded tutorial drafts for stale references and record remaining work separately. Keep unreviewed tutorials excluded; publishing or rewriting them is outside this migration's initial scope.
-- [ ] Finalize `design/documentation_plan.md` when the migration is complete. The new API structure and current migration status are already recorded there. Check `docs/README.md` if build instructions change.
+- [x] `docs/index.md`, `docs/getting_started/installation.md`, and `README.md`: align claims, quick examples, links, and terminology with the updated guides. Keep the README example consistent with the quickstart.
+- [x] Review excluded tutorial drafts for stale references and record remaining work separately. Keep unreviewed tutorials excluded; publishing or rewriting them is outside this migration's initial scope.
+- [x] Finalize `design/documentation_plan.md` when the migration is complete. The new API structure and current migration status are already recorded there. Check `docs/README.md` if build instructions change.
 
 ## Completion checks
 
-- [ ] Re-run figure scripts affected by example changes and visually inspect their outputs. Confirm their parameters match the corresponding pages.
-- [ ] Search published sources, docstrings, and figure scripts for removed names, solver-selection claims, outdated defaults, and deterministic-policy assumptions. Check remaining matches in context.
+- [x] Re-run figure scripts affected by example changes and visually inspect their outputs. Confirm their parameters match the corresponding pages.
+- [x] Search published sources, docstrings, and figure scripts for removed names, solver-selection claims, outdated defaults, and deterministic-policy assumptions. Check remaining matches in context.
 - [x] Build with warnings treated as errors and force every published example to execute, following [the build instructions](../docs/README.md):
 
   ```bash
   uv run sphinx-build -W -E -a -D nb_execution_mode=force docs docs/_build/html
   ```
 
-- [ ] Resolve broken references, missing public type targets, execution errors, and navigation issues rather than suppressing warnings or disabling execution.
-- [ ] Review the rendered pages for prose, output readability, policy tables, figures, links, and continuity of the shared story. Re-check numerical claims against the executed outputs.
-- [ ] Run Ruff lint, formatting, type checks, and the test suite if example scripts or library docstrings were changed; run `git diff --check` for all changes.
-- [ ] Record the final build result, relevant test results, and any explicitly deferred work below.
+- [x] Resolve broken references, missing public type targets, execution errors, and navigation issues rather than suppressing warnings or disabling execution.
+- [x] Review the rendered pages for prose, output readability, policy tables, figures, links, and continuity of the shared story. Re-check numerical claims against the executed outputs.
+- [x] Run Ruff lint, formatting, type checks, and the test suite if example scripts or library docstrings were changed; run `git diff --check` for all changes.
+- [x] Record the final build result, relevant test results, and any explicitly deferred work below.
 
 ## Verification log
 
@@ -272,6 +272,19 @@ Completed on 2026-10-27 without committing. The capacity decision now declares `
 - Checked **118 local links and anchors** and **one image reference** in the rendered page. All resolve.
 - Ruff lint, formatting, type checks, and `git diff --check` pass. No library code, figure scripts, or image assets changed. Runtime verification used direct page execution and Sphinx notebook execution.
 
+### README, site overview, and final verification
+
+Completed on 2026-10-27, with the final changes left uncommitted for review. The README now declares `TabularSoftmax`, uses the default training budget and `Solution.render()`, and explains fitted action probabilities. Both overview pages describe numerical decision information and distinguish policy quality from estimation noise. The Solving guide's remaining claim that a fitted recommendation was the best action has been corrected.
+
+- The README example executes successfully. It estimates expected profit at **600.56**, with probabilities about **0.994** for ordering **80** on cloudy days and **0.991** for ordering **200** on sunny days. These match the quickstart's Bayesian-prior model. Log: `docs/_build/readme-example-check.log`.
+- Checked the Python requirement and CUDA extras against `pyproject.toml`, and verified the platform and driver guidance against the [official JAX installation guide](https://docs.jax.dev/en/latest/installation.html). The installation page retains its supported commands and Graphviz guidance. Its wording and the README now agree about Linux NVIDIA support and experimental WSL2 support.
+- Re-ran all **five figure scripts**, regenerating **nine published charts**. Their parameters match the pages, the plots were visually inspected, and the image files are unchanged. The quickstart policy script and inference script obtain their models directly from the corresponding page's code cells. Logs: `docs/_build/final-quickstart-figures.log`, `docs/_build/final-inference-figures.log`, and `docs/_build/final-density-figures.log`.
+- The final strict HTML build uses fresh Sphinx processing and forced notebook execution and succeeds with **no Sphinx warnings**. Checked all **64 code cells across eight published notebooks**, with no unexecuted cells or error outputs. Old generated pages and notebooks were cleared before final verification so excluded drafts were not mistaken for current output. Log: `docs/_build/final-docs-build-clean.log`.
+- Across **36 generated HTML pages**, all **4,407 local links and anchors** and **58 image references** resolve. The **four visible README documentation links** also point to pages present in the generated site. Log: `docs/_build/final-local-links.log`.
+- The strict Sphinx external-link check succeeds: **38 destinations work directly** and **two redirect successfully**. Its internal fragment links are covered by the local check. All **18 visible README link and image destinations** respond successfully. The commented-out tutorial link remains unpublished. Logs: `docs/_build/final-external-links-clean.log` and `docs/_build/final-readme-links.log`.
+- Searches through published pages, docstrings, and figure scripts found no remaining removed solver names, solver-selection examples, obsolete rendering calls, or deterministic fitted-policy iteration. Reviewed the excluded tutorial drafts again and confirmed the separate backlog above. They remain excluded, as do the superseded guide drafts.
+- Ruff lint, formatting (**113 files**), type checks, and `git diff --check` pass. All **410 existing tests pass** in **62.49 seconds**. No tests or library changes were added in this final pass. Test log: `docs/_build/final-tests.log`.
+
 ## Next step
 
-Review the uncommitted Count distributions update, then update the site overview and README, review installation guidance, and complete the remaining final verification checklist items.
+Review the uncommitted final documentation changes. The published-site migration has no remaining checklist items. Commit and update the documentation PR when requested. Rewriting and publishing the excluded tutorial drafts remains separate future work.

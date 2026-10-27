@@ -165,7 +165,7 @@ print("probability:", sunny.max())
 print(f"expected profit: {solution.expected_utility:.1f}")
 ```
 
-The best sunny-day order is now 260, so 200 was only the best option within the restricted action space we had defined. Unless the shop cannot stock more than 200, the owner should order 260 instead.
+The fitted rule now puts the most probability on ordering 260 ice creams on sunny days. The wider menu lets the shop consider orders above 200, which the original action space excluded. This recommendation still depends on the fitted policy's quality.
 
 The action space also constrains us in the other direction. The solver only compares the options we list, so with a step of 20 it could never find an optimum of, let's say, 50.
 
