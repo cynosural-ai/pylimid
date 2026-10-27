@@ -13,11 +13,12 @@ Update the existing documentation for the policy-gradient-only API, preserving t
 | Distributions and utilities | Complete. The combined and split utility models produce matching fitted probabilities and expected profit. |
 | Solving a diagram | Complete. Fitted-policy summaries, training comparisons, wider order menu, cart coordination, and continuous information examples execute successfully. |
 | Inference | Complete. Uses fitted policies with direct chance-node conditioning, and the examples, figures, and API-reference boundaries have been checked. |
-| Multiple decisions | Complete, awaiting review. Jointly fits the promotion and order rules, explains explicit memory and rarely used rows, and evaluates aligned total-profit draws. |
+| Multiple decisions | Complete. Jointly fits the promotion and order rules, explains explicit memory and rarely used rows, and evaluates aligned total-profit draws. |
+| Common pitfalls | Complete. Retains indexing and parent-effect checks, and adds state-index, joint-draw, and fitted-policy examples. |
 | Remaining resources, README, and site checks | Pending. Follow the page-by-page checklist below. |
 | Full strict documentation build | Failing with two warnings: the Count distributions notebook failure and its paired traceback warning. All five core user guides execute without warnings. |
 
-The API reference, quickstart, and all five core user guides are complete, but the documentation migration is still in progress. The Multiple decisions update is uncommitted and awaiting review. The build evidence and checks are recorded in the [verification log](#verification-log).
+The API reference, quickstart, all five core user guides, and Common pitfalls are complete, but the documentation migration is still in progress. The build evidence and checks are recorded in the [verification log](#verification-log).
 
 ## Starting point
 
@@ -63,7 +64,8 @@ For each page, read the existing prose first, update the example and its interpr
 - [x] `docs/user_guide/solving.md`: explain fitting a policy, choosing a family, controlling training and evaluation, reading stochastic results, and checking the expanded order menu.
 - [x] `docs/user_guide/inference.md`: evaluate fitted policies with the current API while preserving the intentional booking-information variant, aligned draws, comparisons, and inference figures.
 - [x] `docs/user_guide/multiple_decisions.md`: preserve the promotion story and explain joint fitting with explicit information parents and memory.
-- [ ] `docs/resources/common_pitfalls.md` and `docs/resources/count_distributions.md`: update standalone examples and diagnostics; remove obsolete solver advice while retaining relevant modeling and inference limits.
+- [x] `docs/resources/common_pitfalls.md`: retain the existing indexing and parent-effect diagnostics, and add standalone examples for state indices, joint draws, and changing fitted policies.
+- [ ] `docs/resources/count_distributions.md`: update standalone examples and diagnostics, and remove obsolete solver advice while retaining relevant modeling and inference limits.
 - [ ] `docs/index.md`, `docs/getting_started/installation.md`, and `README.md`: align claims, quick examples, links, and terminology with the updated guides. Keep the README example consistent with the quickstart.
 - [ ] Review excluded tutorial drafts for stale references and record remaining work separately. Keep unreviewed tutorials excluded; publishing or rewriting them is outside this migration's initial scope.
 - [ ] Finalize `design/documentation_plan.md` when the migration is complete. The new API structure and current migration status are already recorded there. Check `docs/README.md` if build instructions change.
@@ -249,6 +251,16 @@ Completed on 2026-10-27 without committing. Both decisions declare `TabularSoftm
 - Checked **107 local links and anchors** and **two image references** in the rendered page. All resolve. No new figure assets were needed.
 - Ruff lint, formatting, type checks, and `git diff --check` pass. No library code or figure scripts changed. Runtime verification used the direct and Sphinx notebook executions.
 
+### Common pitfalls update
+
+Updated on 2026-10-27. Retained the table-indexing and parent-effect sections, checked their upstream references, and added three focused sections: mapping categorical state indices to quantities, combining related variables from one inference call, and evaluating the deterministic policy obtained by taking the most likely actions. Each section supplies its own imports and context.
+
+- All **six code cells** execute successfully through direct execution and Sphinx. The categorical-index example maps action **1** to stock **160** and computes profit **1040.0**. The joint-draw example estimates a measurement-error standard deviation of **0.49** for a model configured with **0.5**. The deliberately short fitted-policy example gives action probabilities about **0.128** and **0.872**, with estimated payoff **1.73**, compared with **2.0** for the fixed most likely action.
+- Each of the five sections also executes in a separate namespace, confirming that the examples do not depend on imports or variables from another section.
+- The full strict build with forced notebook execution exits with code **1** and the same **two warnings**, both from the pending Count distributions notebook failure and its traceback report. Common pitfalls produces no Sphinx warnings. Logs: `docs/_build/common-pitfalls-update.log` and `docs/_build/common-pitfalls-example-check.log`.
+- Checked **112 local links and anchors** and **one image reference** in the rendered page. All resolve.
+- Ruff lint, formatting, type checks, and `git diff --check` pass. No library code, figure scripts, or image assets changed. Runtime verification used direct section execution and Sphinx notebook execution.
+
 ## Next step
 
-Review the uncommitted Multiple decisions update, then review `docs/resources/common_pitfalls.md` and migrate `docs/resources/count_distributions.md`. The remaining site, README, and final verification checklist items follow separately.
+Migrate `docs/resources/count_distributions.md` to address the remaining notebook failure. The site overview, README, installation review, and final verification checklist items follow separately.
