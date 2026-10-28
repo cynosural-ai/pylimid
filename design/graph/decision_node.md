@@ -17,4 +17,4 @@ For categorical decisions, policy-family compatibility is checked by the optimiz
 
 `LinearSoftmax` accepts numerical or mixed information; `TabularSoftmax` requires scalar categorical information. Fitted policies preserve their local information binding and stochastic behavior when reused for forward evaluation. Supplied deterministic tables and functions remain supported by inference.
 
-The [optimizer design](../solver/algorithms.md) describes the expected-utility objective, score estimator, and verification. The [policy notes](../continuous_information/README.md) record representation limits and future extensions. [Diagram validation](diagram.md) covers structural checks, consistency, and snapshots.
+The [optimizer design](../solver/algorithms.md) describes the expected-utility objective, score estimator, and verification. The [policy notes](../continuous_information/README.md) cover representation limits and custom families. [Diagram validation](diagram.md) covers structural checks, consistency, and snapshots.

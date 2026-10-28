@@ -68,7 +68,7 @@ Inference, at `docs/user_guide/inference.md`, continues with the scale-1 family 
 
 Follow [the build and full-rebuild instructions](../docs/README.md) to check changes. Warnings are errors. A fresh Sphinx build checks all references; force code execution when the library or example parameters change, because cached cells may otherwise retain old outputs.
 
-Add published pages to the appropriate toctree in `docs/index.md`. Keep unreviewed drafts explicitly excluded in `docs/conf.py`; a page outside both the navigation and exclusions fails the build. Development plans belong in `design/`.
+Add published pages to the appropriate toctree in `docs/index.md`. Keep unreviewed drafts explicitly excluded in `docs/conf.py`; a page outside both the navigation and exclusions fails the build. Contributor design notes belong in `design/`.
 
 Branding assets live in `docs/_static/branding/`. Preserve the Flush mark, Jost wordmark and Cynosural palette: midnight blue `#0A1F3D`, pale blue `#A9C6E2` and white. SVGs are the display sources, with lettering converted to paths.
 
@@ -81,7 +81,7 @@ Verified on 2026-10-28. The full test suite passes with 534 tests, including the
 - **Tutorials — low priority.** Revisit the existing drafts in `docs/tutorials/`, choose the useful problems and their order, and review or rewrite them before publication. The newsvendor draft overlaps the quickstart. Evaluate continuous-consequence variants of the logistics tutorial and its optional report-probability calibration during that review. Migrate the decision tutorials to fitted stochastic policies and revisit the large training sample budgets in the newsvendor and logistics drafts. Check the Bayesian-networks draft against the current inference API and defaults. When tutorials are ready, update `exclude_patterns`, the home-page card and toctree, and the quickstart and README links together. Editorial and source review remains pending.
 - **Further reading — optional, later.** Keep the candidate references below for a possible Resources page, grouped by topic with a short explanation of each source. Create the page when there is a useful selection to publish. Plain links and author–year citations are sufficient; verify bibliographic details before publication.
 
-Future capabilities and related documentation, including learning from data, are tracked in [TODO.md](../TODO.md).
+Remaining reliability and documentation work is tracked in [TODO.md](../TODO.md).
 
 ## References
 

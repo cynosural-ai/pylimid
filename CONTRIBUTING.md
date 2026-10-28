@@ -40,7 +40,7 @@ Ruff and ty also run on every commit through pre-commit.
 | `pylimid/errors.py` | Shared inference and optimization errors |
 | `tests/` | Graph, inference, and optimizer tests with analytic utility and gradient references |
 | `docs/` | The published Sphinx site (see `docs/README.md` for build details) |
-| `design/` | Contributor-facing decision records and design notes; not published |
+| `design/` | Living design notes explaining the implementation and its rationale; not published |
 | `AGENTS.md` | Detailed code style and design conventions |
 
 ## Conventions
@@ -51,7 +51,7 @@ The full conventions live in [AGENTS.md](AGENTS.md); the highlights:
 - Put public and shared entry points before internal helpers. In classes, place initialization first, then public methods, then internal helpers; keep related properties and protocol methods together. Supporting types needed to construct module constants stay with those constants.
 - Google-style docstrings for every public function, method, and class.
 - Public API names in single backticks (`` `DiagramSnapshot` ``), literals in double backticks (`` ``None`` ``).
-- No comments that reference design notes, ADRs, or ticket numbers; docstrings describe what the code does, not the history of the decision.
+- No comments that reference design notes or ticket numbers; docstrings describe what the code does, not the history of the decision.
 - Prefer a loud failure over a silent fallback, and do not defensively re-clean data an earlier step already guarantees.
 - The production API comes first: do not add parameters, hooks, or injection points just so tests can override them.
 
@@ -63,7 +63,7 @@ Build the site with:
 uv run sphinx-build -W docs docs/_build/html
 ```
 
-The `-W` flag turns warnings into errors. Prose pages are Markdown; pages with executable snippets carry `file_format: mystnb` frontmatter and use `{code-cell}` fences. Add a new page to the appropriate `{toctree}` in `docs/index.md`. Development notes for contributors belong in `design/`, not `docs/`.
+The `-W` flag turns warnings into errors. Prose pages are Markdown; pages with executable snippets carry `file_format: mystnb` frontmatter and use `{code-cell}` fences. Add a new page to the appropriate `{toctree}` in `docs/index.md`. Contributor design notes belong in [`design/`](design/README.md). Keep them aligned with the implementation, explaining current behavior, rationale, tradeoffs and limitations, with links to relevant code and tests.
 
 ## Pull requests
 

@@ -64,9 +64,9 @@ Smooth fitted policies such as `LinearSoftmax` fit the existing gradient-based p
 - Vector actions, support bounds that depend on trainable parameters or information, new posterior algorithms, and broader public query or evidence types remain outside the implemented scope.
 - Chance distributions must remain compatible with NumPyro enumeration and JAX transformations. Supporting fitted policies does not make arbitrary downstream distribution callables enumeration-compatible.
 
-## Acceptance checks
+## Verification
 
-Validate the following behaviors with exact sums, numerical integration on small models, direct checks, and the existing test suite.
+Regression tests check the following behaviors against exact sums, numerical integration on small models and direct invariants.
 
 - A stochastic categorical table conditioned on an outcome agrees with an explicit sum over chance states and actions.
 - Continuous action densities and mixed categorical/continuous decisions agree with analytic posteriors or numerical integration, including fixed bounded supports.
@@ -77,20 +77,14 @@ Validate the following behaviors with exact sums, numerical integration on small
 - Parentless fitted rules, observed parents, and irrelevant policies follow the existing pruning and binding behavior.
 - Forward evaluation, fixed actions, deterministic tables, utilities, sample alignment, and existing unsupported-input behavior retain their established contracts.
 
-## Validation results
+### Categorical policies
 
-### Initial categorical-policy checks
-
-Initial acceptance checks completed on 2026-10-27. The [fitted-policy regression module](../../tests/inference/test_fitted_policies.py) added six cases covering:
+The [fitted-policy regression module](../../tests/inference/test_fitted_policies.py) covers:
 
 - The full discrete joint posterior for two fitted decisions, mixed policy families, differently sized categorical parents, declared parent order, remembered actions, and aligned utility draws, compared with an explicit probability sum.
 - Mixed categorical and vector information under `LinearSoftmax`, and matrix information under a nonlinear custom family with nested parameters, compared with two-dimensional Gaussian quadrature. The categorical information parent itself depends on the continuous signal. Checks include continuous and categorical posterior summaries, action-dependent utility, retained array shapes, sample alignment, and unchanged fitted parameters.
 - An observed continuous information parent, with and without an observed downstream outcome, compared with the conditional action probabilities.
 - Multiple fitted decisions with an earlier action affecting later continuous information, compared with Gaussian quadrature for marginal and joint moments.
-
-Additional direct checks confirmed finite fixed-bound Binomial information and joint utilities, pruning of irrelevant fitted policies, zero-probability actions, continued rejection of unsupported Poisson and batched count latents, and rejection of changed numerical information shapes. Earlier public-API checks also reused a policy returned by `solve` and compared its posterior results with Gaussian quadrature.
-
-At that stage, the full suite passed with 410 tests, including the existing function-policy, fixed-action, deterministic-table, count-domain, and API-boundary checks. Ruff lint, Ruff format checking, and ty checking passed.
 
 ### Continuous-policy checks
 

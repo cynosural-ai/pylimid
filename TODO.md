@@ -10,10 +10,3 @@
 ## Documentation
 
 - [ ] Review and migrate tutorial drafts before publishing them. See the [documentation plan](design/documentation_plan.md#future-work).
-- [ ] Decide the scope of a model-fitting guide, separating learning model parameters from evaluating a fixed model.
-
-## Features to scope
-
-- [ ] Define an API for fitting shared model parameters from datasets.
-- [ ] Define how `solve` can use posterior parameter uncertainty while preserving dependencies. See the [ride-hailing proposal](design/proposals/ride_hailing.md#extension-2--bayesian-priors).
-- [ ] Choose the next count-domain or posterior extension based on a concrete model. See the [count proposal](design/graph/discrete_chance_nodes.md#implementation-scope-and-sequence).

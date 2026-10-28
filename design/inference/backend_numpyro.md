@@ -1,6 +1,8 @@
 # NumPyro translation and sampling
 
-The internal bridge between the graph layer and NumPyro lives in `pylimid._numpyro`. Its modules expose shared operations to other pylimid modules; the package does not expose a supported user API. The [graph principles](../graph/diagram.md) settle the container and callable convention; this note covers execution. The [NumPyro-only ADR](../ADR/25_08_2026_numpyro_only_engine.md) records why the exact engines were retired.
+The internal bridge between the graph layer and NumPyro lives in `pylimid._numpyro`. Its modules expose shared operations to other pylimid modules; the package does not expose a supported user API. The [graph principles](../graph/diagram.md) settle the container and callable convention, and this note covers execution.
+
+NumPyro is the only probabilistic execution backend. Keeping one backend avoids parallel distribution extraction, capability checks and result contracts for separate exact engines. The same user-supplied distribution callables serve discrete and continuous models, while analytic expectations and small-model exact arithmetic provide independent test references.
 
 ## Translation
 
@@ -25,7 +27,9 @@ The sampling layer binds supplied policies once and passes the resulting rules t
 - With chance evidence and only discrete latent variables, it draws from the posterior using discrete enumeration.
 - With chance evidence and continuous latent variables, including fitted continuous actions, NUTS samples them with discrete latents enumerated out. A conditional pass recovers discrete draws given the continuous draws.
 
-Queried utilities are computed from their parents' draws. `infer()` wraps requested arrays in `Posterior` objects, retaining joint sample order and JAX array shapes and dtypes. Discrete probabilities are computed by `Posterior.marginal()`; continuous and utility summaries use `mean()`, `std()`, and `hdi()`. Results are Monte Carlo estimates by contract, including when enumeration is used to obtain the draws.
+Queried utilities are computed from their parents' draws. `infer()` wraps requested arrays in `Posterior` objects, retaining joint sample order and JAX array shapes and dtypes. Category probabilities are computed by `Posterior.marginal()`, while numerical variables and utilities use `mean()`, `std()`, and `hdi()`. Results are Monte Carlo estimates by contract, including when enumeration is used to obtain the draws.
+
+One result type retains raw draws for every variable rather than selecting a summary representation during inference. Means and standard deviations cannot describe every numerical posterior, and categorical state indices have no intrinsic numerical meaning. `Posterior` therefore rejects numerical summaries of categories and rejects `marginal()` for numerical variables, including counts. Callers can inspect raw draws when they deliberately need another statistic. The [posterior tests](../../tests/inference/test_posterior.py) cover these summary contracts, shapes and category checks.
 
 Inference tests use analytic posterior expectations and small-model exact arithmetic. The optimizer uses a joint policy-gradient trajectory walk in `pylimid.solver`; the [optimizer note](../solver/algorithms.md) covers its estimator and verification. There are no external reference-solver dependencies in the test suite.
 

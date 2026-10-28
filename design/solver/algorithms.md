@@ -40,8 +40,8 @@ Tests compare score gradients with analytic derivatives and exact action sums on
 
 General graph validation and distribution-contract tests remain separate from optimizer verification. Posterior inference retains analytic reference checks. The test suite has no pyAgrum dependency.
 
-## Limits and future work
+## Limits
 
-Training is approximate. Errors can arise from restricted policy families, imperfect optimization, and Monte Carlo evaluation. A utility confidence interval does not bound distance from the global optimum. Learning continuous spread toward zero may increase score variance. Fixed spread restricts the optimized family. Richer baselines, convergence diagnostics, checkpoint selection, neural parameter models and vector action domains remain future work.
+Training is approximate. Errors can arise from restricted policy families, imperfect optimization, and Monte Carlo evaluation. A utility confidence interval does not bound distance from the global optimum. Learning continuous spread toward zero may increase score variance. Fixed spread restricts the optimized family. The solver reports no convergence or optimality certificate, and decisions are limited to categorical or scalar continuous actions.
 
 The score-function estimator follows [Schulman et al., Gradient Estimation Using Stochastic Computation Graphs](https://arxiv.org/abs/1506.05254).

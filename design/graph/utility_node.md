@@ -2,7 +2,7 @@
 
 Design note covering how a `UtilityNode` is represented in the graph layer, how its consistency model works, and why utility nodes are *sinks*.
 
-> **Where this fits.** The [diagram principles](diagram.md) govern mutation, consistency, and validation for all nodes. This note covers payoff representation and aggregation; [decision nodes](decision_node.md) and the [solver algorithms](../solver/algorithms.md) cover optimization. The shared consistency model lives on [`Node`](../../pylimid/graph/node.py).
+> **Where this fits.** The [diagram principles](diagram.md) govern mutation, consistency, and validation for all nodes. This note covers payoff representation and aggregation; [decision nodes](decision_node.md) and the [solver algorithms](../solver/algorithms.md) cover optimization. The shared consistency model lives on [`Node`](../../pylimid/graph/nodes/node.py).
 
 ---
 
@@ -42,7 +42,7 @@ The check reads `node.is_sink` rather than branching on node type, so the contai
 
 ## Multiple utilities and weighting
 
-Several utility nodes assert additively separable preferences. Every solver adds their values along each sampled trajectory and maximizes the mean total:
+Several utility nodes assert additively separable preferences. The solver adds their values along each sampled trajectory and maximizes the mean total:
 
 ```
 maximize E[sum_k U_k(parents(U_k))]
@@ -52,10 +52,12 @@ Linearity of expectation means summing utilities introduces no additional approx
 
 ```python
 import jax.numpy as jnp
-from pylimid import DecisionNode, InfluenceDiagram, UtilityNode, solve
+from pylimid import DecisionNode, InfluenceDiagram, TabularSoftmax, UtilityNode, solve
 
 diagram = InfluenceDiagram()
-diagram.add_node(DecisionNode(name="D", states=("a", "b")))
+diagram.add_node(
+    DecisionNode(name="D", states=("a", "b"), policy_family=TabularSoftmax())
+)
 diagram.add_node(
     UtilityNode(name="U1", parents=("D",), values=lambda D: jnp.array([1.0, 0.0])[D])
 )
@@ -87,7 +89,6 @@ STALE arises, exactly as for chance nodes, when a parent is added or removed aft
 
 ---
 
-## What is deliberately deferred
+## Execution boundaries
 
-- **No policy-as-parameters solving (Strategy A).** The graph layer represents the utility; the solvers evaluate it by forward sampling (see [solver algorithms](../solver/algorithms.md)). Continuous information sets and continuous decisions — the Strategy A path — are deferred.
-- **No table sugar** for discrete utilities (analogous to the deferred `from_cpt` for chance nodes). A discrete utility is a callable wrapping an array today.
+The solver evaluates utilities on simulated trajectories containing categorical or scalar continuous decisions. Policy gradients differentiate action log probabilities and densities, not the utility function itself. Utility callables must be JAX-traceable but need not be differentiable in their inputs. The [solver note](../solver/algorithms.md) explains the estimator, and the [continuous-policy tests](../../tests/solver/test_continuous_policy.py) cover mixed decisions and their utility gradients.

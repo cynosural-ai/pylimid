@@ -26,8 +26,8 @@ Analytic gradients, exact categorical action sums, and continuous quadrature cov
 
 Three errors must be distinguished: approximation imposed by the family, incomplete optimization, and Monte Carlo evaluation noise. More evaluation draws address only the last. The optimizer reports no convergence or optimality certificate.
 
-## Custom families and future extensions
+## Custom families
 
 Custom families subclass `PolicyFamily` and implement `initialize` and `distribution`. Initialization returns a dictionary containing trainable JAX arrays, including nested parameter structures. Distribution construction receives those parameters and one information assignment in declared parent order, and returns a scalar-event NumPyro action distribution without batch dimensions. Categorical decisions require categorical probabilities or logits in declared action order. Continuous decisions require a continuous density with fixed support contained in their domain. Both methods must be pure and JAX-compatible, and log probabilities or densities must be differentiable with respect to trainable parameters. The fitted wrapper binds information metadata, checks distribution compatibility, and delegates sampling and scoring. Stochastic network layers and mutable network state need additional contracts.
 
-Custom `ParameterModel` implementations can be composed with compatible distributions through `DistributionPolicy`. Future work includes richer baselines, checkpoint selection, optimizer diagnostics, built-in neural parameter models, vector actions, broader constructor compatibility, and finite-action sums for variance reduction.
+Custom `ParameterModel` implementations can be composed with compatible distributions through `DistributionPolicy`.
