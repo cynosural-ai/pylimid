@@ -1,6 +1,6 @@
 # Posterior inference with fitted policies
 
-Status: fitted categorical and scalar continuous policies support conditioning through the existing `infer` API. Policy batching, categorical action enumeration, and continuous action densities are implemented. The API reference documents both rule types, and the inference guide covers fitted-policy conditioning. A continuous-decision walkthrough remains deferred.
+Status: fitted categorical and scalar continuous policies support conditioning through the existing `infer` API. Policy batching, categorical action enumeration, and continuous action densities are implemented. The API reference documents both rule types. The mixed-decision quickstart and four guides use the published documentation paths, including [inference with fitted categorical and bounded continuous policies](../../docs/user_guide/inference.md).
 
 ## Goal
 
@@ -94,4 +94,4 @@ At that stage, the full suite passed with 410 tests, including the existing func
 
 ### Continuous-policy checks
 
-The [continuous-policy regression module](../../tests/inference/test_continuous_policies.py) checks Gaussian posteriors, categorical/continuous mixtures, later categorical decisions updating earlier continuous actions, bounded truncated-Normal posteriors, and Beta actions against analytic references or quadrature. Checks also cover unchanged fitted parameters, joint draw alignment, action-domain compatibility, information shapes, and the retained evidence restriction for deterministic functions. Training and stochastic reuse are covered separately in the [continuous solver tests](../../tests/solver/test_continuous_policy.py).
+The [continuous-policy regression module](../../tests/inference/test_continuous_policies.py) checks Gaussian posteriors, categorical/continuous mixtures, later categorical decisions updating earlier continuous actions, bounded truncated-Normal posteriors, and Beta actions against analytic references or quadrature. The mixed categorical and bounded continuous regression verifies joint posterior moments against quadrature, covering preservation of scalar support bounds during enumeration. Checks also cover unchanged fitted parameters, joint draw alignment, action-domain compatibility, information shapes, and the retained evidence restriction for deterministic functions. Training and stochastic reuse are covered separately in the [continuous solver tests](../../tests/solver/test_continuous_policy.py).

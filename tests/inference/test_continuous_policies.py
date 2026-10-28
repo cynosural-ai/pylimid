@@ -19,6 +19,7 @@ from pylimid import (
     Linear,
     LinearSoftmax,
     Real,
+    TabularSoftmax,
     UtilityNode,
     infer,
 )
@@ -296,6 +297,76 @@ def test_truncated_normal_policy_conditioning_matches_bounded_quadrature():
         (result["action_value"].values >= 0) & (result["action_value"].values <= 1)
     )
     assert jnp.allclose(result["squared"].values, result["action_value"].values ** 2)
+
+
+def test_categorical_and_bounded_continuous_policies_condition_jointly():
+    labels = ("skip", "run")
+    promotion = CategoricalPolicy(
+        TabularSoftmax(), (), (), (), labels, {"logits": jnp.log(jnp.array([0.6, 0.4]))}
+    )
+    family = DistributionPolicy(
+        dist.TruncatedNormal,
+        Linear(),
+        fixed_parameters={"scale": 0.25, "low": 0.0, "high": 1.0},
+    )
+    action = ContinuousPolicy(
+        family,
+        ("promotion",),
+        (labels,),
+        ((),),
+        Interval(0.0, 1.0),
+        {"weights": jnp.array([[0.2], [0.7]]), "bias": jnp.zeros(1)},
+    )
+    diagram = InfluenceDiagram()
+    diagram.add_node(DecisionNode("promotion", states=labels))
+    diagram.add_node(
+        DecisionNode("action", parents=("promotion",), action_space=Interval(0.0, 1.0))
+    )
+    diagram.add_node(
+        ChanceNode(
+            "outcome", parents=("action",), dist=lambda action: dist.Normal(action, 0.2)
+        )
+    )
+    diagram.add_node(
+        UtilityNode("action_value", parents=("action",), values=lambda action: action)
+    )
+    diagram.add_node(
+        UtilityNode(
+            "joint",
+            parents=("promotion", "action"),
+            values=lambda promotion, action: promotion * action,
+        )
+    )
+    result = infer(
+        diagram,
+        ["action_value", "joint"],
+        observed={"outcome": 0.6},
+        policy={"promotion": promotion, "action": action},
+        num_samples=5000,
+    )
+    points, weights = np.polynomial.legendre.leggauss(120)
+    points = (points + 1) / 2
+    masses = np.stack(
+        [
+            prior
+            * weights
+            * np.exp(
+                np.asarray(
+                    action.distribution(promotion=jnp.array(index)).log_prob(points)
+                )
+                - 0.5 * ((0.6 - points) / 0.2) ** 2
+            )
+            for index, prior in enumerate((0.6, 0.4))
+        ]
+    )
+    masses /= masses.sum()
+    assert result["action_value"].mean() == pytest.approx(
+        np.sum(masses * points), abs=0.025
+    )
+    assert result["joint"].mean() == pytest.approx(masses[1] @ points, abs=0.025)
+    assert jnp.all(
+        (result["action_value"].values >= 0) & (result["action_value"].values <= 1)
+    )
 
 
 def test_categorical_information_and_beta_actions_match_conjugate_mixture():

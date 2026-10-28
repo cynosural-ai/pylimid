@@ -80,7 +80,12 @@ def _rebuild_distribution(distribution: dist.Distribution) -> dist.Distribution:
             dist.TwoSidedTruncatedDistribution,
         ),
     ):
+        # vmap repeats its scalar bounds alongside the parameters,
+        # but NUTS needs the original scalar support for each action.
+        bounds = {
+            name: jnp.ravel(value)[0] for name, value in distribution.get_args().items()
+        }
         return type(distribution)(
-            _rebuild_distribution(distribution.base_dist), **distribution.get_args()
+            _rebuild_distribution(distribution.base_dist), **bounds
         )
     return type(distribution)(**distribution.get_args())

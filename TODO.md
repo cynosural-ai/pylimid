@@ -9,7 +9,6 @@
 
 ## Documentation
 
-- [ ] Add a runnable mixed categorical/continuous example and a short user-guide walkthrough. Deferred.
 - [ ] Review and migrate tutorial drafts before publishing them. See the [documentation plan](design/documentation_plan.md#future-work).
 - [ ] Decide the scope of a model-fitting guide, separating learning model parameters from evaluating a fixed model.
 

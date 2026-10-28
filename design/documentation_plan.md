@@ -1,13 +1,13 @@
 # Documentation maintenance
 
-Maintenance guide for the published documentation in `docs/` and the project `README.md`. The engine uses policy-gradient-only optimization. The API reference, quickstart, all five core user guides, resource pages, site overview, and README now describe the current contract. Installation guidance and the published examples have been checked. Migration progress and verification are recorded in [the documentation update checklist](documentation_update_todo.md). Read this before changing published pages, and update it when the structure or conventions change. Public API details belong in docstrings and the API reference. Build instructions live in [docs/README.md](../docs/README.md).
+Maintenance guide for the published documentation in `docs/` and the project `README.md`. The engine uses policy-gradient-only optimization. The API reference, quickstart, four core user guides, resource pages, site overview, and README describe the current contract. The quickstart and guides use the mixed categorical/continuous ice cream shop example. Read this before changing published pages, and update it when the structure or conventions change. Public API details belong in docstrings and the API reference. Build instructions live in [docs/README.md](../docs/README.md).
 
 ## Site structure and scope
 
 The published order is **Getting started → User guide → Resources → API reference**. Tutorials will sit between User guide and Resources when ready.
 
 - **Getting started** covers installation and a quickstart: one small problem through build, validate, draw and solve.
-- **User guide** answers how to do something and explains the behaviour where readers encounter it. Its five core pages cover building a diagram, distributions and utilities, solving, inference, and multiple decisions.
+- **User guide** continues the quickstart across Building a diagram, Distributions and utilities, Solving a diagram, and Inference. Joint decisions and explicit memory are introduced within this sequence, so there is no separate Multiple decisions page.
 - **Tutorials** tell the story of a complete alternative problem, with figures and interpretation of the results.
 - **Resources** contains Common pitfalls and Count distributions, directly under the sidebar heading. Entries are standalone examples with their own context and imports. Count distributions collects count-specific examples and limitations. Background and further reading can be added when useful.
 - **API reference** covers inference and solving, building diagrams, and policy families and rules. Classes, functions and methods are generated from docstrings; public type aliases are explained alongside their owning APIs. The policy page replaces the individual-solvers page.
@@ -16,9 +16,21 @@ Contributor documentation belongs in `CONTRIBUTING.md`, `AGENTS.md` and `design/
 
 ### Shared example
 
-The quickstart and user guide follow the ice cream shop. The guides extend the quickstart with hotel bookings; the Multiple decisions guide adds a promotion decision. The Count distributions page uses standalone examples so it does not interrupt this story. Keep the shared model consistent across pages while preserving intentional variants, such as revealing bookings before ordering in the inference guide.
+The README, quickstart and user guide follow the ice cream shop. The owner chooses a categorical promotion decision the evening before, then orders a continuous quantity of ice cream after seeing the morning weather and remembering the promotion choice. Quantities are measured in kilograms, with a freezer capacity of 40 kilograms. The quickstart adds uncertain seasonal busyness, and the guides extend that model with unobserved hotel bookings. The Count distributions page uses standalone examples so it does not interrupt this story. Keep the shared model consistent across pages while preserving intentional variants, such as revealing bookings before ordering in the inference guide.
 
-Keep the quickstart and README's order menu at 0–200. The Solving guide deliberately starts with the same menu, then expands it to 400 to teach readers to check boundary answers. Preserve this progression and re-check the results whenever the model changes. Model parameters and numerical outputs live in the pages and their figure scripts.
+The quickstart and initial guide model use a bounded TruncatedNormal order policy with learned location and fixed scale 0.25 kilograms. The Solving guide compares that fit with scale 1 kilogram and retains the wider family for Inference. The order domain and truncation bounds stay at 0–40 kilograms throughout. Model parameters and numerical outputs live in the pages and their figure scripts.
+
+### Guide progression
+
+Introduce the owner's problem before terminology, explain each step as we reach it, and connect the results to the shop's choices. Keep fitting details brief in the quickstart and develop them in the later guides.
+
+The progression is quickstart, Building a diagram, Distributions and utilities, Solving a diagram, and Inference. Building a diagram, at `docs/user_guide/building_a_diagram.md`, covers construction, validation, timing and explicit memory. It restores the promotion-to-order memory arc after demonstrating its removal, then adds unobserved hotel bookings.
+
+Distributions and utilities, at `docs/user_guide/distributions_and_utilities.md`, continues that model. It distinguishes categorical action indices from continuous quantities, compares Gamma and nonnegative Gaussian demand in kilograms, and separates demand uncertainty from the order policy. It replaces the combined `profit` utility with `revenue`, `stock_cost` and `promotion_cost`, demonstrating their equality on one day without introducing another fitting exercise. The final model retains both decisions, the promotion-to-order memory arc and unobserved hotel bookings.
+
+Solving, at `docs/user_guide/solving.md`, starts with that exact model and jointly fits the two decision policies using the sum of its three utilities. It interprets categorical probabilities and continuous order distributions, compares training budgets and random keys, and demonstrates a different fixed order scale. The initial narrow-scale fit rarely promotes. The scale-1 fit finds a policy that usually promotes and has higher estimated profit. The page keeps this new family and `solution` for subsequent examples. Its final order domain is still 0–40 kilograms, with fixed truncation bounds 0 and 40, learned location and fixed scale 1.0. Information parents and utility nodes are unchanged.
+
+Inference, at `docs/user_guide/inference.md`, continues with the scale-1 family and sums aligned draws from the three utility nodes. It distinguishes outcome variation from sampling error, conditions on sunny weather and high bookings, and separately refits a policy that can use a morning hotel report. It restores the original information parents after the report example. It compares a fixed 16-kilogram order while retaining the fitted promotion rule, evaluates demand with a known promotion choice, and updates beliefs about bookings and busyness from observed demand. Chance evidence conditions the model without granting extra decision information or retraining policies.
 
 ## Writing conventions
 
@@ -60,10 +72,13 @@ Add published pages to the appropriate toctree in `docs/index.md`. Keep unreview
 
 Branding assets live in `docs/_static/branding/`. Preserve the Flush mark, Jost wordmark and Cynosural palette: midnight blue `#0A1F3D`, pale blue `#A9C6E2` and white. SVGs are the display sources, with lettering converted to paths.
 
+### Latest verification
+
+Verified on 2026-10-28. The full test suite passes with 534 tests, including the regression for joint conditioning with categorical and bounded continuous policies. Ruff lint, formatting, type checks and `git diff --check` pass. The strict Sphinx build with fresh processing and forced execution of all published examples succeeds without Sphinx warnings. The mixed-decision quickstart and four guides replace the original introductory pages at their existing paths. Their figure scripts execute from the canonical directories, and the README example reproduces its stated profit. All rendered local links, heading anchors and images resolve.
+
 ## Future work
 
-- **Continuous-decision example and walkthrough — deferred.** Scalar continuous actions and distribution composition are documented in the API reference. A runnable mixed-action example and a short user-guide walkthrough remain future additions. They should use the existing `solve` and `infer` workflows and explain the fixed-support and scalar-action limits.
-- **Tutorials — low priority.** Revisit the existing drafts in `docs/tutorials/`, choose the useful problems and their order, and review or rewrite them before publication. The newsvendor draft overlaps the quickstart. Evaluate continuous-consequence variants of the logistics tutorial and its optional report-probability calibration during that review. When tutorials are ready, update `exclude_patterns`, the home-page card and toctree, and the quickstart and README links together. The decision tutorials also await migration to fitted stochastic policies, and editorial and source review remains pending.
+- **Tutorials — low priority.** Revisit the existing drafts in `docs/tutorials/`, choose the useful problems and their order, and review or rewrite them before publication. The newsvendor draft overlaps the quickstart. Evaluate continuous-consequence variants of the logistics tutorial and its optional report-probability calibration during that review. Migrate the decision tutorials to fitted stochastic policies and revisit the large training sample budgets in the newsvendor and logistics drafts. Check the Bayesian-networks draft against the current inference API and defaults. When tutorials are ready, update `exclude_patterns`, the home-page card and toctree, and the quickstart and README links together. Editorial and source review remains pending.
 - **Further reading — optional, later.** Keep the candidate references below for a possible Resources page, grouped by topic with a short explanation of each source. Create the page when there is a useful selection to publish. Plain links and author–year citations are sufficient; verify bibliographic details before publication.
 
 Future capabilities and related documentation, including learning from data, are tracked in [TODO.md](../TODO.md).
