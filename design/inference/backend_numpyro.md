@@ -7,8 +7,8 @@ The internal bridge between the graph layer and NumPyro lives in `pylimid._numpy
 `build_model(snapshot, observed, policy_rules)` consumes a validated `DiagramSnapshot`, observed values, and already-bound decision rules. It captures the nodes in topological order. The returned model resolves parent values by name and handles each node as follows:
 
 - A chance node constructs its distribution with `node.dist(**parent_values)` and emits a `numpyro.sample` site. Observed values are clamped; unobserved discrete sites carry parallel-enumeration metadata.
-- A fixed decision is a degenerate observed site at its chosen action index.
-- A supplied table or deterministic function selects an action using its realized information-set values and emits a deterministic site. A fitted categorical rule emits a sample site with its local action distribution.
+- A fixed decision is a degenerate observed site at its chosen categorical index or real action value.
+- A supplied table or deterministic function selects an action using its realized information-set values and emits a deterministic site. A fitted categorical or continuous rule emits a sample site with its local action distribution. Only categorical actions receive enumeration metadata.
 - A utility node is skipped by the translator. When a utility is queried, the sampling wrapper evaluates its callable on each joint draw of its parents.
 
 `infer()` in `pylimid.inference.api` validates the whole diagram, then retains the ancestors of the queries and evidence. Only decisions that influence those nodes need a binding. It separates fixed actions from supplied policies before calling the sampling layer. `bind_policy_rules` in `pylimid.policy._binding` dispatches fitted rules, deterministic functions, and action tables to separate binding helpers. Policy tables use integer state indices in the decision's parent order, with validation and array construction in `pylimid.policy._categorical.action_table`. The public `pylimid.policy` package exposes graph-independent families and fitted rules without eagerly importing binding helpers. NumPyro distribution checks live in `pylimid._numpyro.distributions` and are shared by inference and optimization.
@@ -23,7 +23,7 @@ The sampling layer binds supplied policies once and passes the resulting rules t
 
 - Without chance evidence, it draws directly from the model.
 - With chance evidence and only discrete latent variables, it draws from the posterior using discrete enumeration.
-- With continuous latent variables, NUTS samples them with discrete latents enumerated out; a conditional pass recovers discrete draws given the continuous draws.
+- With chance evidence and continuous latent variables, including fitted continuous actions, NUTS samples them with discrete latents enumerated out. A conditional pass recovers discrete draws given the continuous draws.
 
 Queried utilities are computed from their parents' draws. `infer()` wraps requested arrays in `Posterior` objects, retaining joint sample order and JAX array shapes and dtypes. Discrete probabilities are computed by `Posterior.marginal()`; continuous and utility summaries use `mean()`, `std()`, and `hdi()`. Results are Monte Carlo estimates by contract, including when enumeration is used to obtain the draws.
 

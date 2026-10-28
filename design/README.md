@@ -8,19 +8,21 @@ Read the graph principles first, then the notes relevant to the change:
 
 - [Diagram and validation](graph/diagram.md): mutable construction, consistency checks, and snapshots.
 - [Chance nodes](graph/chance_node.md): callable distributions, state indices, and deferred table sugar.
-- [Decision nodes](graph/decision_node.md): explicit information sets, finite actions, and declared policy families.
+- [Decision nodes](graph/decision_node.md): explicit information sets, categorical and scalar continuous actions, and declared policy families.
 - [Utility nodes](graph/utility_node.md): callable payoffs, sink validation, and additive aggregation.
 - [NumPyro translation and sampling](inference/backend_numpyro.md): model construction, policy binding, and posterior draws.
 - [Policy-gradient optimization](solver/algorithms.md): joint expected-utility training, local information, independent evaluation, and analytic verification.
+- [Policy families and mixed information](continuous_information/README.md): categorical and continuous families, fitted rules, and custom parameter models.
+- [Posterior inference with fitted policies](inference/fitted_policy_conditioning.md): conditioning through categorical and continuous action distributions, with mixed decision information.
 
 These notes explain the reasoning behind the current implementation. Public signatures and behavior belong in the API reference and docstrings rather than a second implementation-status table here.
 
 ## Proposals
 
-- [Posterior inference with fitted categorical policies](inference/fitted_policy_conditioning.md): conditioning semantics and implementation scope for categorical, continuous, and mixed decision information.
-- [Discrete decisions with continuous information](continuous_information/README.md): creator-selected policy families, solver-fitted parameters, and one policy abstraction for tables and functions, independently of continuous-action support.
-- [More expressive discrete chance nodes](graph/discrete_chance_nodes.md): a future proposal separating categorical and numerical semantics, finite computational domains, and display labels.
+- [More expressive discrete chance nodes](graph/discrete_chance_nodes.md): implemented count support and remaining proposals for finite numerical domains, display labels, and broader posterior inference.
 - [Ride-hailing retention](proposals/ride_hailing.md): a future benchmark for continuous decisions and learning under uncertainty.
+
+LLM integration remains an unscoped idea, potentially in a separate repository. Revisit its scope and documentation after the main pages, API review, and tutorials are ready.
 
 ## Documentation work
 

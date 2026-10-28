@@ -52,7 +52,8 @@ The API reference, walkthroughs, resources, README example, and figure scripts n
 - [x] Update errors and examples for `InferenceError`, `SolveError`, and configuration `ValueError`s according to the implementation.
 - [x] Repair imports and cross-references for the graph, diagram, node, and policy packages. Keep internal helpers out of the public API reference.
 - [x] Explain that fitted actions remain stochastic, expected utility is estimated on independent scenarios, and training gives no convergence or optimality guarantee. Distinguish evaluation noise from policy quality and explain poorly visited or impossible tabular rows where relevant.
-- [x] Preserve the current inference and distribution boundaries: finite categorical actions, JAX-traceable functions, explicit information and memory arcs, count-support limits, posterior conditioning through fitted categorical policies, and forward-only evaluation of supplied deterministic function policies.
+- [x] Preserve the current inference and distribution boundaries: categorical and scalar continuous actions with fixed support, JAX-traceable functions, explicit information and memory arcs, count-support limits, posterior conditioning through fitted policies, and forward-only evaluation of supplied deterministic function policies.
+- [x] Document `Real`, `Interval`, `DistributionPolicy`, `ContinuousPolicy`, `ParameterModel`, and `Linear` in the API reference. The continuous-decision worked example and walkthrough remain deferred in the documentation maintenance plan.
 
 ## Page-by-page work
 
