@@ -3,13 +3,14 @@
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
+from numpyro.distributions.batch_util import promote_batch_shape
 
 from pylimid.policy import CategoricalPolicy, DecisionInformation
 
 
 def policy_distribution(
     rule: CategoricalPolicy, observations: DecisionInformation
-) -> dist.CategoricalLogits:
+) -> dist.CategoricalLogits | dist.CategoricalProbs:
     """
     Construct an action distribution over broadcast information assignments.
 
@@ -24,13 +25,15 @@ def policy_distribution(
 
     Returns:
         A categorical distribution with the broadcast leading dimensions as its
-        batch shape and a final logits axis in the rule's action order.
+        batch shape and probabilities in the rule's action order. The family's
+        probability or logit parameterization is preserved.
 
     Raises:
         TypeError: If observations include an undeclared information parent.
         KeyError: If a declared information parent is missing.
         ValueError: If parent values do not retain their fitted shapes, leading
-            dimensions cannot broadcast, or the rule returns invalid logits shapes.
+            dimensions cannot broadcast, or the rule returns an incompatible action
+            distribution.
     """
     unexpected = observations.keys() - rule.parents
     if unexpected:
@@ -57,10 +60,8 @@ def policy_distribution(
         for parent, value in values.items()
     }
 
-    def logits(information: DecisionInformation) -> jax.Array:
-        return rule._distribution(information).logits
-
-    evaluate = logits
+    evaluate = rule._distribution
     for _ in batch_shape:
         evaluate = jax.vmap(evaluate)
-    return dist.Categorical(logits=evaluate(values))
+    # vmap batches parameter arrays but preserves single-assignment batch metadata.
+    return promote_batch_shape(evaluate(values))

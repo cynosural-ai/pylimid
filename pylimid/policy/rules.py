@@ -59,7 +59,8 @@ class CategoricalPolicy:
     fitted shapes. Use ``jax.vmap`` to evaluate a batch of assignments.
 
     Attributes:
-        family: The creator-declared `PolicyFamily` that computes action logits.
+        family: The creator-declared `PolicyFamily` that constructs action
+            distributions.
         parents: Information-parent names, in declared order.
         parent_states: Categorical labels for each parent; ``None`` for numerical
             information.
@@ -117,8 +118,8 @@ class CategoricalPolicy:
 
     def _distribution(
         self, observations: DecisionInformation
-    ) -> dist.CategoricalLogits:
-        """Bind observations in declared order and construct the action distribution."""
+    ) -> dist.CategoricalLogits | dist.CategoricalProbs:
+        """Bind observations and check the categorical action distribution."""
         unexpected = observations.keys() - self.parents
         if unexpected:
             raise TypeError(f"Unexpected information parents: {sorted(unexpected)}.")
@@ -129,10 +130,28 @@ class CategoricalPolicy:
                 )
         ordered = {parent: observations[parent] for parent in self.parents}
         parent_states = dict(zip(self.parents, self.parent_states, strict=True))
-        logits = self.family.logits(self.parameters, ordered, parent_states)
-        if logits.shape != (len(self.states),):
+        distribution = self.family.distribution(self.parameters, ordered, parent_states)
+        if not isinstance(
+            distribution, (dist.CategoricalLogits, dist.CategoricalProbs)
+        ):
             raise ValueError(
-                f"Policy logits must have shape {(len(self.states),)}, "
-                f"got {logits.shape}."
+                "CategoricalPolicy requires a Categorical distribution; "
+                f"got {type(distribution).__name__}."
             )
-        return dist.Categorical(logits=logits)
+        if distribution.batch_shape:
+            raise ValueError(
+                "CategoricalPolicy requires a scalar distribution with no batch "
+                f"dimensions; got batch shape {distribution.batch_shape}."
+            )
+        probabilities_or_logits = (
+            distribution.logits
+            if isinstance(distribution, dist.CategoricalLogits)
+            else distribution.probs
+        )
+        num_actions = probabilities_or_logits.shape[-1]
+        if num_actions != len(self.states):
+            raise ValueError(
+                f"Policy distribution must have {len(self.states)} actions, "
+                f"got {num_actions}."
+            )
+        return distribution

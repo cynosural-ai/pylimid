@@ -1,4 +1,4 @@
-"""Trainable policy families that initialize parameters and compute action logits."""
+"""Trainable policy families that construct action distributions."""
 
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
@@ -7,6 +7,7 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
+import numpyro.distributions as dist
 
 __all__ = [
     "DecisionInformation",
@@ -33,14 +34,14 @@ type PolicyParameters = dict[str, Any]
 
 class PolicyFamily(ABC):
     """
-    A trainable family that initializes parameters and produces action logits.
+    A trainable family that initializes parameters and constructs action distributions.
 
     Declare a family on `DecisionNode.policy_family`. The optimizer fits its JAX
-    parameter tree and returns a `CategoricalPolicy`, which owns normalization,
-    sampling, and action log probabilities. Family methods must be pure and support
-    JAX compilation; logits must also support differentiation with respect to all
-    parameters. They operate on one information assignment at a time and retain no
-    mutable state between calls.
+    parameter tree and returns a `CategoricalPolicy`, which binds the family's
+    distributions to the decision's information and action labels. Family methods
+    must be pure and support JAX compilation. Distribution log probabilities must
+    support differentiation with respect to all trainable parameters. Methods operate
+    on one information assignment at a time and retain no mutable state between calls.
 
     Observation mappings follow the decision's declared parent order. Categorical
     parents supply state indices and named labels; numerical parents have no labels.
@@ -74,14 +75,14 @@ class PolicyFamily(ABC):
         """
 
     @abstractmethod
-    def logits(
+    def distribution(
         self,
         parameters: PolicyParameters,
         observations: DecisionInformation,
         parent_states: Mapping[str, tuple[str, ...] | None],
-    ) -> jax.Array:
+    ) -> dist.Distribution:
         """
-        Compute unnormalized action scores for one information assignment.
+        Construct the action distribution for one information assignment.
 
         Args:
             parameters: The family's current trainable parameter tree.
@@ -90,8 +91,10 @@ class PolicyFamily(ABC):
                 numerical information.
 
         Returns:
-            Unnormalized scores with shape ``(num_actions,)``, in the declared action
-            order. `CategoricalPolicy` applies softmax to obtain probabilities.
+            A NumPyro distribution supporting sampling and scalar action log
+            probabilities. Categorical decisions require a scalar categorical
+            distribution with one probability per action in declared state order.
+            Do not add a leading sample or information-assignment axis.
         """
 
 
@@ -131,14 +134,14 @@ class LinearSoftmax(PolicyFamily):
             "bias": jnp.zeros(num_actions),
         }
 
-    def logits(
+    def distribution(
         self,
         parameters: PolicyParameters,
         observations: DecisionInformation,
         parent_states: Mapping[str, tuple[str, ...] | None],
-    ) -> jax.Array:
+    ) -> dist.CategoricalLogits:
         """
-        Calculate linear action scores from encoded observations.
+        Construct categorical action probabilities from linear scores.
 
         Args:
             parameters: The current ``weights`` and ``bias`` arrays.
@@ -146,10 +149,12 @@ class LinearSoftmax(PolicyFamily):
             parent_states: Categorical parent labels, or ``None`` for numerical inputs.
 
         Returns:
-            One unnormalized score per action.
+            A scalar categorical distribution in the declared action order.
         """
         features = _features(observations, parent_states)
-        return features @ parameters["weights"] + parameters["bias"]
+        return dist.Categorical(
+            logits=features @ parameters["weights"] + parameters["bias"]
+        )
 
 
 @dataclass(frozen=True)
@@ -203,14 +208,14 @@ class TabularSoftmax(PolicyFamily):
             cards.append(len(labels))
         return {"logits": jnp.zeros((*cards, num_actions))}
 
-    def logits(
+    def distribution(
         self,
         parameters: PolicyParameters,
         observations: DecisionInformation,
         parent_states: Mapping[str, tuple[str, ...] | None],
-    ) -> jax.Array:
+    ) -> dist.CategoricalLogits:
         """
-        Look up the scores for a categorical information assignment.
+        Construct categorical probabilities for one information assignment.
 
         Args:
             parameters: The current categorical score table under ``logits``.
@@ -218,9 +223,11 @@ class TabularSoftmax(PolicyFamily):
             parent_states: Named finite states for every information parent.
 
         Returns:
-            One unnormalized score per action in the selected row.
+            A scalar categorical distribution using the selected score row.
         """
-        return parameters["logits"][tuple(observations.values())]
+        return dist.Categorical(
+            logits=parameters["logits"][tuple(observations.values())]
+        )
 
 
 def _features(

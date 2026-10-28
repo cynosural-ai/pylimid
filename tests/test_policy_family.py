@@ -26,9 +26,19 @@ class _QuadraticFamily(PolicyFamily):
         assert parent_states == {"signal": None}
         return {"layer": {"weights": 0.01 * jax.random.normal(rng_key, (num_actions,))}}
 
-    def logits(self, parameters, observations, parent_states):
+    def distribution(self, parameters, observations, parent_states):
         assert tuple(observations) == ("signal",)
-        return parameters["layer"]["weights"] * (observations["signal"] ** 2 - 0.25)
+        return dist.Categorical(
+            logits=parameters["layer"]["weights"] * (observations["signal"] ** 2 - 0.25)
+        )
+
+
+class _QuadraticProbsFamily(_QuadraticFamily):
+    """Expose the nonlinear rule through categorical probabilities."""
+
+    def distribution(self, parameters, observations, parent_states):
+        distribution = super().distribution(parameters, observations, parent_states)
+        return dist.Categorical(probs=distribution.probs)
 
 
 def _diagram(family):
@@ -52,8 +62,11 @@ def _diagram(family):
     return diagram
 
 
-def test_custom_family_trains_nested_parameters_and_reuses_categorical_execution():
-    family = _QuadraticFamily()
+@pytest.mark.parametrize("family_class", [_QuadraticFamily, _QuadraticProbsFamily])
+def test_custom_family_trains_nested_parameters_and_reuses_categorical_execution(
+    family_class,
+):
+    family = family_class()
     diagram = _diagram(family)
     solution = solve(diagram, num_steps=500, num_samples=512)
     rule = solution.policy["action"]
@@ -84,11 +97,34 @@ def test_initialization_supplies_reproducible_random_keys_to_custom_families():
     assert not jnp.array_equal(weights, different.parameters["layer"]["weights"])
 
 
-@pytest.mark.parametrize("shape", [(), (3,), (1, 2)])
-def test_family_logits_must_match_the_decision_action_space(shape):
+@pytest.mark.parametrize("parameterization", ["probs", "logits"])
+@pytest.mark.parametrize("shape", [(1,), (3,), (1, 2)])
+def test_family_distribution_must_match_the_decision_action_space(
+    shape, parameterization
+):
     class WrongShapeFamily(_QuadraticFamily):
-        def logits(self, parameters, observations, parent_states):
-            return jnp.zeros(shape)
+        def distribution(self, parameters, observations, parent_states):
+            values = jnp.full(shape, 1 / shape[-1])
+            if parameterization == "probs":
+                return dist.Categorical(probs=values)
+            return dist.Categorical(logits=values)
 
-    with pytest.raises(ValueError, match="Policy logits must have shape"):
+    with pytest.raises(ValueError, match="Policy distribution|scalar distribution"):
         solve(_diagram(WrongShapeFamily()), num_steps=1, num_samples=2)
+
+
+@pytest.mark.parametrize(
+    "distribution",
+    [
+        dist.Normal(0.0, 1.0),
+        dist.Bernoulli(0.5),
+        dist.Multinomial(2, probs=jnp.ones(2) / 2),
+    ],
+)
+def test_categorical_policy_rejects_incompatible_family_distributions(distribution):
+    class WrongDistributionFamily(_QuadraticFamily):
+        def distribution(self, parameters, observations, parent_states):
+            return distribution
+
+    with pytest.raises(ValueError, match="requires a Categorical distribution"):
+        solve(_diagram(WrongDistributionFamily()), num_steps=1, num_samples=2)

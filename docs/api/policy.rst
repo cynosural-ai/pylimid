@@ -10,7 +10,9 @@ The names on this page are exported by ``pylimid.policy`` and directly by ``pyli
 Families and fitted rules
 -------------------------
 
-`TabularSoftmax` uses independent action scores for every combination of scalar categorical information values. Its parents must declare named finite states. `LinearSoftmax` uses a linear function of flattened numerical values and one-hot categorical values, so it can use numerical, categorical or mixed information. Both choose among the decision's finite action labels. A custom family implements `PolicyFamily.initialize` and `PolicyFamily.logits` with pure, differentiable JAX computations.
+`TabularSoftmax` uses independent action scores for every combination of scalar categorical information values. Its parents must declare named finite states. `LinearSoftmax` uses a linear function of flattened numerical values and one-hot categorical values, so it can use numerical, categorical or mixed information. Both choose among the decision's finite action labels. A custom family implements `PolicyFamily.initialize` and `PolicyFamily.distribution` with pure JAX computations and differentiable distribution log probabilities.
+
+``distribution`` returns a NumPyro categorical distribution, using either probabilities or logits, with no batch dimensions and one probability per declared action. Custom families that previously implemented ``logits`` should instead implement ``distribution`` and return ``dist.Categorical(logits=...)``. The declarations ``LinearSoftmax()`` and ``TabularSoftmax()`` are unchanged.
 
 `CategoricalPolicy.probabilities` returns the action distribution at one information assignment. `CategoricalPolicy.sample` draws an action with an explicit random key, and `CategoricalPolicy.log_prob` evaluates an action's log probability. Numerical observations retain their fitted shapes. Use ``jax.vmap`` for batches; choosing the largest-probability action produces a different policy.
 
