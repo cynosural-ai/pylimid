@@ -1,22 +1,13 @@
 """Trainable policy families, fitted decision rules, and joint policies."""
 
-from pylimid.policy.distribution import DistributionPolicy
-from pylimid.policy.families import (
-    DecisionInformation,
-    LinearSoftmax,
-    PolicyFamily,
-    PolicyParameters,
-    TabularSoftmax,
-)
+from pylimid.policy._categorical.linear_family import LinearSoftmax
+from pylimid.policy._categorical.policy import CategoricalPolicy
+from pylimid.policy._categorical.tabular_family import TabularSoftmax
+from pylimid.policy._continuous.distribution_family import DistributionPolicy
+from pylimid.policy._continuous.policy import ContinuousPolicy
+from pylimid.policy.family import DecisionInformation, PolicyFamily, PolicyParameters
 from pylimid.policy.models import Linear, ParameterModel
-from pylimid.policy.rules import (
-    ActionTable,
-    CategoricalPolicy,
-    ContinuousPolicy,
-    DecisionRule,
-    FittedPolicy,
-    Policy,
-)
+from pylimid.policy.types import ActionTable, DecisionRule, FittedPolicy, Policy
 
 __all__ = [
     "ActionTable",

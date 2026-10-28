@@ -7,11 +7,8 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 
-from pylimid.policy.families import (
-    DecisionInformation,
-    PolicyParameters,
-    _features,
-)
+from pylimid.policy._information import encode_features
+from pylimid.policy.family import DecisionInformation, PolicyParameters
 
 __all__ = ["Linear", "ParameterModel"]
 
@@ -123,7 +120,7 @@ class Linear(ParameterModel):
         """
         return {
             "weights": jnp.zeros(
-                (_features(observations, parent_states).size, num_outputs)
+                (encode_features(observations, parent_states).size, num_outputs)
             ),
             "bias": jnp.zeros(num_outputs),
         }
@@ -146,6 +143,6 @@ class Linear(ParameterModel):
             One raw scalar per distribution parameter to learn.
         """
         return (
-            _features(observations, parent_states) @ parameters["weights"]
+            encode_features(observations, parent_states) @ parameters["weights"]
             + parameters["bias"]
         )

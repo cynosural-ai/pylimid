@@ -12,10 +12,8 @@ from numpyro.distributions import biject_to, constraints
 from numpyro.distributions.transforms import Transform
 
 from pylimid.graph import Interval
-from pylimid.policy.families import DecisionInformation, PolicyFamily, PolicyParameters
+from pylimid.policy.family import DecisionInformation, PolicyFamily, PolicyParameters
 from pylimid.policy.models import ParameterModel
-
-__all__ = ["DistributionPolicy"]
 
 
 class _DistributionMetadata(Protocol):
