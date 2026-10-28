@@ -1,6 +1,6 @@
 # Policy families and mixed information
 
-PyLIMID optimizes finite-action influence diagrams through policy gradients. Chance variables and decision information can be categorical, continuous, or numerical counts. The creator chooses a family for every decision; the optimizer fits the joint parameters without changing the action spaces or information sets.
+PyLIMID optimizes categorical and scalar continuous decisions through policy gradients. Chance variables and decision information can be categorical, continuous, or numerical counts. The creator chooses a family for every decision; the optimizer fits the joint parameters without changing the action spaces or information sets.
 
 ## Implemented families
 
@@ -16,7 +16,7 @@ Initialization walks the graph under the initial policies to determine informati
 
 The [optimizer design](../solver/algorithms.md) describes score gradients, the previous-batch baseline, and independent evaluation. The public call is `solve(diagram, num_steps=..., num_samples=..., learning_rate=..., rng_key=...)`; policy gradients are the only optimization engine.
 
-Inference also accepts supplied deterministic functions and action tables. Fitted stochastic rules and supplied functions currently support forward evaluation without observed chance-node evidence. Conditioning through these rules needs a separate inference contract.
+Inference also accepts supplied deterministic functions and categorical action tables. Fitted categorical and continuous stochastic rules support forward evaluation and conditioning on chance evidence. Supplied deterministic functions support forward evaluation only.
 
 ## Verification and interpretation
 
@@ -28,4 +28,4 @@ Three errors must be distinguished: approximation imposed by the family, incompl
 
 Custom families subclass `PolicyFamily` and implement `initialize` and `distribution`. Initialization returns a dictionary containing trainable JAX arrays, including nested parameter structures. Distribution construction receives those parameters and one information assignment in declared parent order, and returns a scalar NumPyro categorical distribution in the decision's action order. Both probability and logit parameterizations are supported. Both methods must be pure and JAX-compatible, and log probabilities must be differentiable with respect to trainable parameters. The categorical wrapper binds information metadata, checks distribution compatibility, and delegates sampling and log probabilities. Stochastic network layers and mutable network state need additional contracts; they are not part of this interface.
 
-Other future work includes richer baselines, checkpoint selection, optimizer diagnostics, and finite-action sums for variance reduction. Continuous actions require explicit domains and suitable policy distributions or other gradient estimators; they are separate from continuous observations.
+`DistributionPolicy` composes a scalar continuous distribution and a `ParameterModel`, with `Linear` as the built-in model. `ContinuousPolicy` checks fixed scalar support against the action domain. The [decision-node note](../graph/decision_node.md) describes composition and execution. Future work includes richer baselines, checkpoint selection, optimizer diagnostics, neural parameter models, vector actions and finite-action sums for variance reduction.

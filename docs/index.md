@@ -14,7 +14,7 @@ Rather than requiring every chance and utility node to be represented as a table
 
 ## Limitations
 
-- **Decisions are discrete.** A decision node must choose among a finite set of actions (continuous decisions are not *yet* supported).
+- **Continuous actions are scalar.** Choose finite categorical actions through `states`, or declare a {py:class}`Real` or {py:class}`Interval` action space with a compatible continuous policy family. Vector actions and parameter-dependent support are not supported.
 - **Results are approximate.** Inference summaries and expected utility are estimated from samples. More evaluation samples reduce estimation noise, while policy quality also depends on the chosen family and training. Training does not guarantee an optimal policy. The [Solving guide](user_guide/solving.md#how-much-can-we-trust-the-result) explains how to assess fitted policies. For discrete diagrams that meet its solver's requirements, consider [pyAgrum](https://pyagrum.readthedocs.io) when you need an exact solution.
 
 ```{admonition} Early development

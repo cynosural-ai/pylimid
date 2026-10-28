@@ -45,7 +45,7 @@ class _NonlinearSoftmax(PolicyFamily):
         self,
         rng_key: jax.Array,
         *,
-        num_actions: int,
+        num_actions: int | None,
         observations: DecisionInformation,
         parent_states: Mapping[str, tuple[str, ...] | None],
     ) -> PolicyParameters:

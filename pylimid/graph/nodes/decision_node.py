@@ -26,8 +26,8 @@ or a continuous ``action_space`` is declared. With neither it is
 `Consistency.UNCONFIGURED`; with both it is `Consistency.STALE`. Adding or
 removing an information parent never invalidates the action declaration.
 
-Continuous domains can be declared and validated, but execution through `infer`
-and `solve` is not yet supported.
+Continuous decisions use a scalar stochastic policy whose distribution stays within
+the declared domain. Its support must not depend on trainable parameters.
 """
 
 from dataclasses import dataclass, field
@@ -52,15 +52,16 @@ class DecisionNode(Node):
 
     Declare categorical actions through ``states``, or a scalar continuous domain
     through ``action_space``. Setting both is a configuration conflict reported by
-    `validate`. Continuous domains currently support declaration and graph validation
-    only; `infer` and `solve` do not execute continuous decisions yet.
+    `validate`. Continuous decisions use `DistributionPolicy` or a custom
+    `PolicyFamily` returning a compatible scalar continuous density. The fitted
+    `ContinuousPolicy` supports sampling, density evaluation, and reuse with `infer`.
 
     For categorical decisions, tabular policies require every parent to declare named
     finite states. Supplied deterministic functions can use continuous observations
     during forward evaluation with `infer`. Fitted `CategoricalPolicy` rules also
     support conditioning on chance evidence with continuous or mixed information.
     Declare a `PolicyFamily`, such as `LinearSoftmax` or `TabularSoftmax`, on every
-    categorical decision to fit their joint policy through `solve`.
+    decision to fit their joint policy through `solve`.
     Its ``parents`` are the information available when it acts; earlier observations
     and decisions are remembered only when included explicitly.
     With neither ``states`` nor ``action_space``, the decision is unconfigured.

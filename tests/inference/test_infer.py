@@ -814,22 +814,22 @@ def test_utilities_do_not_change_other_posteriors():
 
 
 @pytest.mark.parametrize("domain", [Real(), Interval(0.0, 100.0)])
-@pytest.mark.parametrize("rule", [0, {(): 0}, lambda: 0])
-def test_infer_reports_relevant_continuous_execution_as_unsupported(domain, rule):
+@pytest.mark.parametrize("rule", [jnp.array(0.5), lambda: 0.5])
+def test_infer_evaluates_supplied_continuous_actions(domain, rule):
     diagram = InfluenceDiagram()
     diagram.add_node(DecisionNode("power", action_space=domain))
     diagram.add_node(
         UtilityNode("payoff", parents=("power",), values=lambda power: -(power**2))
     )
-    with pytest.raises(NotImplementedError, match="continuous decisions.*power"):
-        infer(diagram, ["payoff"], policy={"power": rule}, num_samples=2)
+    result = infer(diagram, ["payoff"], policy={"power": rule}, num_samples=2)
+    assert jnp.all(result["payoff"].values == -0.25)
 
 
-def test_inference_backend_rejects_continuous_fixed_decisions():
+def test_inference_backend_evaluates_continuous_fixed_decisions():
     diagram = InfluenceDiagram()
     diagram.add_node(DecisionNode("power", action_space=Real()))
-    with pytest.raises(NotImplementedError, match="continuous decisions.*power"):
-        samples(diagram.snapshot(), observed={"power": 0.5}, num_samples=2)
+    result = samples(diagram.snapshot(), observed={"power": 0.5}, num_samples=2)
+    assert jnp.all(result["power"] == 0.5)
 
 
 def test_infer_prunes_irrelevant_continuous_decisions():

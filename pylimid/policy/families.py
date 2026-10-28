@@ -37,8 +37,9 @@ class PolicyFamily(ABC):
     A trainable family that initializes parameters and constructs action distributions.
 
     Declare a family on `DecisionNode.policy_family`. The optimizer fits its JAX
-    parameter tree and returns a `CategoricalPolicy`, which binds the family's
-    distributions to the decision's information and action labels. Family methods
+    parameter tree and returns a `CategoricalPolicy` or `ContinuousPolicy`, which
+    binds the family's distributions to the decision's information and action domain.
+    Family methods
     must be pure and support JAX compilation. Distribution log probabilities must
     support differentiation with respect to all trainable parameters. Methods operate
     on one information assignment at a time and retain no mutable state between calls.
@@ -52,7 +53,7 @@ class PolicyFamily(ABC):
         self,
         rng_key: jax.Array,
         *,
-        num_actions: int,
+        num_actions: int | None,
         observations: DecisionInformation,
         parent_states: Mapping[str, tuple[str, ...] | None],
     ) -> PolicyParameters:
@@ -61,7 +62,8 @@ class PolicyFamily(ABC):
 
         Args:
             rng_key: JAX random key for parameter initialization.
-            num_actions: Number of actions in the decision's declared state order.
+            num_actions: Number of categorical actions, or ``None`` for a continuous
+                decision with an explicit action space.
             observations: One sampled information assignment in declared parent order,
                 used to determine input shapes. Numerical values retain their array
                 shapes; categorical values are integer state indices.
@@ -112,7 +114,7 @@ class LinearSoftmax(PolicyFamily):
         self,
         rng_key: jax.Array,
         *,
-        num_actions: int,
+        num_actions: int | None,
         observations: DecisionInformation,
         parent_states: Mapping[str, tuple[str, ...] | None],
     ) -> PolicyParameters:
@@ -127,7 +129,12 @@ class LinearSoftmax(PolicyFamily):
 
         Returns:
             A dictionary with ``weights`` and ``bias`` arrays.
+
+        Raises:
+            ValueError: If the decision has a continuous action space.
         """
+        if num_actions is None:
+            raise ValueError("LinearSoftmax requires categorical action states.")
         feature_count = _features(observations, parent_states).size
         return {
             "weights": jnp.zeros((feature_count, num_actions)),
@@ -172,7 +179,7 @@ class TabularSoftmax(PolicyFamily):
         self,
         rng_key: jax.Array,
         *,
-        num_actions: int,
+        num_actions: int | None,
         observations: DecisionInformation,
         parent_states: Mapping[str, tuple[str, ...] | None],
     ) -> PolicyParameters:
@@ -190,8 +197,11 @@ class TabularSoftmax(PolicyFamily):
             and a final action axis.
 
         Raises:
-            ValueError: If a parent lacks named states or has a non-scalar value.
+            ValueError: If the decision has a continuous action space, or a parent
+                lacks named states or has a non-scalar value.
         """
+        if num_actions is None:
+            raise ValueError("TabularSoftmax requires categorical action states.")
         cards = []
         for parent, value in observations.items():
             labels = parent_states[parent]

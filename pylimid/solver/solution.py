@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from itertools import product
 
-from pylimid.policy import FittedPolicy, TabularSoftmax
+from pylimid.policy import ContinuousPolicy, FittedPolicy, TabularSoftmax
 
 __all__ = ["Solution"]
 
@@ -14,8 +14,9 @@ class Solution:
     Result of joint policy-gradient optimization.
 
     Attributes:
-        policy: One fitted `CategoricalPolicy` per decision, using only its declared
-            information parents. Each rule retains its family, parameters, and labels.
+        policy: One fitted `CategoricalPolicy` or `ContinuousPolicy` per decision,
+            using only its declared information parents. Each rule retains its
+            family, parameters, and action domain.
         expected_utility: Independent Monte Carlo estimate of expected total utility
             under the final stochastic policy, with no optimality or convergence
             guarantee.
@@ -30,7 +31,9 @@ class Solution:
 
         Tabular families show the action probabilities for every information
         assignment. Other families are identified by name, with probabilities shown
-        for decisions without parents. Continuous information is not enumerated.
+        for categorical decisions without parents. Continuous actions show their
+        domain and, without parents, the distribution type. Continuous information
+        is not enumerated.
 
         Returns:
             A multi-line string headed by the estimated expected total utility.
@@ -42,7 +45,13 @@ class Solution:
                 f"{name} ({', '.join(rule.parents) or 'no parents'})",
                 f"  fitted {type(rule.family).__name__} policy (stochastic)",
             ]
-            if isinstance(rule.family, TabularSoftmax):
+            if isinstance(rule, ContinuousPolicy):
+                lines.append(f"  continuous action space: {rule.action_space}")
+                if not rule.parents:
+                    lines.append(
+                        f"  action distribution: {type(rule.distribution()).__name__}"
+                    )
+            elif isinstance(rule.family, TabularSoftmax):
                 labels = []
                 for states in rule.parent_states:
                     assert states is not None

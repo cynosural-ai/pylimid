@@ -23,7 +23,7 @@ Rather than requiring every chance and utility node to be represented as a table
 
 ## Limitations
 
-- **Decisions are discrete.** A decision node must choose among a finite set of actions. `TabularSoftmax` requires information parents with named finite states, while `LinearSoftmax` and custom families can use numerical observations.
+- **Continuous actions are scalar.** Decisions can choose finite categorical actions or a real number in a declared domain. [`DistributionPolicy`](https://pylimid.readthedocs.io/en/latest/api/policy.html#composing-continuous-policies) composes continuous distributions with parameter models. Vector actions and parameter-dependent support are not supported.
 - **Count posteriors need fixed enumerable support.** Scalar Binomial counts with a concrete number of trials are supported. Unknown unbounded counts, shifted ranges and batched counts remain unsupported. Parent-dependent bounds do not have a supported enumeration path.
 - **Results are approximate.** Inference summaries and expected utility are estimated from samples. More evaluation samples reduce estimation noise, while policy quality also depends on the chosen family and training. Training does not guarantee an optimal policy. For discrete diagrams that meet its solver's requirements, consider [pyAgrum](https://pyagrum.readthedocs.io) when you need an exact solution.
 

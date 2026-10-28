@@ -12,7 +12,7 @@ from pylimid.errors import InferenceError
 from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.nodes import ChanceNode, NodeKind
 from pylimid.inference.posterior import InferenceResult, Posterior
-from pylimid.policy import CategoricalPolicy, DecisionRule, Policy
+from pylimid.policy import CategoricalPolicy, ContinuousPolicy, DecisionRule, Policy
 
 __all__ = ["infer"]
 
@@ -32,11 +32,12 @@ def infer(
     Only the query and observed nodes and their ancestors take part in
     inference: any other node cannot change the posterior, so it is left out.
     A decision among those ancestors must be bound by *policy*. A fixed
-    integer action clamps it, while a table policy selects an action from its
+    numerical action clamps it, while a categorical table selects an action from its
     information-set assignment. A deterministic function can select an action from
     continuous or mixed observations during forward evaluation. A fitted
-    `CategoricalPolicy` supplies a conditional action distribution using its learned
-    probabilities, supporting both forward evaluation and conditioning on chance
+    `CategoricalPolicy` or `ContinuousPolicy` supplies a conditional action
+    distribution using learned probabilities or densities, supporting both forward
+    evaluation and conditioning on chance
     evidence. Its information parents may be categorical, continuous, or mixed.
     Function policies support forward evaluation only. A decision outside the
     relevant ancestors needs no policy.
@@ -51,8 +52,9 @@ def infer(
     evidence. Utilities never affect the posterior of other variables.
 
     With no observed chance node, draws come from forward sampling. With evidence,
-    NumPyro uses exact enumeration for categorical chance variables, fitted actions,
-    and supported finite counts, and NUTS when continuous latents remain. Scalar
+    NumPyro uses exact enumeration for categorical chance variables, categorical
+    fitted actions, and supported finite counts. NUTS samples remaining continuous
+    chance variables and fitted continuous actions. Scalar
     count latents require NumPyro enumeration of a fixed integer range starting at
     zero. For Binomial, use a Python integer ``total_count``; probabilities may depend
     on other variables.
@@ -73,13 +75,14 @@ def infer(
         observed: Map from chance node name to its observed value: an integer state
             index for a categorical variable, an actual count for a numerical discrete
             variable, or a real value for a continuous one.
-        policy: Map from decision names to fixed integer actions, contingent action
+        policy: Map from decision names to fixed numerical actions, contingent action
             tables mapping parent-state tuples to action indices, JAX-traceable
-            deterministic functions, or fitted `CategoricalPolicy` rules.
-            Functions accept information parents by keyword and return a scalar
-            integer action index; they support forward evaluation only, without
+            deterministic functions, or fitted `CategoricalPolicy` or
+            `ContinuousPolicy` rules. Functions accept information parents by keyword
+            and return a scalar integer index for categorical actions or a real scalar
+            for continuous actions. They support forward evaluation only, without
             observed chance nodes. Fitted rules contribute their conditional action
-            probabilities to forward sampling and posterior conditioning.
+            probabilities or densities to forward sampling and posterior conditioning.
             Numerical information parents retain their fitted scalar or array shapes.
             A table maps each tuple of parent-state indices, in the decision's
             ``parents`` order, to an action index in its ``states``. A decision with
@@ -111,8 +114,8 @@ def infer(
             has an information-set parent without named states, or a relevant chance
             distribution conflicts with its ``states``, or fitted policy inputs have
             incompatible shapes.
-        NotImplementedError: If a relevant decision declares a continuous action
-            space, or a relevant function policy uses chance-node evidence.
+        NotImplementedError: If a relevant function policy uses chance-node evidence,
+            or continuous action support metadata is unsupported.
     """
     observed = observed or {}
     policy = policy or {}
@@ -142,14 +145,14 @@ def infer(
         nodes=tuple((name, node) for name, node in snapshot.nodes if name in relevant)
     )
     contingent_policy: dict[str, DecisionRule] = {}
-    bound: dict[str, int] = {}
+    bound: dict[str, int | float | jax.Array] = {}
     for name, rule in policy.items():
         if name not in relevant:
             continue
-        if isinstance(rule, (dict, CategoricalPolicy)):
-            contingent_policy[name] = rule
+        if isinstance(rule, (dict, CategoricalPolicy, ContinuousPolicy)):
+            contingent_policy[name] = cast(DecisionRule, rule)
         elif callable(rule):
-            contingent_policy[name] = cast(Callable[..., int | jax.Array], rule)
+            contingent_policy[name] = cast(Callable[..., int | float | jax.Array], rule)
         else:
             bound[name] = rule
     draws = samples(

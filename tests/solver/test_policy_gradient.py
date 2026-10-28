@@ -169,6 +169,8 @@ def test_joint_score_gradient_matches_exact_action_branching(nonzero_parameters)
     def branch_probabilities(parameters):
         first_rule = replace(templates["first"], parameters=parameters["first"])
         second_rule = replace(templates["second"], parameters=parameters["second"])
+        assert isinstance(first_rule, CategoricalPolicy)
+        assert isinstance(second_rule, CategoricalPolicy)
         first_probabilities = jax.vmap(
             lambda x, a: first_rule.probabilities(signal=x)[a]
         )(signal, first)

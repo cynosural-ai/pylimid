@@ -11,15 +11,22 @@ import jax.numpy as jnp
 
 from pylimid._signatures import signature_matches
 from pylimid.errors import InferenceError
+from pylimid.graph import Interval
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.nodes import ChanceNode, DecisionNode
-from pylimid.policy.rules import ActionTable, CategoricalPolicy, DecisionRule
+from pylimid.policy.rules import (
+    ActionTable,
+    CategoricalPolicy,
+    ContinuousPolicy,
+    DecisionRule,
+)
 
 #: An execution-ready rule produced by `bind_policy_rules`. Tables become lookup
 #: functions, and supplied functions are wrapped to check and convert their scalar
-#: integer results to JAX arrays. Fitted `CategoricalPolicy` rules pass through.
+#: results to JAX arrays. Fitted `CategoricalPolicy` and `ContinuousPolicy` rules
+#: pass through.
 #: Both representations receive information-parent values by keyword.
-type BoundDecisionRule = Callable[..., jax.Array] | CategoricalPolicy
+type BoundDecisionRule = Callable[..., jax.Array] | CategoricalPolicy | ContinuousPolicy
 
 
 def bind_policy_rules(
@@ -33,11 +40,11 @@ def bind_policy_rules(
     Args:
         snapshot: Validated snapshot containing the decisions to bind.
         policy: Decision names mapped to complete tables, deterministic functions,
-            or fitted categorical rules. Fixed actions are supplied in ``observed``.
+            or fitted stochastic rules. Fixed actions are supplied in ``observed``.
         observed: Observed chance values and fixed decision actions, keyed by name.
 
     Returns:
-        Decision names mapped to functions or fitted categorical rules ready for
+        Decision names mapped to functions or fitted stochastic rules ready for
         evaluation with their declared information parents.
 
     Raises:
@@ -60,14 +67,22 @@ def bind_policy_rules(
         for name, node in snapshot.nodes
     )
     rules: dict[str, BoundDecisionRule] = {}
+    for name, node in snapshot.nodes:
+        if isinstance(node, DecisionNode) and name in observed:
+            validate_action_values(node, _scalar_action(node, observed[name]))
     for name, rule in policy.items():
         decision = nodes[name]
         if not isinstance(decision, DecisionNode):
             raise InferenceError(f"Policy for {name!r} must bind a decision node.")
-        if isinstance(rule, CategoricalPolicy):
+        if isinstance(rule, (CategoricalPolicy, ContinuousPolicy)):
+            compatible_actions = (
+                decision.action_space is None and rule.states == decision.states
+                if isinstance(rule, CategoricalPolicy)
+                else rule.action_space == decision.action_space
+            )
             if (
                 set(rule.parents) != set(decision.parents)
-                or rule.states != decision.states
+                or not compatible_actions
                 or any(
                     states != node_map[parent].states
                     for parent, states in zip(
@@ -77,7 +92,7 @@ def bind_policy_rules(
             ):
                 raise InferenceError(
                     f"Policy for {name!r} has incompatible information "
-                    "or action states."
+                    "or action states/domain."
                 )
             rules[name] = rule
             continue
@@ -92,8 +107,12 @@ def bind_policy_rules(
                     "Function policies support forward evaluation only; "
                     "conditioning on chance-node evidence is not supported."
                 )
-            rules[name] = _function_rule(name, rule)
+            rules[name] = _function_rule(decision, rule)
             continue
+        if decision.action_space is not None:
+            raise InferenceError(
+                "ActionTable policies require categorical decision actions."
+            )
         rule = cast(ActionTable, rule)
         if set(rule) != set(_info_assignments(decision, node_map)):
             raise InferenceError(
@@ -109,6 +128,33 @@ def bind_policy_rules(
             _policy_array(decision, rule, node_map), decision.parents
         )
     return rules
+
+
+def validate_action_values(decision: DecisionNode, actions: jax.Array) -> None:
+    """
+    Check supplied fixed or deterministic action values against their domain.
+
+    Args:
+        decision: Configured decision whose scalar action types were checked.
+        actions: One action or a batch of actions with no event dimensions.
+
+    Raises:
+        InferenceError: If a supplied action is non-finite or outside its domain.
+    """
+    if decision.states is not None:
+        invalid = (actions < 0) | (actions >= len(decision.states))
+    else:
+        invalid = ~jnp.isfinite(actions)
+        if isinstance(decision.action_space, Interval):
+            invalid = (
+                invalid
+                | (actions < decision.action_space.low)
+                | (actions > decision.action_space.high)
+            )
+    if bool(jnp.any(invalid)):
+        raise InferenceError(
+            f"Policy for {decision.name!r} returned an invalid action."
+        )
 
 
 def _info_assignments(
@@ -161,17 +207,33 @@ def _table_rule(table: jax.Array, parents: tuple[str, ...]) -> Callable[..., jax
 
 
 def _function_rule(
-    name: str, function: Callable[..., int | jax.Array]
+    decision: DecisionNode, function: Callable[..., int | float | jax.Array]
 ) -> Callable[..., jax.Array]:
-    """Require a function rule to return a scalar integer action."""
+    """Require a function rule to return a scalar action of the declared kind."""
 
     def evaluate(**parent_values: jax.Array) -> jax.Array:
-        action = jnp.asarray(function(**parent_values))
-        if action.shape != () or not jnp.issubdtype(action.dtype, jnp.integer):
-            raise InferenceError(
-                f"Policy for {name!r} must return a scalar integer action index; "
-                f"got shape {action.shape} and dtype {action.dtype}."
-            )
-        return action
+        return _scalar_action(decision, function(**parent_values))
 
     return evaluate
+
+
+def _scalar_action(decision: DecisionNode, value: object) -> jax.Array:
+    """Check the shape and numerical kind of one supplied deterministic action."""
+    action = jnp.asarray(value)
+    integer = jnp.issubdtype(action.dtype, jnp.integer)
+    valid_type = (
+        integer
+        if decision.is_categorical
+        else integer or jnp.issubdtype(action.dtype, jnp.floating)
+    )
+    if action.shape != () or not valid_type:
+        description = (
+            "a scalar integer action index"
+            if decision.is_categorical
+            else "a real-valued scalar action"
+        )
+        raise InferenceError(
+            f"Policy for {decision.name!r} must return {description}; "
+            f"got shape {action.shape} and dtype {action.dtype}."
+        )
+    return action

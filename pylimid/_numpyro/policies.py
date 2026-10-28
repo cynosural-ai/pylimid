@@ -3,14 +3,13 @@
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
-from numpyro.distributions.batch_util import promote_batch_shape
 
-from pylimid.policy import CategoricalPolicy, DecisionInformation
+from pylimid.policy import CategoricalPolicy, ContinuousPolicy, DecisionInformation
 
 
 def policy_distribution(
-    rule: CategoricalPolicy, observations: DecisionInformation
-) -> dist.CategoricalLogits | dist.CategoricalProbs:
+    rule: CategoricalPolicy | ContinuousPolicy, observations: DecisionInformation
+) -> dist.Distribution:
     """
     Construct an action distribution over broadcast information assignments.
 
@@ -19,14 +18,14 @@ def policy_distribution(
     each assignment is evaluated through the rule's single-assignment interface.
 
     Args:
-        rule: Fitted categorical policy with parent value shapes.
+        rule: Fitted stochastic policy with parent value shapes.
         observations: Information-parent values, optionally with leading enumeration
             or batch dimensions.
 
     Returns:
-        A categorical distribution with the broadcast leading dimensions as its
-        batch shape and probabilities in the rule's action order. The family's
-        probability or logit parameterization is preserved.
+        A scalar-event action distribution with broadcast leading batch dimensions.
+        Categorical probabilities retain their declared action order. Continuous
+        distributions retain their densities and transforms.
 
     Raises:
         TypeError: If observations include an undeclared information parent.
@@ -63,5 +62,25 @@ def policy_distribution(
     evaluate = rule._distribution
     for _ in batch_shape:
         evaluate = jax.vmap(evaluate)
-    # vmap batches parameter arrays but preserves single-assignment batch metadata.
-    return promote_batch_shape(evaluate(values))
+    # vmap preserves scalar shape metadata, including on nested distributions.
+    return _rebuild_distribution(evaluate(values))
+
+
+def _rebuild_distribution(distribution: dist.Distribution) -> dist.Distribution:
+    """Rebuild batched constructor parameters and nested scalar distributions."""
+    if isinstance(distribution, dist.TransformedDistribution):
+        return dist.TransformedDistribution(
+            _rebuild_distribution(distribution.base_dist), distribution.transforms
+        )
+    if isinstance(
+        distribution,
+        (
+            dist.LeftTruncatedDistribution,
+            dist.RightTruncatedDistribution,
+            dist.TwoSidedTruncatedDistribution,
+        ),
+    ):
+        return type(distribution)(
+            _rebuild_distribution(distribution.base_dist), **distribution.get_args()
+        )
+    return type(distribution)(**distribution.get_args())
