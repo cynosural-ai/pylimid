@@ -11,12 +11,14 @@ Three node kinds share a common base (`Node`):
 
 - `ChanceNode` — a random variable, ``P(name | parents)``.
 - `DecisionNode` — a variable the agent controls; ``parents`` are its
-  *information set* (observed when deciding), ``states`` its actions.
+  *information set* (observed when deciding), and ``states`` or ``action_space``
+  declares its actions.
 - `UtilityNode` — a deterministic payoff ``U(parents)``; always a sink.
 
 A Bayesian network is an `InfluenceDiagram` containing only chance nodes.
 """
 
+from pylimid.graph.action_space import Interval, Real
 from pylimid.graph.diagram import (
     DiagramProblem,
     DiagramProblemKind,
@@ -40,7 +42,9 @@ __all__ = [
     "DiagramProblemKind",
     "DiagramSnapshot",
     "InfluenceDiagram",
+    "Interval",
     "Node",
     "NodeKind",
+    "Real",
     "UtilityNode",
 ]

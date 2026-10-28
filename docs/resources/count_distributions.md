@@ -99,7 +99,7 @@ known_profit = infer(
 round(known_profit.mean().item(), 1)
 ```
 
-The count is observed in this query, so its unbounded range does not prevent conditioning on it. An unknown Poisson count needed by a posterior query remains unsupported, as explained under [Current limits](#current-limits). See [Solving](../user_guide/solving.md#fitting-a-policy-with-continuous-information) for more about policy families and numerical information.
+The count is observed in this query, so its unbounded range does not prevent conditioning on it. An unknown Poisson count needed by a posterior query remains unsupported, as explained under [Current limits](#current-limits). See [Solving](../user_guide/solving.md#continuous-actions-and-continuous-information) for more about policy families and numerical information.
 
 ## Learning from observed counts
 

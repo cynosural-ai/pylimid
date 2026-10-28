@@ -4,12 +4,12 @@ import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
-from pylimid.policy import CategoricalPolicy, DecisionInformation
+from pylimid.policy import CategoricalPolicy, ContinuousPolicy, DecisionInformation
 
 
 def policy_distribution(
-    rule: CategoricalPolicy, observations: DecisionInformation
-) -> dist.CategoricalLogits:
+    rule: CategoricalPolicy | ContinuousPolicy, observations: DecisionInformation
+) -> dist.Distribution:
     """
     Construct an action distribution over broadcast information assignments.
 
@@ -18,19 +18,21 @@ def policy_distribution(
     each assignment is evaluated through the rule's single-assignment interface.
 
     Args:
-        rule: Fitted categorical policy with parent value shapes.
+        rule: Fitted stochastic policy with parent value shapes.
         observations: Information-parent values, optionally with leading enumeration
             or batch dimensions.
 
     Returns:
-        A categorical distribution with the broadcast leading dimensions as its
-        batch shape and a final logits axis in the rule's action order.
+        A scalar-event action distribution with broadcast leading batch dimensions.
+        Categorical probabilities retain their declared action order. Continuous
+        distributions retain their densities and transforms.
 
     Raises:
         TypeError: If observations include an undeclared information parent.
         KeyError: If a declared information parent is missing.
         ValueError: If parent values do not retain their fitted shapes, leading
-            dimensions cannot broadcast, or the rule returns invalid logits shapes.
+            dimensions cannot broadcast, or the rule returns an incompatible action
+            distribution.
     """
     unexpected = observations.keys() - rule.parents
     if unexpected:
@@ -57,10 +59,33 @@ def policy_distribution(
         for parent, value in values.items()
     }
 
-    def logits(information: DecisionInformation) -> jax.Array:
-        return rule._distribution(information).logits
-
-    evaluate = logits
+    evaluate = rule._distribution
     for _ in batch_shape:
         evaluate = jax.vmap(evaluate)
-    return dist.Categorical(logits=evaluate(values))
+    # vmap preserves scalar shape metadata, including on nested distributions.
+    return _rebuild_distribution(evaluate(values))
+
+
+def _rebuild_distribution(distribution: dist.Distribution) -> dist.Distribution:
+    """Rebuild batched constructor parameters and nested scalar distributions."""
+    if isinstance(distribution, dist.TransformedDistribution):
+        return dist.TransformedDistribution(
+            _rebuild_distribution(distribution.base_dist), distribution.transforms
+        )
+    if isinstance(
+        distribution,
+        (
+            dist.LeftTruncatedDistribution,
+            dist.RightTruncatedDistribution,
+            dist.TwoSidedTruncatedDistribution,
+        ),
+    ):
+        # vmap repeats its scalar bounds alongside the parameters,
+        # but NUTS needs the original scalar support for each action.
+        bounds = {
+            name: jnp.ravel(value)[0] for name, value in distribution.get_args().items()
+        }
+        return type(distribution)(
+            _rebuild_distribution(distribution.base_dist), **bounds
+        )
+    return type(distribution)(**distribution.get_args())

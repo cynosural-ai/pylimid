@@ -34,7 +34,7 @@ def add_arc(self, parent: str, child: str) -> None:
 
 ## Imports
 
-- Within a package, import from defining modules rather than that package's `__init__.py`. For example, modules inside `pylimid.policy` import `PolicyFamily` from `pylimid.policy.families`.
+- Within a package, import from defining modules rather than that package's `__init__.py`. For example, modules inside `pylimid.policy` import `PolicyFamily` from `pylimid.policy.family`.
 - Across package boundaries, use the nearest owning package's explicit public exports: `from pylimid.graph.diagram import DiagramSnapshot`, `from pylimid.graph.nodes import ChanceNode`, or `from pylimid.policy import CategoricalPolicy`. Do not import implementation dependencies through an enclosing package's re-exports; use the relevant subpackage or defining module, such as `pylimid.errors`.
 - Import internal names and names without a package export directly from their defining modules. Do not add public exports solely to shorten internal imports.
 - Keep public re-exports in `__init__.py`. Examples use public imports; tests import from the API or module they exercise, using defining modules for internal helpers.
@@ -48,7 +48,7 @@ def add_arc(self, parent: str, child: str) -> None:
 - Module order: imports, supporting types/constants, public/shared entry points, internal helpers. Class order: initialization, public methods, internal helpers. Keep related properties and protocol methods together, and supporting types before constants that instantiate them.
 
 ## Comments and docs in code
-- Do not reference intermediate design notes, ADRs-in-progress, option letters (A/B/C), ticket numbers, or `design/*.md` files from code comments or docstrings. Those files are temporary and will confuse readers later.
+- Do not reference design notes, option letters (A/B/C), ticket numbers, or `design/*.md` files from code comments or docstrings. Keep design rationale in `design/` and describe current behavior in code documentation.
 - Docstrings describe what the code does and its inputs/outputs — not the history of the decision.
 
 ## Production API over testability
@@ -74,7 +74,9 @@ old_tuple = tuple(old_lookup[v] for v in self.variables)
 ```
 
 ## Writing Markdown files
-`docs/` holds only the published Sphinx documentation, written for users. Development notes for contributors (decision records, design notes, plans) go in `design/`.
+`docs/` holds only the published Sphinx documentation, written for users. `design/` holds living contributor documentation of the current implementation, its rationale, tradeoffs, supported boundaries, and relevant code and tests. Update these notes as the implementation changes.
+
+`TODO.md` contains only concrete, actionable work we intend to do. Keep speculative feature ideas out of the backlog and describe current implementation decisions in `design/`.
 
 Before changing anything in `docs/` or `README.md`, read `design/documentation_plan.md`: it records the current state of the docs, the agreed structure, and the writing conventions every page follows.
 

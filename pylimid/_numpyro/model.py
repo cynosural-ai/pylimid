@@ -2,7 +2,7 @@
 Internal translation of validated snapshots and bound rules into NumPyro models.
 
 Chance nodes become sample sites, supplied deterministic policies become
-deterministic sites, and fitted categorical policies become sample sites. Utilities
+deterministic sites, and fitted stochastic policies become sample sites. Utilities
 are evaluated by the sampling layer after drawing their parents.
 """
 
@@ -19,7 +19,7 @@ from pylimid._numpyro.distributions import is_zero_count, validate_chance_distri
 from pylimid._numpyro.policies import policy_distribution
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.nodes import ChanceNode, DecisionNode, UtilityNode
-from pylimid.policy import CategoricalPolicy
+from pylimid.policy import CategoricalPolicy, ContinuousPolicy
 from pylimid.policy._binding import BoundDecisionRule
 
 
@@ -41,7 +41,7 @@ def build_model(
     Args:
         snapshot: A validated, topologically ordered diagram snapshot.
         observed: Observed chance values and fixed decision actions, keyed by name.
-        policy_rules: Validated functions or fitted categorical rules keyed by
+        policy_rules: Validated functions or fitted stochastic rules keyed by
             decision name. Functions receive declared parents by keyword.
 
     Returns:
@@ -70,11 +70,14 @@ def build_model(
                 if name in policy_rules:
                     parent_values = {parent: values[parent] for parent in node.parents}
                     rule = policy_rules[name]
-                    if isinstance(rule, CategoricalPolicy):
+                    if isinstance(rule, (CategoricalPolicy, ContinuousPolicy)):
+                        distribution = policy_distribution(rule, parent_values)
                         values[name] = numpyro.sample(
                             name,
-                            policy_distribution(rule, parent_values),
-                            infer={"enumerate": "parallel"},
+                            distribution,
+                            infer={"enumerate": "parallel"}
+                            if isinstance(rule, CategoricalPolicy)
+                            else {},
                         )
                     else:
                         value = rule(**parent_values)

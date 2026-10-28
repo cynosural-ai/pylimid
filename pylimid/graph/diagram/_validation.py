@@ -38,7 +38,7 @@ def validate_nodes(nodes: Mapping[str, Node]) -> list[DiagramProblem]:
 
     # Per-node consistency: inference needs every node CONSISTENT. The
     # wording is owned by the node (its configurable field differs by kind
-    # — `dist`, `values`, action `states`), so the message comes from the
+    # — `dist`, `values`, action declarations), so the message comes from the
     # node's own `consistency_message`.
     for name, node in nodes.items():
         state = node.consistency

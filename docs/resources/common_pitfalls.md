@@ -119,7 +119,7 @@ round(error.std().item(), 2)
 
 The result is close to the measurement standard deviation of 0.5 that we put in the model. Pairing unrelated temperature and reading draws would also include variation in the true temperature, changing the quantity we estimate.
 
-`infer` guarantees that matching positions belong to the same draw within one call. We should not rely on that correspondence across separate calls, even if they use the same sample count or random key. The [Multiple decisions guide](../user_guide/multiple_decisions.md#exploring-the-outcomes) uses this correspondence to add utility draws.
+`infer` guarantees that matching positions belong to the same draw within one call. We should not rely on that correspondence across separate calls, even if they use the same sample count or random key. The [Inference guide](../user_guide/inference.md#what-is-the-distribution-of-profits-under-the-fitted-policies) uses this correspondence to add revenue and cost draws.
 
 ## Replacing a fitted policy with its most likely actions
 

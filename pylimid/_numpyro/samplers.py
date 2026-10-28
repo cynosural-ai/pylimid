@@ -20,8 +20,8 @@ from pylimid._numpyro.model import build_model
 from pylimid.errors import InferenceError
 from pylimid.graph.diagram import DiagramSnapshot
 from pylimid.graph.nodes import DecisionNode, NodeKind, UtilityNode
-from pylimid.policy import CategoricalPolicy, DecisionRule
-from pylimid.policy._binding import bind_policy_rules
+from pylimid.policy import CategoricalPolicy, ContinuousPolicy, DecisionRule
+from pylimid.policy._binding import bind_policy_rules, validate_action_values
 
 #: Joint draws keyed by node name. Each array has shape
 #: ``(num_samples, *node_shape)``; scalar nodes have shape ``(num_samples,)``.
@@ -71,10 +71,11 @@ def samples(
             enumeration paths.
         rng_key: JAX PRNG key; defaults to ``jax.random.PRNGKey(0)``.
         policy: Decision names mapped to complete action tables, JAX-traceable
-            deterministic functions, or fitted `CategoricalPolicy` rules. Functions
-            receive only declared information parents as keyword arguments and return
-            a scalar integer action index. Fitted rules supply learned action
-            probabilities for forward sampling and posterior conditioning. Function
+            deterministic functions, or fitted `CategoricalPolicy` or
+            `ContinuousPolicy` rules. Functions receive only declared information
+            parents as keyword arguments and return a scalar action. Fitted rules
+            supply learned action probabilities or densities for sampling and
+            posterior conditioning. Function
             policies support forward evaluation only.
 
     Returns:
@@ -90,7 +91,8 @@ def samples(
         ValueError: If a policy has an information-set parent without named states, or
             a chance distribution conflicts with its ``states``, or fitted policy
             inputs have incompatible shapes.
-        NotImplementedError: If function policies use chance-node evidence.
+        NotImplementedError: If function policies use chance-node evidence, or a
+            continuous action distribution has unsupported support metadata.
     """
     observed = observed or {}
     if rng_key is None:
@@ -107,7 +109,7 @@ def samples(
             continue
         assert isinstance(node, DecisionNode)
         rule = policy_rules[name]
-        if isinstance(rule, CategoricalPolicy):
+        if isinstance(rule, (CategoricalPolicy, ContinuousPolicy)):
             continue
         if node.parents:
             draws[name] = jax.vmap(rule)(
@@ -116,9 +118,7 @@ def samples(
         else:
             draws[name] = jnp.broadcast_to(rule(), (num_samples,))
         if callable(policy[name]):
-            assert node.states is not None
-            if jnp.any((draws[name] < 0) | (draws[name] >= len(node.states))):
-                raise InferenceError(f"Policy for {name!r} returned an invalid action.")
+            validate_action_values(node, draws[name])
 
     if query is None:
         return draws

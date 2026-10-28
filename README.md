@@ -23,7 +23,7 @@ Rather than requiring every chance and utility node to be represented as a table
 
 ## Limitations
 
-- **Decisions are discrete.** A decision node must choose among a finite set of actions. `TabularSoftmax` requires information parents with named finite states, while `LinearSoftmax` and custom families can use numerical observations.
+- **Continuous actions are scalar.** Decisions can choose finite categorical actions or a real number in a declared domain. [`DistributionPolicy`](https://pylimid.readthedocs.io/en/latest/api/policy.html#composing-continuous-policies) composes continuous distributions with parameter models. Vector actions and parameter-dependent support are not supported.
 - **Count posteriors need fixed enumerable support.** Scalar Binomial counts with a concrete number of trials are supported. Unknown unbounded counts, shifted ranges and batched counts remain unsupported. Parent-dependent bounds do not have a supported enumeration path.
 - **Results are approximate.** Inference summaries and expected utility are estimated from samples. More evaluation samples reduce estimation noise, while policy quality also depends on the chosen family and training. Training does not guarantee an optimal policy. For discrete diagrams that meet its solver's requirements, consider [pyAgrum](https://pyagrum.readthedocs.io) when you need an exact solution.
 
@@ -46,9 +46,9 @@ These extras install the CUDA libraries automatically. They do not support nativ
 
 ## Example
 
-A small shop sells ice cream. Every morning the owner checks the weather forecast and decides how many ice creams to stock, from 0 to 200 in steps of 20. Each ice cream costs \$1 and sells for \$10, and anything not sold by the evening is thrown away. The forecast is cloudy with probability 0.7 and sunny with probability 0.3. Past seasons suggest average demand of 40 ice creams on cloudy days and 120 on sunny days. The owner expects the coming season to be busier, but is uncertain about how much. How many should the shop stock?
+A small shop sells ice cream by weight. Each kilogram costs \$10 and brings in \$100 if it all sells, and anything not sold by the evening is thrown away. The freezer holds up to 40 kilograms. The owner can also run a promotion for \$60, which is expected to increase average demand by 20%.
 
-We express that belief with a Bayesian prior on a positive `busyness` multiplier. Its LogNormal distribution has mean 1.2, representing 20% higher average demand, and a log-scale standard deviation of 0.1. Demand depends on both the weather and this unknown multiplier.
+The promotion must be announced the evening before, when tomorrow's weather is still uncertain. In the morning, the owner checks the weather and decides how much ice cream to order, remembering whether the promotion is running. Without a promotion, average demand is 4 kilograms on cloudy days and 12 on sunny days. Should the shop promote, and how much should it stock?
 
 ```python
 import jax.numpy as jnp
@@ -57,27 +57,33 @@ import numpyro.distributions as dist
 from pylimid import (
     ChanceNode,
     DecisionNode,
+    DistributionPolicy,
     InfluenceDiagram,
+    Interval,
+    Linear,
     TabularSoftmax,
     UtilityNode,
     solve,
 )
 
+COST = 10.0
+PRICE = 100.0
+CAPACITY = 40.0
+PROMOTION_COST = 60.0
+PROMOTION_BOOST = jnp.array([1.0, 1.2])
 WEATHER_STATES = ("cloudy", "sunny")
-DEMAND_MEANS = jnp.array([40.0, 120.0])
-BUSYNESS_MEAN = 1.2
-BUSYNESS_LOG_SD = 0.1
-ORDERS = jnp.arange(0, 201, 20)
+WEATHER_PROBS = jnp.array([0.7, 0.3])
+DEMAND_MEANS = jnp.array([4.0, 12.0])
 
 
-def demand_dist(weather, busyness):
-    mean = busyness * DEMAND_MEANS[weather]
+def demand_dist(weather, promotion):
+    mean = DEMAND_MEANS[weather] * PROMOTION_BOOST[promotion]
     return dist.Gamma(concentration=4.0, rate=4.0 / mean)
 
 
-def profit(order, demand):
-    stocked = ORDERS[order]
-    return 10.0 * jnp.minimum(stocked, demand) - 1.0 * stocked
+def profit(order, demand, promotion):
+    revenue = PRICE * jnp.minimum(order, demand)
+    return revenue - COST * order - PROMOTION_COST * promotion
 
 
 diagram = InfluenceDiagram()
@@ -85,39 +91,48 @@ diagram.add_node(
     ChanceNode(
         name="weather",
         states=WEATHER_STATES,
-        dist=lambda: dist.Categorical(probs=jnp.array([0.7, 0.3])),
+        dist=lambda: dist.Categorical(probs=WEATHER_PROBS),
     )
 )
 diagram.add_node(
-    ChanceNode(
-        name="busyness",
-        dist=lambda: dist.LogNormal(
-            jnp.log(BUSYNESS_MEAN) - BUSYNESS_LOG_SD**2 / 2, BUSYNESS_LOG_SD
-        ),
+    DecisionNode(
+        name="promotion",
+        states=("skip", "run"),
+        policy_family=TabularSoftmax(),
     )
 )
 diagram.add_node(
-    ChanceNode(name="demand", parents=("weather", "busyness"), dist=demand_dist)
+    ChanceNode(name="demand", parents=("weather", "promotion"), dist=demand_dist)
 )
 diagram.add_node(
     DecisionNode(
         name="order",
-        parents=("weather",),
-        states=tuple(str(n) for n in ORDERS),
-        policy_family=TabularSoftmax(),
+        parents=("weather", "promotion"),
+        action_space=Interval(0.0, CAPACITY),
+        policy_family=DistributionPolicy(
+            distribution=dist.TruncatedNormal,
+            parameter_model=Linear(outputs=("loc",)),
+            fixed_parameters={"low": 0.0, "high": CAPACITY, "scale": 0.25},
+        ),
     )
 )
-diagram.add_node(UtilityNode(name="profit", parents=("order", "demand"), values=profit))
+diagram.add_node(
+    UtilityNode(name="profit", parents=("order", "demand", "promotion"), values=profit)
+)
 
-solution = solve(diagram)
+solution = solve(diagram, num_steps=2_000)
 print(solution.render())
 ```
 
-`weather` is a discrete chance node, `busyness` and `demand` are continuous ones, `order` is the decision, and `profit` is the utility. The decision's parents are what is known when it is made, so `order` sees the weather while `busyness` and `demand` remain unknown. Note that `order` is the index of the chosen action, which is why `profit` looks the stock level up in `ORDERS`.
+`weather` is a discrete chance node, and `demand` is a continuous one. The two decisions use different kinds of actions: `promotion` passes an index for `skip` or `run`, while `order` passes the quantity in kilograms directly to `profit`.
 
-`TabularSoftmax` learns a separate set of action probabilities for each weather forecast. The fitted rule puts most probability on stocking 80 ice creams on cloudy days and 200 on sunny days. Following it means sampling an order from those probabilities, and the displayed expected profit estimates the result of following the whole rule.
+A decision's parents are what is known when it acts. The promotion has no parents because the weather is still unknown. The order sees both the weather and the earlier promotion choice, while actual demand remains unknown.
 
-These stock levels are far above average demand: a missed sale loses \$9 of margin, while a leftover ice cream only costs \$1. The most likely sunny-day order reaches the menu's maximum of 200. The [quickstart](https://pylimid.readthedocs.io/en/latest/getting_started/quickstart.html) walks through this example step by step, and the [Solving guide](https://pylimid.readthedocs.io/en/latest/user_guide/solving.html) explores a wider menu and training settings.
+`TabularSoftmax` learns promotion probabilities, and `DistributionPolicy` learns a continuous order distribution. The interval declares which stock quantities are allowed, while the TruncatedNormal's fixed bounds keep orders within that range. `Linear` learns its location from the weather and promotion, with scale fixed at 0.25 kilograms.
+
+In this run, the promotion rule puts more than 99.9% probability on running the promotion. When it runs, mean orders are about 7.2 kilograms on cloudy days and 21.0 on sunny days, with estimated expected profit of about \$542.6 per day. Both rules remain stochastic, and training does not guarantee the best policy.
+
+The [quickstart](https://pylimid.readthedocs.io/en/latest/getting_started/quickstart.html) walks through this example and adds a Bayesian prior for a busier season. The [Solving guide](https://pylimid.readthedocs.io/en/latest/user_guide/solving.html) explores training settings and a different order distribution.
 
 ## Documentation
 

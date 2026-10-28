@@ -13,7 +13,13 @@ from pylimid._numpyro.distributions import validate_chance_distribution
 from pylimid.errors import SolveError
 from pylimid.graph.diagram import DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.nodes import ChanceNode, DecisionNode, UtilityNode
-from pylimid.policy import CategoricalPolicy, DecisionInformation, PolicyParameters
+from pylimid.policy import (
+    CategoricalPolicy,
+    ContinuousPolicy,
+    DecisionInformation,
+    FittedPolicy,
+    PolicyParameters,
+)
 from pylimid.solver.solution import Solution
 
 __all__ = ["solve"]
@@ -30,7 +36,7 @@ class _Trajectory(NamedTuple):
         utility: Scalar sum of all utility-node values. A vector after batching.
         information: Decision names mapped to their declared information-parent
             values. Each value retains its node shape before batching.
-        actions: Decision names mapped to sampled scalar integer action indices.
+        actions: Decision names mapped to scalar categorical indices or real actions.
     """
 
     utility: float | jax.Array
@@ -51,14 +57,17 @@ def solve(
 
     Every decision must declare a `PolicyFamily`. `LinearSoftmax` accepts numerical,
     categorical, or mixed information; `TabularSoftmax` requires scalar categorical
-    parents. Each rule receives only its declared information parents, including
+    parents. `DistributionPolicy` composes a continuous distribution with a
+    `ParameterModel`, such as `Linear`, for scalar `Real` or `Interval` actions.
+    Each rule receives only its declared information parents, including
     earlier observations and actions that are explicitly remembered.
 
     Fresh complete scenarios supply score-function gradients for Adam updates. The
     returned policy is the final training iterate, evaluated on independent scenarios.
     Pass the policy to `infer` for forward evaluation or conditioning on chance-node
-    evidence. Its action probabilities contribute to the joint model. Training has
-    no global or local optimality guarantee, even within the declared families.
+    evidence. Its action probabilities or densities contribute to the joint model.
+    Training has no global or local optimality guarantee, even within the declared
+    families.
 
     Chance distributions and utility functions must be JAX-traceable. Use ``jnp``
     operations rather than Python conditionals or casts on sampled values.
@@ -79,10 +88,13 @@ def solve(
         ValueError: If diagram validation fails, the diagram contains no decisions,
             a decision lacks a family, tabular information is not scalar and
             categorical, training budgets or the learning rate are invalid, or a
-            chance distribution conflicts with its declared states. Use `infer` for
-            a Bayesian network without decisions.
+            chance distribution conflicts with its declared states, or an action
+            distribution is incompatible with its domain. Use `infer` for a Bayesian
+            network without decisions.
         SolveError: If optimization produces non-finite parameters or final
             evaluation produces non-finite expected utility.
+        NotImplementedError: If a continuous action distribution has unsupported
+            support metadata.
     """
     snapshot = diagram.snapshot()
     decisions = [node for _, node in snapshot.nodes if isinstance(node, DecisionNode)]
@@ -158,16 +170,14 @@ def solve(
     )
 
 
-def _initialize_policy(
-    snapshot: DiagramSnapshot, key: jax.Array
-) -> dict[str, CategoricalPolicy]:
+def _initialize_policy(snapshot: DiagramSnapshot, key: jax.Array) -> FittedPolicy:
     """Bind information shapes during a walk under the initialized local policies."""
     nodes = {
         name: node
         for name, node in snapshot.nodes
         if isinstance(node, (ChanceNode, DecisionNode))
     }
-    templates: dict[str, CategoricalPolicy] = {}
+    templates: FittedPolicy = {}
     values: dict[str, jax.Array] = {}
     keys = iter(jax.random.split(key, len(nodes)))
     for index, (name, node) in enumerate(nodes.items()):
@@ -178,26 +188,31 @@ def _initialize_policy(
             validate_chance_distribution(node, distribution)
             values[name] = distribution.sample(next(keys))
         else:
-            assert node.states is not None
             family = node.policy_family
             assert family is not None
             parent_states = tuple(nodes[parent].states for parent in node.parents)
             parameters = family.initialize(
                 jax.random.fold_in(key, index),
-                num_actions=len(node.states),
+                num_actions=None if node.states is None else len(node.states),
                 observations=parents,
                 parent_states=dict(zip(node.parents, parent_states, strict=True)),
             )
-            rule = CategoricalPolicy(
-                family=family,
-                parents=node.parents,
-                parent_states=parent_states,
-                parent_shapes=tuple(
-                    jnp.shape(parents[parent]) for parent in node.parents
-                ),
-                states=node.states,
-                parameters=parameters,
-            )
+            shapes = tuple(jnp.shape(parents[parent]) for parent in node.parents)
+            rule: CategoricalPolicy | ContinuousPolicy
+            if node.action_space is not None:
+                rule = ContinuousPolicy(
+                    family,
+                    node.parents,
+                    parent_states,
+                    shapes,
+                    node.action_space,
+                    parameters,
+                )
+            else:
+                assert node.states is not None
+                rule = CategoricalPolicy(
+                    family, node.parents, parent_states, shapes, node.states, parameters
+                )
             templates[name] = rule
             values[name] = rule.sample(next(keys), **parents)
     return templates
@@ -205,7 +220,7 @@ def _initialize_policy(
 
 def _score_loss(
     parameters: dict[str, PolicyParameters],
-    templates: dict[str, CategoricalPolicy],
+    templates: FittedPolicy,
     observations: dict[str, Mapping[str, jax.Array]],
     actions: dict[str, jax.Array],
     returns: jax.Array,
@@ -216,10 +231,10 @@ def _score_loss(
 
     Args:
         parameters: Trainable parameter dictionaries keyed by decision name.
-        templates: Local categorical rules whose parameters are replaced for scoring.
+        templates: Local stochastic rules whose parameters are replaced for scoring.
         observations: Decision names mapped to their information-parent sample arrays.
             Every array has a leading scenario axis followed by its node shape.
-        actions: Sampled action-index vectors keyed by decision name.
+        actions: Sampled scalar action vectors keyed by decision name.
         returns: Total utility for each scenario, aligned with observations and actions.
         baseline: Scalar utility baseline, independent of the current sampled actions.
 
@@ -240,14 +255,14 @@ def _score_loss(
 
 
 def _trajectory(
-    snapshot: DiagramSnapshot, templates: dict[str, CategoricalPolicy]
+    snapshot: DiagramSnapshot, templates: FittedPolicy
 ) -> Callable[[dict[str, PolicyParameters], jax.Array], _Trajectory]:
     """
     Build a simulator for complete scenarios under local stochastic rules.
 
     Args:
         snapshot: Validated diagram in topological order.
-        templates: Initialized categorical rules with bound information metadata.
+        templates: Initialized stochastic rules with bound information metadata.
 
     Returns:
         A function of per-decision parameters and a random key, returning a

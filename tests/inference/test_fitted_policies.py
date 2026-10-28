@@ -45,7 +45,7 @@ class _NonlinearSoftmax(PolicyFamily):
         self,
         rng_key: jax.Array,
         *,
-        num_actions: int,
+        num_actions: int | None,
         observations: DecisionInformation,
         parent_states: Mapping[str, tuple[str, ...] | None],
     ) -> PolicyParameters:
@@ -59,16 +59,31 @@ class _NonlinearSoftmax(PolicyFamily):
             )
         }
 
-    def logits(
+    def distribution(
         self,
         parameters: PolicyParameters,
         observations: DecisionInformation,
         parent_states: Mapping[str, tuple[str, ...] | None],
-    ) -> jax.Array:
-        """Compute bounded nonlinear action scores for one assignment."""
-        return jnp.tanh(
-            LinearSoftmax().logits(parameters["layer"], observations, parent_states)
+    ) -> dist.CategoricalLogits | dist.CategoricalProbs:
+        """Construct categorical probabilities from bounded nonlinear scores."""
+        linear = LinearSoftmax().distribution(
+            parameters["layer"], observations, parent_states
         )
+        return dist.Categorical(logits=jnp.tanh(linear.logits))
+
+
+class _NonlinearProbs(_NonlinearSoftmax):
+    """Express the nonlinear action distribution using probabilities."""
+
+    def distribution(
+        self,
+        parameters: PolicyParameters,
+        observations: DecisionInformation,
+        parent_states: Mapping[str, tuple[str, ...] | None],
+    ) -> dist.CategoricalProbs:
+        """Construct the nonlinear distribution using normalized probabilities."""
+        distribution = super().distribution(parameters, observations, parent_states)
+        return dist.Categorical(probs=distribution.probs)
 
 
 def test_multiple_fitted_policies_match_exact_joint_posterior():
@@ -187,13 +202,17 @@ def test_multiple_fitted_policies_match_exact_joint_posterior():
 
 
 @pytest.mark.parametrize(
-    "nonlinear", [False, True], ids=["linear-vector", "custom-matrix"]
+    ("family", "shape", "nonlinear"),
+    [
+        (LinearSoftmax(), (2,), False),
+        (_NonlinearSoftmax(), (1, 2), True),
+        (_NonlinearProbs(), (1, 2), True),
+    ],
+    ids=["linear-vector", "custom-matrix-logits", "custom-matrix-probs"],
 )
-def test_mixed_array_information_posterior_matches_quadrature(nonlinear):
+def test_mixed_array_information_posterior_matches_quadrature(family, shape, nonlinear):
     diagram = InfluenceDiagram()
     labels = ("off", "on")
-    shape = (1, 2) if nonlinear else (2,)
-    family = _NonlinearSoftmax() if nonlinear else LinearSoftmax()
     diagram.add_node(
         ChanceNode(
             "signal",

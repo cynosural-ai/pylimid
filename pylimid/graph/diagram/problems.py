@@ -16,9 +16,9 @@ class DiagramProblemKind(Enum):
         DANGLING_PARENT: A node lists a parent that is not in the diagram.
         CYCLE: The graph contains a cycle.
         UNCONFIGURED: A node's configurable field (``dist`` / ``values`` /
-            action ``states``) is unset; inference cannot run on it.
-        STALE: A node's configurable field signature does not match its
-            parents.
+            action declaration) is unset; inference cannot run on it.
+        STALE: A node's configurable field signature does not match its parents,
+            or a decision declares both categorical states and a continuous domain.
         UTILITY_NOT_SINK: A utility node has acquired a child — a payoff must
             be terminal.
         DIST_IGNORES_PARENT: A node's callable returns the same output for every state

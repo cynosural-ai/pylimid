@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from pylimid.graph import Interval
 from pylimid.graph.diagram import InfluenceDiagram
 from pylimid.graph.nodes.chance_node import ChanceNode
 from pylimid.graph.nodes.decision_node import DecisionNode
@@ -82,3 +83,14 @@ def test_nodes_are_in_topological_order() -> None:
     scene = build_scene(_influence())
 
     assert [node.name for node in scene.nodes] == ["market", "invest", "profit"]
+
+
+def test_continuous_action_domains_use_decision_shape_and_consistency_style():
+    diagram = InfluenceDiagram()
+    decision = DecisionNode("power", action_space=Interval(0.0, 100.0))
+    diagram.add_node(decision)
+    scene = build_scene(diagram)
+    assert scene.nodes[0].shape is Shape.RECTANGLE
+    assert scene.nodes[0].style is None
+    decision.states = ("off", "on")
+    assert build_scene(diagram).nodes[0].style is Style.STALE

@@ -8,7 +8,7 @@ Design note covering how a `ChanceNode`'s conditional distribution should be exp
 
 ## The decision
 
-**Canonical form: a callable that takes resolved parent values and returns a NumPyro/JAX Distribution.** A conditional probability table (CPT) is an array wrapped in such a callable. A named table-construction helper is deferred.
+**Canonical form: a callable that takes resolved parent values and returns a NumPyro distribution.** A conditional probability table (CPT) is an array wrapped in such a callable.
 
 ```python
 # canonical — one form for every case (discrete, continuous, mixed)
@@ -20,7 +20,7 @@ ChanceNode(
 )
 ```
 
-One internal representation, with any future table helper producing the same callable. No second node type, no forked code path through the validator / translator / solver.
+The same representation serves tables and other distributions throughout validation, translation and solving.
 
 ---
 
@@ -58,7 +58,7 @@ No branching on "is this a table node or a function node." This matters most in 
 ### Mixed-type falls out for free
 
 - discrete parent, discrete child → `Categorical(probs=P[parent])`
-- continuous parent, continuous child → `Normal(mu=parent, sigma=1)`
+- continuous parent, continuous child → `Normal(loc=parent, scale=1)`
 - mixed → just another lambda
 
 No new node type, no new path. The premise of the library holds.
@@ -73,7 +73,7 @@ This is the case where the table tradition is strongest, and where the callable 
 
 NumPyro's `Categorical` samples return integer indices (`0, 1, 2, ...`), never the string labels. The value that flows through the graph for a categorical node is an integer. This is a requirement of JAX traceability: a model cannot branch on a string inside a `sample` site.
 
-Labels are therefore a human-facing presentation layer, not part of the internal value flow.
+Labels decode category indices for presentation, while the declaration of `states` also establishes categorical semantics for policy tables and posterior summaries. Strings do not enter the internal sampled-value flow.
 
 ### The table is preserved as data
 
@@ -119,7 +119,7 @@ For a finite domain there is nothing *but* a table; the callable just wraps "sel
 ```python
 P = jnp.zeros((2, 2, 3))  # (rain, sprinkler, wet_grass)
 # ...fill...
-dist = lambda rain, sprinkler: dist.Categorical(probs=P[rain, sprinkler])
+wet_grass_dist = lambda rain, sprinkler: dist.Categorical(probs=P[rain, sprinkler])
 ```
 
 One axis per parent. No new mechanism.
@@ -134,10 +134,4 @@ Since categorical values are integers internally, the label list does real work:
 - **Display:** report results as `wet_grass = soaked` rather than `wet_grass = 2`.
 - **Decision nodes too:** a discrete decision's action space is its `states` tuple. Policies use integer indices; `Solution.render()` decodes them to labels for display.
 
-`states` is required for discrete nodes and absent for continuous ones.
-
----
-
-## `from_cpt` (deferred)
-
-The planned table sugar parses a dict-keyed CPT, builds the corresponding array, and emits a callable equivalent to `lambda rain, sprinkler: dist.Categorical(probs=P[rain, sprinkler])` — one named parameter per parent, so the resulting callable satisfies the signature gate like any hand-written one. It is a desugaring step, not a separate node type: all downstream code (validator, translator, solver) only ever sees the canonical callable form. Not implemented; the dict-keyed form and the exact entry point remain open.
+`states` is required for categorical chance nodes. Numerical variables, including discrete counts, use `states=None` and retain their actual values. The [categorical and count note](discrete_chance_nodes.md) describes runtime distribution checks and inference limits.

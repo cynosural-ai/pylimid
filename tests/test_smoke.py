@@ -38,3 +38,7 @@ def test_top_level_exports_the_public_api() -> None:
     assert pylimid.LinearSoftmax is policy.LinearSoftmax
     assert pylimid.TabularSoftmax is policy.TabularSoftmax
     assert pylimid.CategoricalPolicy is policy.CategoricalPolicy
+    assert pylimid.ContinuousPolicy is policy.ContinuousPolicy
+    assert pylimid.DistributionPolicy is policy.DistributionPolicy
+    assert pylimid.ParameterModel is policy.ParameterModel
+    assert pylimid.Linear is policy.Linear

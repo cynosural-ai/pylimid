@@ -1,46 +1,13 @@
-"""Fitted categorical decision rules and joint-policy representations."""
+"""Fitted categorical decision rules and action distribution checks."""
 
-from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import cast
 
 import jax
-import jax.numpy as jnp
 import numpyro.distributions as dist
 
-from pylimid.policy.families import DecisionInformation, PolicyFamily, PolicyParameters
-
-__all__ = ["ActionTable", "CategoricalPolicy", "DecisionRule", "FittedPolicy", "Policy"]
-
-
-#: A complete deterministic rule for a decision with categorical information parents.
-#: Keys contain parent-state indices in `DecisionNode.parents` order; values are
-#: action indices into the decision's ``states``, rather than state labels. Every
-#: information assignment must have an entry. A parentless decision uses ``()``
-#: as its only key.
-type ActionTable = dict[tuple[int, ...], int]
-
-
-#: A contingent rule for one decision: an `ActionTable`, a deterministic function,
-#: or a fitted stochastic `CategoricalPolicy`. Functions receive the decision's
-#: declared information parents by keyword and return a scalar integer action index
-#: as a Python ``int`` or JAX array. Functions must be JAX-traceable and support
-#: forward evaluation only. Fitted rules support forward evaluation and posterior
-#: conditioning on chance-node evidence.
-type DecisionRule = ActionTable | Callable[..., int | jax.Array] | CategoricalPolicy
-
-#: Decision names mapped to fixed action indices or contingent `DecisionRule` values.
-#: A fixed integer action ignores the decision's information parents. Different
-#: decisions may use different representations in the same policy. Every decision
-#: relevant to the query or evidence must be supplied when calling `infer`.
-type Policy = Mapping[str, int | DecisionRule]
-
-#: The joint policy returned by `solve`: decision names mapped exclusively to fitted
-#: stochastic `CategoricalPolicy` rules. Each rule retains its family, parameters,
-#: information metadata, and action labels. Pass this mapping directly to `infer`
-#: for forward evaluation or conditioning on chance-node evidence. Action
-#: probabilities contribute to the joint model during posterior inference.
-type FittedPolicy = dict[str, CategoricalPolicy]
+from pylimid.policy._information import bind_information
+from pylimid.policy.family import DecisionInformation, PolicyFamily, PolicyParameters
 
 
 @dataclass(frozen=True)
@@ -59,7 +26,8 @@ class CategoricalPolicy:
     fitted shapes. Use ``jax.vmap`` to evaluate a batch of assignments.
 
     Attributes:
-        family: The creator-declared `PolicyFamily` that computes action logits.
+        family: The creator-declared `PolicyFamily` that constructs action
+            distributions.
         parents: Information-parent names, in declared order.
         parent_states: Categorical labels for each parent; ``None`` for numerical
             information.
@@ -117,22 +85,32 @@ class CategoricalPolicy:
 
     def _distribution(
         self, observations: DecisionInformation
-    ) -> dist.CategoricalLogits:
-        """Bind observations in declared order and construct the action distribution."""
-        unexpected = observations.keys() - self.parents
-        if unexpected:
-            raise TypeError(f"Unexpected information parents: {sorted(unexpected)}.")
-        for parent, shape in zip(self.parents, self.parent_shapes, strict=True):
-            if jnp.shape(observations[parent]) != shape:
-                raise ValueError(
-                    f"Information parent {parent!r} must have shape {shape}."
-                )
-        ordered = {parent: observations[parent] for parent in self.parents}
+    ) -> dist.CategoricalLogits | dist.CategoricalProbs:
+        """Bind observations and check the categorical action distribution."""
+        ordered = bind_information(self.parents, self.parent_shapes, observations)
         parent_states = dict(zip(self.parents, self.parent_states, strict=True))
-        logits = self.family.logits(self.parameters, ordered, parent_states)
-        if logits.shape != (len(self.states),):
+        distribution = self.family.distribution(self.parameters, ordered, parent_states)
+        if not isinstance(
+            distribution, (dist.CategoricalLogits, dist.CategoricalProbs)
+        ):
             raise ValueError(
-                f"Policy logits must have shape {(len(self.states),)}, "
-                f"got {logits.shape}."
+                "CategoricalPolicy requires a Categorical distribution; "
+                f"got {type(distribution).__name__}."
             )
-        return dist.Categorical(logits=logits)
+        if distribution.batch_shape:
+            raise ValueError(
+                "CategoricalPolicy requires a scalar distribution with no batch "
+                f"dimensions; got batch shape {distribution.batch_shape}."
+            )
+        probabilities_or_logits = (
+            distribution.logits
+            if isinstance(distribution, dist.CategoricalLogits)
+            else distribution.probs
+        )
+        num_actions = probabilities_or_logits.shape[-1]
+        if num_actions != len(self.states):
+            raise ValueError(
+                f"Policy distribution must have {len(self.states)} actions, "
+                f"got {num_actions}."
+            )
+        return distribution

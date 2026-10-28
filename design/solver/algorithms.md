@@ -1,6 +1,6 @@
 # Policy-gradient optimization
 
-PyLIMID uses joint policy gradients as its only policy-optimization engine. The graph can contain categorical, continuous, and numerical count chance variables. Decisions currently choose finite categorical actions. Each decision declares its information parents and a policy family; optimization preserves both.
+PyLIMID uses joint policy gradients as its only policy-optimization engine. The graph can contain categorical, continuous, and numerical count chance variables. Decisions choose finite categorical or scalar continuous actions. Each decision declares its information parents, action domain and policy family; optimization preserves them.
 
 ## Objective and estimator
 
@@ -24,7 +24,9 @@ The baseline is the previous batch's mean utility; the first baseline is zero. E
 
 `LinearSoftmax` flattens numerical information and one-hot encodes categorical parents before computing linear action scores. `TabularSoftmax` stores an independent action-score row for each scalar categorical information assignment. Both produce stochastic categorical action distributions.
 
-Families implement `PolicyFamily.initialize` and `PolicyFamily.logits`. Initialization receives an explicit random key and sampled information values; logits operate on one information assignment and a potentially nested parameter dictionary. The shared `CategoricalPolicy` binds the family, fitted parameters, information metadata, and action labels, and owns normalization, sampling, and log probabilities. The optimizer and inference backend use this common rule without dispatching on the family.
+Families implement `PolicyFamily.initialize` and `PolicyFamily.distribution`. Initialization receives an explicit random key and sampled information values. Distribution construction operates on one information assignment and a potentially nested parameter dictionary. The shared `CategoricalPolicy` binds the family, fitted parameters, information metadata, and action labels. It checks that the returned distribution is scalar and categorical, with one probability per named action, then delegates sampling and log probabilities to it. Both probability and logit parameterizations are supported. The optimizer and inference backend use this common rule without dispatching on the family.
+
+`DistributionPolicy` uses `ParameterModel` predictions and NumPyro parameter constraints to construct continuous densities. `Linear(outputs=None)` resolves the parameters not explicitly fixed by the creator. `ContinuousPolicy` binds information and validates scalar fixed support against `Real` or `Interval`. The same trajectory simulation, stopped sampled quantities, summed log probabilities/densities, previous-batch baseline and Adam updates train both decision types. Bounds cannot depend on trained parameters or sampled information. No pathwise gradients through actions, outcomes or utilities are required.
 
 The graph controls information access. A rule receives only its declared parents; remembering an earlier observation or action requires an explicit information arc. Several families can be trained jointly, including decisions whose earlier actions change later observations.
 
@@ -38,8 +40,8 @@ Tests compare score gradients with analytic derivatives and exact action sums on
 
 General graph validation and distribution-contract tests remain separate from optimizer verification. Posterior inference retains analytic reference checks. The test suite has no pyAgrum dependency.
 
-## Limits and future work
+## Limits
 
-Training is approximate. Errors can arise from restricted policy families, imperfect optimization, and Monte Carlo evaluation. A utility confidence interval does not bound distance from the global optimum. Richer baselines, convergence diagnostics, checkpoint selection, custom neural families, and continuous action domains remain future work.
+Training is approximate. Errors can arise from restricted policy families, imperfect optimization, and Monte Carlo evaluation. A utility confidence interval does not bound distance from the global optimum. Learning continuous spread toward zero may increase score variance. Fixed spread restricts the optimized family. The solver reports no convergence or optimality certificate, and decisions are limited to categorical or scalar continuous actions.
 
 The score-function estimator follows [Schulman et al., Gradient Estimation Using Stochastic Computation Graphs](https://arxiv.org/abs/1506.05254).

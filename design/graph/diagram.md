@@ -18,7 +18,7 @@ A data structure that cannot represent its own intermediate states forces the au
 
 The diagram is allowed to be unsound at all times. Inference consumes a **validated snapshot**, never the live workspace. `validate()` is the gate.
 
-This mirrors the working-tree / commit split in Git, or live tables / snapshot isolation in a database: the source of truth is always editable; the consumer sees an immutable, checked view.
+The source of truth remains editable, while execution consumes a checked logical view. The snapshot retains node references, so callers must leave those nodes unchanged during execution, as described in Principle 7.
 
 Concretely: `add_node`, `add_arc`, `set_dist` never reject an edit for being incomplete (only for being *malformed* — see Principle 2). `validate()` / `snapshot()` are the only operations that demand soundness.
 
@@ -34,7 +34,7 @@ Concretely: `add_node`, `add_arc`, `set_dist` never reject an edit for being inc
 
 A malformed value (empty name) is never a useful intermediate state, so it is rejected the instant it is set. An incomplete state (dist not yet configured) *is* a useful intermediate, so it is permitted during editing and gated only at inference time. Conflating the two — rejecting incompleteness at set-time — breaks incremental construction and is the mistake the build-once design made.
 
-`validate()` is structural: it inspects signatures and graph shape but never executes a `dist`. `probe_discrete_parents()` is the runtime counterpart — it executes each callable (explicitly, on demand, never automatically) and flags a discrete parent whose value never changes the output, the classic silent mistake of a probability table with too few rows under JAX's clamping semantics. The two share the `DiagramProblem` reporting model in `pylimid.graph.validation`. A probe finding is a warning, not an error: a deliberately independent node looks identical.
+`validate()` is structural: it inspects signatures and graph shape but never executes a `dist`. `probe_discrete_parents()` is the runtime counterpart — it executes each callable (explicitly, on demand, never automatically) and flags a discrete parent whose value never changes the output, the classic silent mistake of a probability table with too few rows under JAX's clamping semantics. The two share the `DiagramProblem` reporting model in [`pylimid.graph.diagram.problems`](../../pylimid/graph/diagram/problems.py). A probe finding is a warning, not an error: a deliberately independent node looks identical.
 
 ---
 
@@ -51,7 +51,9 @@ Two structural invariants must hold before inference:
 - **Acyclicity.** `validate()` reports a cycle as `DiagramProblemKind.CYCLE`, naming its nodes in arc order.
 - **Utility nodes are sinks.** A payoff with a child is never valid. `validate()` reports any utility node with a child as `DiagramProblemKind.UTILITY_NOT_SINK` (read via `node.is_sink`).
 
-An arc can be created three ways: `add_arc`, `parents=` in `add_node`, and a node's own `add_parent`. All three are checked by the same code at the same time, so the result does not depend on how or in which order the diagram was built, and edits such as reversing an arc (add the new one, then remove the old one) are possible. Editing methods only refuse what they cannot carry out: a duplicate name, an arc into a child that is not in the diagram, a malformed field. See [`09_10_2026_structural_checks_in_validate.md`](../ADR/09_10_2026_structural_checks_in_validate.md) for why the earlier eager checks in `add_arc` were removed.
+An arc can be created three ways: `add_arc`, `parents=` in `add_node`, and a node's own `add_parent`. All three are checked by the same code at the same time, so the result does not depend on how or in which order the diagram was built, and edits such as reversing an arc (add the new one, then remove the old one) are possible. Editing methods only refuse what they cannot carry out: a duplicate name, an arc into a child that is not in the diagram, a malformed field.
+
+Centralizing these checks means a cycle is reported at validation or execution rather than at the edit that created it. Reporting the cycle's nodes in arc order helps locate the problem. The [diagram tests](../../tests/graph/test_diagram.py) cover construction order, dangling parents, cycles and incremental arc changes.
 
 ---
 
@@ -69,12 +71,12 @@ Per-node state (`UNCONFIGURED` / `STALE` / `CONSISTENT`) is computed by the node
 
 ## Principle 7 — the snapshot is logical, not deep-frozen
 
-`snapshot()` returns references to the still-mutable nodes in topological order. Editing the diagram after snapshotting invalidates the snapshot. Freezing the nodes is a documented future tightening; the v0 contract is that the caller does not mutate captured nodes before inference runs.
+`snapshot()` returns references to the still-mutable nodes in topological order. It does not deep-copy or freeze them. Callers must not mutate captured nodes before or during execution.
 
 ---
 
 ## What this deliberately is not
 
-- **Not a build-once container.** Nodes may be added before their parents, arcs rewired, distributions filled in at any time. The build-once prototype that preceded this design has been removed — see [`17_07_2026_mutability_design_decision.md`](../ADR/17_07_2026_mutability_design_decision.md) for the decision.
+- **Not a build-once container.** Nodes may be added before their parents, arcs rewired, distributions filled in at any time. Requiring a complete model at every edit would force authors to keep a second representation of their unfinished work.
 - **Not mutable at random.** Field-level validation rejects malformed values immediately; only completeness is deferred.
-- **Not a parametric learner.** Parameter fitting (MLE, EM, SGD over CPTs) is a future concern and will likely take the form of a functional `fit(diagram, data) -> diagram` rather than in-place mutation of closed-over params. The current design does not commit to either, but does not block either.
+- **Not a model-parameter learner.** The graph stores user-supplied chance distributions and utility functions. `solve` fits decision-policy parameters, not the chance model from data.
