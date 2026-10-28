@@ -90,8 +90,18 @@ def samples(
         ValueError: If a policy has an information-set parent without named states, or
             a chance distribution conflicts with its ``states``, or fitted policy
             inputs have incompatible shapes.
-        NotImplementedError: If function policies use chance-node evidence.
+        NotImplementedError: If the snapshot contains a continuous decision or
+            function policies use chance-node evidence.
     """
+    continuous = [
+        name
+        for name, node in snapshot.nodes
+        if isinstance(node, DecisionNode) and node.action_space is not None
+    ]
+    if continuous:
+        raise NotImplementedError(
+            f"Sampling does not yet support continuous decisions: {continuous}."
+        )
     observed = observed or {}
     if rng_key is None:
         rng_key = jax.random.PRNGKey(0)

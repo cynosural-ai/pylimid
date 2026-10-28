@@ -111,7 +111,8 @@ def infer(
             has an information-set parent without named states, or a relevant chance
             distribution conflicts with its ``states``, or fitted policy inputs have
             incompatible shapes.
-        NotImplementedError: If a relevant function policy uses chance-node evidence.
+        NotImplementedError: If a relevant decision declares a continuous action
+            space, or a relevant function policy uses chance-node evidence.
     """
     observed = observed or {}
     policy = policy or {}

@@ -9,7 +9,9 @@ from pylimid import (
     ChanceNode,
     DecisionNode,
     InfluenceDiagram,
+    Interval,
     LinearSoftmax,
+    Real,
     SolveError,
     TabularSoftmax,
     UtilityNode,
@@ -105,3 +107,16 @@ def test_solve_reports_nonfinite_independent_evaluation():
     # The default seed draws switch=1 in training and switch=0 in evaluation.
     with pytest.raises(SolveError, match="evaluation.*non-finite expected utility"):
         solve(diagram, num_steps=1, num_samples=1)
+
+
+@pytest.mark.parametrize("domain", [Real(), Interval(0.0, 100.0)])
+@pytest.mark.parametrize("family", [None, LinearSoftmax()])
+def test_solve_reports_continuous_execution_as_unsupported(domain, family):
+    diagram = InfluenceDiagram()
+    diagram.add_node(DecisionNode("power", action_space=domain, policy_family=family))
+    diagram.add_node(
+        UtilityNode("payoff", parents=("power",), values=lambda power: -(power**2))
+    )
+    assert diagram.validate() == []
+    with pytest.raises(NotImplementedError, match="continuous decisions.*power"):
+        solve(diagram, num_steps=1, num_samples=2)

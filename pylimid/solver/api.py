@@ -83,6 +83,7 @@ def solve(
             a Bayesian network without decisions.
         SolveError: If optimization produces non-finite parameters or final
             evaluation produces non-finite expected utility.
+        NotImplementedError: If a decision declares a continuous action space.
     """
     snapshot = diagram.snapshot()
     decisions = [node for _, node in snapshot.nodes if isinstance(node, DecisionNode)]
@@ -90,6 +91,11 @@ def solve(
         raise ValueError(
             "solve() requires at least one decision node. "
             "Use infer() for a Bayesian network without decisions."
+        )
+    continuous = [node.name for node in decisions if node.action_space is not None]
+    if continuous:
+        raise NotImplementedError(
+            f"solve() does not yet support continuous decisions: {continuous}."
         )
     for decision in decisions:
         if decision.policy_family is None:

@@ -6,7 +6,8 @@ it does carry is:
 
 - an **information set** (the ``parents`` field — the variables observed when
   the decision is made), and
-- an **action space** (``states`` — the available choices).
+- an **action space** (``states`` for categorical actions, or ``action_space``
+  for a scalar continuous domain).
 
 The information set is structural, not causal
 ---------------------------------------------
@@ -20,19 +21,19 @@ see `pylimid.graph.nodes.node`.
 
 Consistency
 -----------
-A decision is `Consistency.CONSISTENT` once its action ``states`` are
-declared; before that it is `Consistency.UNCONFIGURED`. There is no
-`Consistency.STALE` state for a decision: the action space does not depend
-on the information set's size, so adding or removing an information parent
-never invalidates it.
+A decision is `Consistency.CONSISTENT` once either categorical action ``states``
+or a continuous ``action_space`` is declared. With neither it is
+`Consistency.UNCONFIGURED`; with both it is `Consistency.STALE`. Adding or
+removing an information parent never invalidates the action declaration.
 
-Continuous decisions are not supported: ``states=None`` leaves the node
-unconfigured.
+Continuous domains can be declared and validated, but execution through `infer`
+and `solve` is not yet supported.
 """
 
 from dataclasses import dataclass, field
 from typing import Any
 
+from pylimid.graph.action_space import Interval, Real
 from pylimid.graph.nodes._validation import validate_states
 from pylimid.graph.nodes.node import (
     Consistency,
@@ -49,25 +50,32 @@ class DecisionNode(Node):
     """
     A decision variable in an influence diagram.
 
-    A decision chooses among a finite set of actions. Tabular policies require every
-    parent to declare named finite states; numerical counts and continuous parents
-    cannot index these tables. Supplied deterministic functions can use continuous
-    observations during forward evaluation with `infer`. Fitted `CategoricalPolicy`
-    rules also support conditioning on chance evidence with continuous or mixed
-    information. Declare a `PolicyFamily`, such as `LinearSoftmax` or
-    `TabularSoftmax`, on every decision to fit their joint policy through `solve`.
+    Declare categorical actions through ``states``, or a scalar continuous domain
+    through ``action_space``. Setting both is a configuration conflict reported by
+    `validate`. Continuous domains currently support declaration and graph validation
+    only; `infer` and `solve` do not execute continuous decisions yet.
+
+    For categorical decisions, tabular policies require every parent to declare named
+    finite states. Supplied deterministic functions can use continuous observations
+    during forward evaluation with `infer`. Fitted `CategoricalPolicy` rules also
+    support conditioning on chance evidence with continuous or mixed information.
+    Declare a `PolicyFamily`, such as `LinearSoftmax` or `TabularSoftmax`, on every
+    categorical decision to fit their joint policy through `solve`.
     Its ``parents`` are the information available when it acts; earlier observations
     and decisions are remembered only when included explicitly.
-    ``states=None`` leaves the decision unconfigured.
+    With neither ``states`` nor ``action_space``, the decision is unconfigured.
 
     Attributes:
         name: Identifier for the node.
         parents: The **information set** — names of the variables observed
             when this decision is made. Not a causal dependency. May be edited
             after construction.
-        states: Labels for the available actions. ``None`` (the default) marks
-            the decision as not-yet-configured. Values flowing through the
-            graph are integer indices into this tuple.
+        states: Labels for categorical actions. Values flowing through the graph
+            are integer indices into this tuple. Leave ``None`` for a continuous
+            decision or an unconfigured node.
+        action_space: A `Real` or `Interval` domain for a scalar continuous action.
+            Leave ``None`` when using categorical ``states``. A domain declaration
+            does not select a distribution or policy family.
         policy_family: Optional creator-selected `PolicyFamily`.
             `TabularSoftmax` requires scalar categorical information. Use
             `solve` to fit all declared rules jointly.
@@ -76,12 +84,18 @@ class DecisionNode(Node):
     """
 
     states: tuple[str, ...] | None = field(default=None, kw_only=True)
+    action_space: Real | Interval | None = field(default=None, kw_only=True)
     policy_family: PolicyFamily | None = field(default=None, kw_only=True)
 
     def __setattr__(self, key: str, value: Any) -> None:
         """Validate decision-specific fields, then defer to the base node."""
         if key == "states":
             validate_states(value)
+        elif key == "action_space" and value is not None:
+            if not isinstance(value, (Real, Interval)):
+                raise TypeError(
+                    "`action_space` must be a Real or Interval instance or None."
+                )
         elif (
             key == "policy_family"
             and value is not None
@@ -102,8 +116,8 @@ class DecisionNode(Node):
         """
         Whether the decision declares named actions through ``states``.
 
-        ``False`` when ``states`` is ``None``, which marks the decision as
-        not-yet-configured.
+        ``False`` when ``states`` is ``None``. This can describe a declared
+        continuous domain or an unconfigured decision.
         """
         return self.states is not None
 
@@ -111,21 +125,28 @@ class DecisionNode(Node):
 
     def consistency_message(self, state: Consistency) -> str:
         """
-        Describe the missing action states.
+        Describe a missing or conflicting action-space declaration.
 
         Args:
-            state: The node's ``UNCONFIGURED`` consistency state.
+            state: The node's ``UNCONFIGURED`` or ``STALE`` consistency state.
 
         Returns:
             A description of the configuration problem.
         """
-        # UNCONFIGURED is the only non-CONSISTENT state for a decision.
+        if state is Consistency.STALE:
+            return (
+                f"Decision {self.name!r} declares both `states` and `action_space`; "
+                "declare categorical states or a continuous action space, not both."
+            )
         return (
-            f"Decision {self.name!r} has no action space (`states`) declared; "
-            f"set `states` to the available actions."
+            f"Decision {self.name!r} has no action space declared; "
+            "set `states` for categorical actions or `action_space` "
+            "to a Real or Interval domain."
         )
 
     def _compute_consistency(self) -> Consistency:
-        if self.states is None:
+        if self.states is not None and self.action_space is not None:
+            return Consistency.STALE
+        if self.states is None and self.action_space is None:
             return Consistency.UNCONFIGURED
         return Consistency.CONSISTENT

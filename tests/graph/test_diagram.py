@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from pylimid.graph import Interval, Real
 from pylimid.graph.diagram import DiagramProblemKind, DiagramSnapshot, InfluenceDiagram
 from pylimid.graph.nodes.chance_node import ChanceNode
 from pylimid.graph.nodes.decision_node import DecisionNode
@@ -556,3 +557,39 @@ def test_add_arc_to_utility_as_child_is_allowed() -> None:
 
     diag.add_arc("rain", "payoff")  # no error
     assert diag.parents_of("payoff") == ("rain",)
+
+
+@pytest.mark.parametrize("domain", [Real(), Interval(0.0, 100.0)])
+def test_snapshot_preserves_continuous_domains_and_mixed_decision_structure(domain):
+    diagram = InfluenceDiagram()
+    diagram.add_node(ChanceNode("temperature", dist=_dist_matching))
+    diagram.add_node(DecisionNode("heater", states=("gas", "electric")))
+    power = DecisionNode(
+        "power", parents=("temperature", "heater"), action_space=domain
+    )
+    diagram.add_node(power)
+    diagram.add_node(
+        UtilityNode("payoff", parents=("power",), values=lambda power: -(power**2))
+    )
+    assert diagram.validate() == []
+    snapshot = diagram.snapshot()
+    assert snapshot.order == ("temperature", "heater", "power", "payoff")
+    assert dict(snapshot.nodes)["power"] is power
+    assert power.action_space == domain
+    assert diagram.states_of("heater") == ("gas", "electric")
+    with pytest.raises(ValueError, match="no state labels"):
+        diagram.states_of("power")
+
+
+def test_diagram_reports_and_recovers_from_conflicting_action_declarations():
+    diagram = InfluenceDiagram()
+    decision = DecisionNode("power", states=("off", "on"), action_space=Real())
+    diagram.add_node(decision)
+    problems = diagram.validate()
+    assert len(problems) == 1
+    assert problems[0].kind is DiagramProblemKind.STALE
+    assert problems[0].node == "power"
+    with pytest.raises(ValueError, match="both `states` and `action_space`"):
+        diagram.snapshot()
+    decision.states = None
+    assert diagram.snapshot().order == ("power",)

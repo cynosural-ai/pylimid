@@ -11,8 +11,9 @@ A node is a workspace value that may be edited incrementally — add a parent,
 set the distribution / action space / utility function, swap states — by an
 external author: a script, a UI, or an LLM driving the diagram over a tool
 interface. Because of that, a node is allowed to exist in an *inconsistent*
-state: its configurable field (``dist`` / ``values`` / action ``states``) may
-be unset, or its signature may not yet match its parents after an arc change.
+state: its configurable field (``dist`` / ``values`` / action declaration) may
+be unset, its signature may not yet match its parents after an arc change, or
+action declarations may conflict.
 
 Two layers of checking reflect this:
 
@@ -57,7 +58,8 @@ class NodeKind(Enum):
 
     Attributes:
         CHANCE: A random variable — ``P(name | parents)``.
-        DECISION: A variable the agent controls; ``states`` are its actions.
+        DECISION: A variable the agent controls; ``states`` or ``action_space``
+            declares its actions.
         UTILITY: A deterministic payoff — ``U(parents)``.
     """
 
@@ -72,14 +74,15 @@ class Consistency(Enum):
 
     Attributes:
         UNCONFIGURED: The node's configurable field (``dist`` for chance,
-            ``values`` for utility, action ``states`` for decision) is unset —
+            ``values`` for utility, action declaration for decision) is unset —
             structure exists, the specification has not yet been supplied.
-        STALE: The configurable field is set but its signature does not match
-            ``parents`` — typically because a parent was added or removed since
-            it was last configured.
+        STALE: Configuration is present but incompatible. A chance distribution or
+            utility function may not accept the declared ``parents``, or a decision
+            may declare both categorical states and a continuous action space.
         CONSISTENT: The required field is set. For chance and utility nodes, its
-            callable accepts the declared parents as named keyword arguments. This does
-            not check numerical behaviour or the rest of the diagram.
+            callable accepts the declared parents as named keyword arguments. A
+            decision declares exactly one action representation. This does not check
+            numerical behaviour or the rest of the diagram.
     """
 
     UNCONFIGURED = "unconfigured"
@@ -216,11 +219,12 @@ class Node:
 
     def validate(self) -> None:
         """
-        Check that the node's required fields and callable signature are configured.
+        Check that required fields and cross-field relationships are configured.
 
-        This checks the node alone. Use `InfluenceDiagram.validate` to check missing
-        parents, cycles and utility nodes with children. Neither check evaluates
-        distribution or utility functions.
+        This checks callable signatures and conflicting action declarations on the
+        node alone. Use `InfluenceDiagram.validate` to check missing parents, cycles
+        and utility nodes with children. Neither check evaluates distribution or
+        utility functions.
 
         Raises:
             ValueError: If the node is ``UNCONFIGURED`` or ``STALE``.

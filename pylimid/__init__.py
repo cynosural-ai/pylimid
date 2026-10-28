@@ -19,6 +19,8 @@ from pylimid.graph import (
     ChanceNode,
     DecisionNode,
     InfluenceDiagram,
+    Interval,
+    Real,
     UtilityNode,
 )
 from pylimid.inference import InferenceResult, Posterior, infer
@@ -47,11 +49,13 @@ __all__ = [
     "InferenceError",
     "InferenceResult",
     "InfluenceDiagram",
+    "Interval",
     "LinearSoftmax",
     "Policy",
     "PolicyFamily",
     "PolicyParameters",
     "Posterior",
+    "Real",
     "Solution",
     "SolveError",
     "TabularSoftmax",

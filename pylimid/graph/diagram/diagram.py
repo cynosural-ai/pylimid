@@ -181,8 +181,8 @@ class InfluenceDiagram:
         Raises:
             KeyError: If ``name`` is not in the diagram.
             TypeError: If the node is not a chance node, or ``dist`` is neither callable
-                nor ``None``. Set a decision's ``states`` or a utility's ``values``
-                directly on that node.
+                nor ``None``. Set a decision's ``states`` or ``action_space``, or a
+                utility's ``values``, directly on that node.
         """
         node = self._nodes[name]
         if not isinstance(node, ChanceNode):
@@ -250,7 +250,7 @@ class InfluenceDiagram:
         Raises:
             KeyError: If ``name`` is not in the diagram.
             ValueError: If the node has no state labels — a numerical chance node,
-                an unconfigured decision, or a utility node.
+                a continuous or unconfigured decision, or a utility node.
         """
         node = self._nodes[name]
         if not isinstance(node, (ChanceNode, DecisionNode)) or node.states is None:
@@ -267,8 +267,9 @@ class InfluenceDiagram:
         Check the diagram's structure and node configuration.
 
         Checks for missing parents, cycles, unconfigured nodes, callable signatures that
-        do not match their parents, and utility nodes with children. It does not
-        evaluate distribution or utility functions or check their numerical outputs.
+        do not match their parents, conflicting decision action declarations, and
+        utility nodes with children. It does not evaluate distribution or utility
+        functions or check their numerical outputs.
 
         `infer` and `solve` run this check automatically. Use `probe_discrete_parents`
         separately to look for parents whose effects may be missing.
