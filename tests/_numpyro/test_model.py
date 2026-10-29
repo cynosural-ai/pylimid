@@ -32,10 +32,21 @@ def test_translates_empty_snapshot() -> None:
 
 
 def test_topological_order_respected() -> None:
-    """Every sample site named after a node; parents resolve before children."""
-    model = build_model(rain_wet_grass_diagram().snapshot(), {}, {})
+    """A child inserted first executes after its parent in the model trace."""
+    diagram = InfluenceDiagram()
+    diagram.add_node(
+        ChanceNode(
+            name="child",
+            parents=("parent",),
+            dist=lambda parent: dist.Normal(parent, 1.0),
+        )
+    )
+    diagram.add_node(ChanceNode(name="parent", dist=lambda: dist.Normal(0.0, 1.0)))
+
+    model = build_model(diagram.snapshot(), {}, {})
     trace = _trace(model)
-    assert set(trace.keys()) == {"rain", "wet_grass"}
+
+    assert list(trace) == ["parent", "child"]
 
 
 @pytest.mark.parametrize(
