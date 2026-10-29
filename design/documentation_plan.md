@@ -9,7 +9,7 @@ The published order is **Getting started → User guide → Resources → API re
 - **Getting started** covers installation and a quickstart: one small problem through build, validate, draw and solve.
 - **User guide** continues the quickstart across Building a diagram, Distributions and utilities, Solving a diagram, and Inference. Joint decisions and explicit memory are introduced within this sequence, so there is no separate Multiple decisions page.
 - **Tutorials** tell the story of a complete alternative problem, with figures and interpretation of the results.
-- **Resources** contains Common pitfalls and Count distributions, directly under the sidebar heading. Entries are standalone examples with their own context and imports. Count distributions collects count-specific examples and limitations. Background and further reading can be added when useful.
+- **Resources** contains Common pitfalls, Count distributions and References, directly under the sidebar heading. Example pages have their own context and imports. Count distributions collects count-specific examples and limitations. References is a reading guide covering introductions, influence diagrams and limited memory, continuous and mixed variables, simulation and policy gradients, probabilistic programming, and software. Each section introduces the topic before listing verified citations with links and short explanations of their relevance.
 - **API reference** covers inference and solving, building diagrams, and policy families and rules. Classes, functions and methods are generated from docstrings; public type aliases are explained alongside their owning APIs. The policy page replaces the individual-solvers page.
 
 Contributor documentation belongs in `CONTRIBUTING.md`, `AGENTS.md` and `design/`. Explain architecture on the published site only when it helps users understand execution or trust a result. Link to NumPyro for distributions and MCMC; focus PyLIMID explanations on information sets, explicit memory, policy families and fitting, callable parents and decision-modelling patterns. Introduce theory beside the behaviour it explains, with a citation rather than a textbook derivation. The current optimizer objective and verification are described in the [solver design](solver/algorithms.md).
@@ -79,37 +79,16 @@ Verified on 2026-10-28. The full test suite passes with 534 tests, including the
 ## Future work
 
 - **Tutorials — low priority.** Revisit the existing drafts in `docs/tutorials/`, choose the useful problems and their order, and review or rewrite them before publication. The newsvendor draft overlaps the quickstart. Evaluate continuous-consequence variants of the logistics tutorial and its optional report-probability calibration during that review. Migrate the decision tutorials to fitted stochastic policies and revisit the large training sample budgets in the newsvendor and logistics drafts. Check the Bayesian-networks draft against the current inference API and defaults. When tutorials are ready, update `exclude_patterns`, the home-page card and toctree, and the quickstart and README links together. Editorial and source review remains pending.
-- **Further reading — optional, later.** Keep the candidate references below for a possible Resources page, grouped by topic with a short explanation of each source. Create the page when there is a useful selection to publish. Plain links and author–year citations are sufficient; verify bibliographic details before publication.
+- **Further reading — optional, later.** Extend the [References page](../docs/resources/references.md) when another source helps explain a modelling or analysis question. Keep the topic introductions and short annotations rather than growing an unstructured bibliography. Verify authors, publication year, title and venue against publisher or author records, and cite the edition or version linked. Explain historical solution methods without suggesting that PyLIMID implements every algorithm listed.
 
 Remaining reliability and documentation work is tracked in [TODO.md](../TODO.md).
 
-## References
+## Additional reference candidates
 
-Candidates for a future Resources page, grouped by topic. Verify details before publishing. Introductory material also includes the decision-analysis blog series ([I](https://ferjorosa.github.io/blog/2025/06/08/decision-theory-I.html), [II](https://ferjorosa.github.io/blog/2025/07/04/decision-theory-II.html), [III](https://ferjorosa.github.io/blog/2025/08/07/decision-theory-III.html)), [NumPyro documentation](https://num.pyro.ai/en/stable/) and [pyAgrum documentation](https://pyagrum.readthedocs.io).
+The verified bibliography lives on the [References page](../docs/resources/references.md). It cites Howard and Matheson's 2005 journal publication and the second editions of the introductory books where applicable. The following sources remain candidates for a more specialised discussion. Verify their bibliographic details before publication.
 
-- **Influence diagrams and their evaluation**
-  - Howard, R. A. and Matheson, J. E. (1984). Influence diagrams.
-  - Shachter, R. D. (1986). Evaluating influence diagrams. Operations Research.
-  - Jensen, F., Jensen, F. V. and Dittmer, S. L. (1994). From influence diagrams to junction trees. UAI.
-- **LIMIDs**
-  - Lauritzen, S. L. and Nilsson, D. (2001). Representing and solving decision problems with limited information. Management Science.
-  - Nilsson, D. and Lauritzen, S. L. (2000). Evaluating influence diagrams using LIMIDs. UAI.
-- **Continuous and mixed influence diagrams**
-  - Shachter, R. D. and Kenley, C. R. (1989). Gaussian influence diagrams. Management Science.
-  - Lauritzen, S. L. (1992). Propagation of probabilities, means and variances in mixed graphical association models. JASA.
-  - Madsen, A. L. and Jensen, F. (2005). Solving linear-quadratic conditional Gaussian influence diagrams. IJAR.
-  - Cobb, B. R. and Shenoy, P. P. (2008). Decision making with hybrid influence diagrams using mixtures of truncated exponentials. EJOR.
-  - Li, Y. and Shenoy, P. P. (2010). Solving hybrid influence diagrams with deterministic variables. UAI.
-- **Monte Carlo decision analysis**
-  - Bielza, C., Müller, P. and Ríos Insua, D. (1999). Decision analysis by augmented probability simulation. Management Science 45(7), 995–1007.
-  - Charnes, J. M. and Shenoy, P. P. (2004). Multistage Monte Carlo method for solving influence diagrams using local computation. Management Science.
-  - Kearns, M., Mansour, Y. and Ng, A. (1999). A sparse sampling algorithm for near-optimal planning in large Markov decision processes. IJCAI.
-  - Bellman, R. (1957). Dynamic Programming.
-- **Textbooks**
-  - Kjærulff, U. B. and Madsen, A. L. Bayesian Networks and Influence Diagrams.
-  - Koller, D. and Friedman, N. Probabilistic Graphical Models (chapters 22–23).
-  - Clemen, R. T. Making Hard Decisions.
-- **Software**
-  - Phan, D., Pradhan, N. and Jankowiak, M. (2019). Composable effects for flexible and accelerated probabilistic programming in NumPyro.
-  - Bingham, E. et al. (2019). Pyro: deep universal probabilistic programming. JMLR.
-  - Ducamp, G., Gonzales, C. and Wuillemin, P.-H. (2020). aGrUM/pyAgrum: a toolbox to build models and algorithms for probabilistic graphical models in Python. PGM.
+- Nilsson, D. and Lauritzen, S. L. (2000). Evaluating influence diagrams using LIMIDs. UAI.
+- Lauritzen, S. L. (1992). Propagation of probabilities, means and variances in mixed graphical association models. JASA.
+- Madsen, A. L. and Jensen, F. (2005). Solving linear-quadratic conditional Gaussian influence diagrams. IJAR.
+- Kearns, M., Mansour, Y. and Ng, A. (1999). A sparse sampling algorithm for near-optimal planning in large Markov decision processes. IJCAI.
+- Bellman, R. (1957). Dynamic Programming.

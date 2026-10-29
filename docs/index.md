@@ -101,6 +101,7 @@ tutorials/bayesian_networks
 
 resources/common_pitfalls
 resources/count_distributions
+resources/references
 ```
 
 ```{toctree}
