@@ -38,10 +38,12 @@ Ruff and ty also run on every commit through pre-commit.
 | `pylimid/solver/` | Joint policy-gradient optimisation and fitted policy results |
 | `pylimid/_numpyro/` | Internal distribution checks, NumPyro model translation, and sampling |
 | `pylimid/errors.py` | Shared inference and optimization errors |
-| `tests/` | Graph, inference, and optimizer tests with analytic utility and gradient references |
+| `tests/` | Tests grouped by source package, plus integration scenarios across packages |
 | `docs/` | The published Sphinx site (see `docs/README.md` for build details) |
 | `design/` | Living design notes explaining the implementation and its rationale; not published |
 | `AGENTS.md` | Detailed code style and design conventions |
+
+Test directories follow the source package boundaries, including `graph/nodes/`, `graph/diagram/`, `graph/render/`, `policy/`, `inference/`, `solver/`, and `_numpyro/`. Put scenarios spanning several packages in `tests/integration/`; keep package import and export checks in `tests/test_smoke.py`. See the [test organization note](design/testing.md) for ownership and helper conventions.
 
 ## Conventions
 

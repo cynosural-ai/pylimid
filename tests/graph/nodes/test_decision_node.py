@@ -135,3 +135,8 @@ def test_invalid_action_space_is_rejected_on_construction_and_assignment(value):
     with pytest.raises(TypeError, match="`action_space` must be"):
         decision.action_space = value
     assert decision.action_space == Real()
+
+
+def test_family_assignment_rejects_unsupported_representations():
+    with pytest.raises(TypeError, match="policy_family"):
+        DecisionNode("action", states=("off", "on"), policy_family="network")  # ty: ignore[invalid-argument-type]

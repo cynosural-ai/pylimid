@@ -11,7 +11,6 @@ from pylimid import (
     CategoricalPolicy,
     ChanceNode,
     DecisionNode,
-    InferenceError,
     InfluenceDiagram,
     LinearSoftmax,
     TabularSoftmax,
@@ -25,38 +24,7 @@ from pylimid.solver.api import (
     _score_loss,
     _trajectory,
 )
-
-
-def _signal_diagram():
-    diagram = InfluenceDiagram()
-    diagram.add_node(ChanceNode("signal", dist=lambda: dist.Uniform(-1.0, 1.0)))
-    diagram.add_node(
-        DecisionNode(
-            "action",
-            parents=("signal",),
-            states=("off", "on"),
-            policy_family=LinearSoftmax(),
-        )
-    )
-    diagram.add_node(
-        UtilityNode(
-            "payoff",
-            parents=("signal", "action"),
-            values=lambda signal, action: signal * action,
-        )
-    )
-    return diagram
-
-
-def _uniform_rule(parents=(), parent_states=(), num_features=0):
-    return CategoricalPolicy(
-        LinearSoftmax(),
-        parents,
-        parent_states,
-        tuple(() for _ in parents),
-        ("off", "on"),
-        {"weights": jnp.zeros((num_features, 2)), "bias": jnp.zeros(2)},
-    )
+from tests._diagrams import signal_diagram, uniform_rule
 
 
 def _sequential_diagram(remember_first=False):
@@ -103,7 +71,7 @@ def _sequential_diagram(remember_first=False):
 
 
 def test_score_gradient_matches_analytic_oracle_and_enumerated_derivative():
-    rule = _uniform_rule(("signal",), (None,), 1)
+    rule = uniform_rule(("signal",), (None,), 1)
     parameters = {
         "weights": rule.parameters["weights"],
         "bias": rule.parameters["bias"],
@@ -341,7 +309,7 @@ def test_three_decisions_with_different_action_spaces(families):
 
 
 def test_solver_learns_signal_rule_and_returns_reusable_stochastic_policy():
-    diagram = _signal_diagram()
+    diagram = signal_diagram()
     solution = solve(diagram, num_steps=300, num_samples=512)
     rule = solution.policy["action"]
     assert isinstance(rule, CategoricalPolicy)
@@ -365,7 +333,7 @@ def test_solver_learns_signal_rule_and_returns_reusable_stochastic_policy():
     assert "stochastic" in solution.render()
 
 
-@pytest.mark.parametrize("make_diagram", [_signal_diagram, _sequential_diagram])
+@pytest.mark.parametrize("make_diagram", [signal_diagram, _sequential_diagram])
 def test_seed_reproduces_fitted_parameters_and_independent_evaluation(make_diagram):
     diagram = make_diagram()
     first = solve(diagram, num_steps=20, num_samples=64)
@@ -388,33 +356,6 @@ def test_seed_reproduces_fitted_parameters_and_independent_evaluation(make_diagr
         jax.vmap(_trajectory(diagram.snapshot(), templates), in_axes=(None, 0))
     )(parameters, jax.random.split(evaluation_key, 64))
     assert first.expected_utility == float(jnp.mean(returns))
-
-
-def test_categorical_features_are_one_hot_with_numerical_features_kept_separate():
-    rule = CategoricalPolicy(
-        LinearSoftmax(),
-        ("category", "signal"),
-        (("red", "green", "blue"), None),
-        ((), ()),
-        ("off", "on"),
-        {
-            "weights": jnp.array([[0.0, 2.0], [0.0, -2.0], [0.0, 2.0], [0.0, 1.0]]),
-            "bias": jnp.zeros(2),
-        },
-    )
-    for index, expected in enumerate(
-        [jax.nn.sigmoid(2.0), jax.nn.sigmoid(-2.0), jax.nn.sigmoid(2.0)]
-    ):
-        assert rule.probabilities(signal=jnp.array(0.0), category=jnp.array(index))[
-            1
-        ] == pytest.approx(expected)
-    assert rule.probabilities(signal=jnp.array(1.0), category=jnp.array(0))[
-        1
-    ] == pytest.approx(jax.nn.sigmoid(3.0))
-    with pytest.raises(TypeError, match="Unexpected information"):
-        rule.probabilities(
-            signal=jnp.array(0.0), category=jnp.array(0), hidden=jnp.array(1.0)
-        )
 
 
 def test_score_solver_handles_discrete_descendants_and_indicator_utilities():
@@ -496,47 +437,8 @@ def test_training_uses_mixed_declared_information_and_flattens_vector_values():
         rule.probabilities(signal=jnp.zeros((1, 2)), category=jnp.array(0))
 
 
-def test_evaluation_preserves_stochastic_action_descendant_correlation():
-    diagram = InfluenceDiagram()
-    diagram.add_node(DecisionNode("action", states=("off", "on")))
-    diagram.add_node(DecisionNode("next", parents=("action",), states=("off", "on")))
-    diagram.add_node(
-        ChanceNode(
-            "outcome",
-            parents=("action", "next"),
-            dist=lambda action, next: dist.Delta(action + 2 * next),
-        )
-    )
-    policy = {"action": _uniform_rule(), "next": {(0,): 1, (1,): 0}}
-    draws = samples(diagram.snapshot(), policy=policy, num_samples=1000)
-    assert jnp.mean(draws["action"]) == pytest.approx(0.5, abs=0.05)
-    assert jnp.array_equal(draws["next"], 1 - draws["action"])
-    assert jnp.array_equal(draws["outcome"], 2 - draws["action"])
-    posterior = samples(
-        diagram.snapshot(), policy=policy, observed={"outcome": 1}, num_samples=100
-    )
-    assert jnp.array_equal(posterior["action"], jnp.ones(100, dtype=int))
-    assert jnp.array_equal(posterior["next"], jnp.zeros(100, dtype=int))
-    assert jnp.array_equal(posterior["outcome"], jnp.ones(100, dtype=int))
-
-
-@pytest.mark.parametrize(
-    "changes",
-    [
-        {"states": ("on", "off")},
-        {"parents": ("other",)},
-        {"parent_states": (("low", "high"),)},
-    ],
-)
-def test_fitted_policy_rejects_changed_action_or_information_states(changes):
-    diagram = _signal_diagram()
-    rule = replace(_uniform_rule(("signal",), (None,), 1), **changes)
-    with pytest.raises(InferenceError, match="incompatible"):
-        samples(diagram.snapshot(), policy={"action": rule})
-
-
 def test_solver_requires_family_for_every_decision():
-    diagram = _signal_diagram()
+    diagram = signal_diagram()
     diagram["action"].policy_family = None
     with pytest.raises(ValueError, match="'action' must declare"):
         solve(diagram)
@@ -558,9 +460,4 @@ def test_solver_requires_family_for_every_decision():
 )
 def test_solver_rejects_invalid_optimization_settings(options):
     with pytest.raises(ValueError):
-        solve(_signal_diagram(), **options)
-
-
-def test_family_assignment_rejects_unsupported_representations():
-    with pytest.raises(TypeError, match="policy_family"):
-        DecisionNode("action", states=("off", "on"), policy_family="network")  # ty: ignore[invalid-argument-type]
+        solve(signal_diagram(), **options)

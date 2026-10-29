@@ -13,7 +13,6 @@ from pylimid import (
     DistributionPolicy,
     Interval,
     Linear,
-    ParameterModel,
     PolicyFamily,
     Real,
 )
@@ -136,12 +135,6 @@ def test_fixed_parameters_must_be_real_scalars(scale):
         DistributionPolicy(dist.Normal, Linear(), fixed_parameters={"scale": scale})
 
 
-@pytest.mark.parametrize("outputs", [("loc", "loc"), ("",), (1,), ["loc", "scale"]])
-def test_parameter_model_validates_output_names(outputs):
-    with pytest.raises((TypeError, ValueError), match="outputs|Output names"):
-        Linear(outputs=outputs)
-
-
 @pytest.mark.parametrize(
     "constructor", [dist.Categorical, dist.BernoulliProbs, dist.Dirichlet, dist.Uniform]
 )
@@ -253,28 +246,6 @@ def test_parameter_model_must_return_one_scalar_per_output():
 
     with pytest.raises(ValueError, match="Parameter model must return shape"):
         _rule(DistributionPolicy(dist.Normal, WrongShape())).distribution()
-
-
-def test_custom_models_can_initialize_nested_parameter_trees():
-    class Quadratic(ParameterModel):
-        def initialize(self, rng_key, *, num_outputs, observations, parent_states):
-            return {"layer": {"weights": jnp.zeros(num_outputs)}}
-
-        def predict(self, parameters, observations, parent_states):
-            return parameters["layer"]["weights"] * observations["signal"] ** 2
-
-    family = DistributionPolicy(
-        dist.Normal, Quadratic(), fixed_parameters={"scale": 0.5}
-    )
-    rule = ContinuousPolicy(
-        family,
-        ("signal",),
-        (None,),
-        ((),),
-        Real(),
-        {"layer": {"weights": jnp.array([2.0])}},
-    )
-    assert rule.distribution(signal=jnp.array(3.0)).mean == pytest.approx(18.0)
 
 
 @pytest.mark.parametrize(
