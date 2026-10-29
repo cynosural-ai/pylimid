@@ -19,6 +19,8 @@ Test directories follow the source package boundaries. Choose a location by the 
 
 The NumPyro tests separate model construction in `test_model.py`, forward and posterior draws in `test_samplers.py`, and policy execution in `test_policies.py`. A test that calls `solve` to verify family initialization belongs with the solver; a test that directly inspects a fitted rule's probabilities belongs with policies. Cross-package scenarios remain together when exercising several execution paths is the purpose of the test.
 
+Shared node validation contracts live in `tests/graph/nodes/test_node.py`; type-specific modules cover their distinct configuration and mutation behavior. Exact marginal-probability expectations cover normalization, while inference tests check the public result types, shapes, and posterior values.
+
 Keep helpers local while only one module needs them. Shared policy scenarios live in `tests/_diagrams.py`; shared discrete backend diagrams live in `tests/_numpyro/diagrams.py`. These builders return fresh diagrams so tests can mutate them independently. Test modules import helpers rather than importing other test modules. Use `conftest.py` for pytest fixtures with an actual shared lifecycle or parametrization need.
 
 Run the complete suite with `uv run pytest tests/`, or pass a package directory to focus on one area. Pytest discovery and CI use the `tests/` root, so directory moves do not require separate configuration.

@@ -185,15 +185,6 @@ def test_remove_parent_absent_is_noop() -> None:
 # --- consistency lifecycle --------------------------------------------------
 
 
-def test_fresh_node_is_unconfigured() -> None:
-    assert ChanceNode(name="x").consistency is Consistency.UNCONFIGURED
-
-
-def test_matching_dist_is_consistent() -> None:
-    node = ChanceNode(name="x", parents=("rain",), dist=_dist_taking_rain)
-    assert node.consistency is Consistency.CONSISTENT
-
-
 def test_kwargs_dist_with_parents_is_stale() -> None:
     """A **kwargs dist cannot prove parent coverage, so it is stale."""
     node = ChanceNode(name="x", parents=("a", "b", "c"), dist=_dist_matching)
@@ -253,12 +244,6 @@ def test_dist_with_extra_param_is_stale() -> None:
 
 
 # --- validate() gate --------------------------------------------------------
-
-
-def test_validate_raises_on_unconfigured() -> None:
-    node = ChanceNode(name="x")
-    with pytest.raises(ValueError, match="no `dist`"):
-        node.validate()
 
 
 def test_validate_raises_on_stale() -> None:

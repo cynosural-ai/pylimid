@@ -81,11 +81,6 @@ def test_information_parent_changes_preserve_categorical_decision_consistency() 
 # --- validate() gate --------------------------------------------------------
 
 
-def test_validate_raises_on_unconfigured() -> None:
-    with pytest.raises(ValueError, match="action space"):
-        DecisionNode(name="d").validate()
-
-
 def test_validate_silent_on_consistent() -> None:
     DecisionNode(name="d", states=("buy", "sell")).validate()  # no exception
 

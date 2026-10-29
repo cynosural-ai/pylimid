@@ -15,12 +15,6 @@ from pylimid.graph.nodes import ChanceNode
 from tests._numpyro.diagrams import rain_wet_grass_diagram
 
 
-def test_model_is_callable() -> None:
-    """The model builder returns a callable taking no args."""
-    model = build_model(rain_wet_grass_diagram().snapshot(), {}, {})
-    assert callable(model)
-
-
 def test_model_returns_dict() -> None:
     """The model function returns a dict (not None) keyed by node name."""
     model = build_model(rain_wet_grass_diagram().snapshot(), {}, {})
