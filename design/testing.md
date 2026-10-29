@@ -23,4 +23,6 @@ Shared node validation contracts live in `tests/graph/nodes/test_node.py`; type-
 
 Keep helpers local while only one module needs them. Shared policy scenarios live in `tests/_diagrams.py`; shared discrete backend diagrams live in `tests/_numpyro/diagrams.py`. These builders return fresh diagrams so tests can mutate them independently. Test modules import helpers rather than importing other test modules. Use `conftest.py` for pytest fixtures with an actual shared lifecycle or parametrization need.
 
+Runnable examples and regression tests are independent: neither imports the other. The oil benchmark's diagram, probability tables, and exact utility evaluator live locally in `tests/solver/test_oil_policy.py`. Its small scenario is intentionally duplicated in `examples/oil_policy.py` so changes to the demonstration cannot change the regression reference.
+
 Run the complete suite with `uv run pytest tests/`, or pass a package directory to focus on one area. Pytest discovery and CI use the `tests/` root, so directory moves do not require separate configuration.

@@ -22,7 +22,7 @@ Inference also accepts supplied deterministic functions and categorical action t
 
 ## Verification and interpretation
 
-Analytic gradients, exact categorical action sums, and continuous quadrature cover one or several decisions, zero and nonzero parameters, categorical outcomes of continuous actions, and action-dependent observations. End-to-end tests check categorical interactions, numerical information, explicit memory, mixed action types, bounded actions, and stochastic reuse. Posterior tests compare fitted continuous and mixed policies with analytic references and numerical integration. The [oil example](../../examples/oil_policy.py) sums its fitted policy's utility over the small categorical model and compares that value with the analytic optimum.
+Analytic gradients, exact categorical action sums, and continuous quadrature cover one or several decisions, zero and nonzero parameters, categorical outcomes of continuous actions, and action-dependent observations. End-to-end tests check categorical interactions, numerical information, explicit memory, mixed action types, bounded actions, and stochastic reuse. Posterior tests compare fitted continuous and mixed policies with analytic references and numerical integration. The self-contained [oil regression tests](../../tests/solver/test_oil_policy.py) sum the fitted policy's utility over a small categorical model and compare that value with the analytic optimum.
 
 Three errors must be distinguished: approximation imposed by the family, incomplete optimization, and Monte Carlo evaluation noise. More evaluation draws address only the last. The optimizer reports no convergence or optimality certificate.
 

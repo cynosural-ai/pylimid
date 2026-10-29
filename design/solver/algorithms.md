@@ -36,7 +36,7 @@ Invalid solver inputs raise `ValueError`, including a diagram without decisions 
 
 ## Verification
 
-Tests compare score gradients with analytic derivatives and exact action sums on small examples, including nonzero parameters and action-dependent observations. End-to-end tests cover mixed families, categorical interactions, explicit memory, count outcomes, reproducibility, and independent final evaluation. The oil example compares the exact value of its fitted policy with an analytic optimum; no reference solver is required.
+Tests compare score gradients with analytic derivatives and exact action sums on small examples, including nonzero parameters and action-dependent observations. End-to-end tests cover mixed families, categorical interactions, explicit memory, count outcomes, reproducibility, and independent final evaluation. The [oil regression tests](../../tests/solver/test_oil_policy.py) own their diagram and exact utility evaluator, comparing the fitted policy with an analytic optimum without importing runnable examples or relying on a reference solver.
 
 General graph validation and distribution-contract tests remain separate from optimizer verification. Posterior inference retains analytic reference checks. The test suite has no pyAgrum dependency.
 
