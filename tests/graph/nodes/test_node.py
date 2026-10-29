@@ -105,7 +105,7 @@ def test_validate_raises_on_inconsistent_for_all_types() -> None:
     assert DecisionNode(name="d").consistency is Consistency.UNCONFIGURED
     assert UtilityNode(name="u").consistency is Consistency.UNCONFIGURED
 
-    with pytest.raises(ValueError, match="`dist`"):
+    with pytest.raises(ValueError, match="no `dist`"):
         ChanceNode(name="c").validate()
     with pytest.raises(ValueError, match="action space"):
         DecisionNode(name="d").validate()

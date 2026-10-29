@@ -53,7 +53,7 @@ Two structural invariants must hold before inference:
 
 An arc can be created three ways: `add_arc`, `parents=` in `add_node`, and a node's own `add_parent`. All three are checked by the same code at the same time, so the result does not depend on how or in which order the diagram was built, and edits such as reversing an arc (add the new one, then remove the old one) are possible. Editing methods only refuse what they cannot carry out: a duplicate name, an arc into a child that is not in the diagram, a malformed field.
 
-Centralizing these checks means a cycle is reported at validation or execution rather than at the edit that created it. Reporting the cycle's nodes in arc order helps locate the problem. The [diagram tests](../../tests/graph/test_diagram.py) cover construction order, dangling parents, cycles and incremental arc changes.
+Centralizing these checks means a cycle is reported at validation or execution rather than at the edit that created it. Reporting the cycle's nodes in arc order helps locate the problem. The [diagram tests](../../tests/graph/diagram/test_diagram.py) cover construction order, dangling parents, cycles and incremental arc changes.
 
 ---
 

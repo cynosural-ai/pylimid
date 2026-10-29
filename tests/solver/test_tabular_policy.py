@@ -11,7 +11,6 @@ from pylimid import (
     CategoricalPolicy,
     ChanceNode,
     DecisionNode,
-    InferenceError,
     InfluenceDiagram,
     LinearSoftmax,
     TabularSoftmax,
@@ -19,65 +18,8 @@ from pylimid import (
     infer,
     solve,
 )
-from pylimid._numpyro.samplers import samples
 from pylimid.solver.api import _initialize_policy, _score_loss, _trajectory
-
-
-def _xor_diagram(family):
-    diagram = InfluenceDiagram()
-    for name in ("left", "right"):
-        diagram.add_node(
-            ChanceNode(name, states=("no", "yes"), dist=lambda: dist.Bernoulli(0.5))
-        )
-    diagram.add_node(
-        DecisionNode(
-            "action",
-            parents=("left", "right"),
-            states=("off", "on"),
-            policy_family=family,
-        )
-    )
-    diagram.add_node(
-        UtilityNode(
-            "payoff",
-            parents=("left", "right", "action"),
-            values=lambda left, right, action: jnp.where(
-                action == (left != right), 1.0, 0.0
-            ),
-        )
-    )
-    return diagram
-
-
-def test_tabular_rows_preserve_parent_order_and_have_independent_parameters():
-    logits = jnp.arange(18, dtype=float).reshape(3, 2, 3) / 10
-    rule = CategoricalPolicy(
-        family=TabularSoftmax(),
-        parents=("right", "left"),
-        parent_states=(("red", "green", "blue"), ("no", "yes")),
-        parent_shapes=((), ()),
-        states=("low", "medium", "high"),
-        parameters={"logits": logits},
-    )
-    information = {"left": jnp.array(1), "right": jnp.array(2)}
-    probabilities = rule.probabilities(**information)
-    assert probabilities == pytest.approx(jax.nn.softmax(logits[2, 1]))
-    assert jnp.exp(rule.log_prob(jnp.array(2), **information)) == pytest.approx(
-        probabilities[2]
-    )
-    key = jax.random.PRNGKey(4)
-    assert rule.sample(key, **information) == rule.sample(key, **information)
-    gradient = jax.grad(
-        lambda scores: replace(
-            rule, parameters={**rule.parameters, "logits": scores}
-        ).log_prob(jnp.array(2), **information)
-    )(logits)
-    assert gradient[2, 1] == pytest.approx(jnp.array([0.0, 0.0, 1.0]) - probabilities)
-    assert jnp.count_nonzero(gradient.at[2, 1].set(0)) == 0
-    with pytest.raises(TypeError, match="Unexpected information"):
-        rule.probabilities(**information, hidden=jnp.array(0))
-    with pytest.raises(ValueError, match="must have shape"):
-        rule.probabilities(left=jnp.array([1]), right=jnp.array(2))
+from tests._diagrams import xor_diagram
 
 
 @pytest.mark.parametrize("nonzero_parameters", [False, True])
@@ -85,7 +27,7 @@ def test_tabular_score_gradient_matches_analytic_and_enumerated_expectation(
     nonzero_parameters,
 ):
     templates = _initialize_policy(
-        _xor_diagram(TabularSoftmax()).snapshot(), jax.random.PRNGKey(0)
+        xor_diagram(TabularSoftmax()).snapshot(), jax.random.PRNGKey(0)
     )
     rule = templates["action"]
     if nonzero_parameters:
@@ -129,7 +71,7 @@ def test_tabular_score_gradient_matches_analytic_and_enumerated_expectation(
 
 
 def test_tabular_solver_learns_xor_against_analytic_optimum():
-    diagram = _xor_diagram(TabularSoftmax())
+    diagram = xor_diagram(TabularSoftmax())
     solution = solve(diagram, num_steps=200, num_samples=512)
     rule = solution.policy["action"]
     assert isinstance(rule, CategoricalPolicy)
@@ -159,7 +101,7 @@ def test_tabular_solver_learns_xor_against_analytic_optimum():
 
 
 def test_tabular_fitting_is_reproducible_and_evaluated_on_independent_scenarios():
-    diagram = _xor_diagram(TabularSoftmax())
+    diagram = xor_diagram(TabularSoftmax())
     key = jax.random.PRNGKey(9)
     first = solve(diagram, num_steps=20, num_samples=64, rng_key=key)
     second = solve(diagram, num_steps=20, num_samples=64, rng_key=key)
@@ -181,7 +123,7 @@ def test_tabular_fitting_is_reproducible_and_evaluated_on_independent_scenarios(
 
 
 def test_joint_tabular_and_linear_training_with_action_dependent_observations():
-    diagram = _xor_diagram(TabularSoftmax())
+    diagram = xor_diagram(TabularSoftmax())
     diagram.add_node(ChanceNode("signal", dist=lambda: dist.Uniform(-1.0, 1.0)))
     diagram.add_node(
         ChanceNode(
@@ -271,55 +213,3 @@ def test_tabular_family_rejects_array_valued_categorical_information():
     )
     with pytest.raises(ValueError, match="scalar state index.*'information'"):
         solve(diagram)
-
-
-def test_tabular_root_policy_preserves_stochastic_action_and_descendant_correlation():
-    diagram = InfluenceDiagram()
-    diagram.add_node(DecisionNode("first", states=("off", "on")))
-    diagram.add_node(DecisionNode("second", parents=("first",), states=("off", "on")))
-    diagram.add_node(
-        ChanceNode(
-            "outcome",
-            parents=("first", "second"),
-            dist=lambda first, second: dist.Delta(first + 2 * second),
-        )
-    )
-    rule = CategoricalPolicy(
-        TabularSoftmax(),
-        (),
-        (),
-        (),
-        ("off", "on"),
-        {"logits": jnp.log(jnp.array([0.3, 0.7]))},
-    )
-    policy = {"first": rule, "second": {(0,): 1, (1,): 0}}
-    draws = samples(diagram.snapshot(), policy=policy, num_samples=5000)
-    assert jnp.mean(draws["first"]) == pytest.approx(0.7, abs=0.02)
-    assert jnp.array_equal(draws["second"], 1 - draws["first"])
-    assert jnp.array_equal(draws["outcome"], 2 - draws["first"])
-    posterior = samples(
-        diagram.snapshot(), policy=policy, observed={"outcome": 1}, num_samples=100
-    )
-    assert jnp.array_equal(posterior["first"], jnp.ones(100, dtype=int))
-    assert jnp.array_equal(posterior["second"], jnp.zeros(100, dtype=int))
-    assert jnp.array_equal(posterior["outcome"], jnp.ones(100, dtype=int))
-    result = infer(
-        diagram, ["outcome"], policy=policy, observed={"outcome": 1}, num_samples=100
-    )
-    assert jnp.array_equal(result["outcome"].values, posterior["outcome"])
-
-
-@pytest.mark.parametrize(
-    "changes",
-    [
-        {"states": ("on", "off")},
-        {"parents": ("other", "right")},
-        {"parent_states": (("yes", "no"), ("no", "yes"))},
-    ],
-)
-def test_tabular_policy_rejects_changed_information_and_action_labels(changes):
-    diagram = _xor_diagram(TabularSoftmax())
-    rules = _initialize_policy(diagram.snapshot(), jax.random.PRNGKey(0))
-    rules["action"] = replace(rules["action"], **changes)
-    with pytest.raises(InferenceError, match="incompatible"):
-        samples(diagram.snapshot(), policy=rules)

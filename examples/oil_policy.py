@@ -2,7 +2,8 @@
 Train stochastic policies on a categorical oil-investment problem.
 
 Run with ``uv run python examples/oil_policy.py``. Utility is measured in
-millions of dollars. The chance probabilities and rewards match the oil tutorial.
+millions of dollars. Compare exact policy values and independent simulations
+with the analytic optimum of 721.
 """
 
 from __future__ import annotations
@@ -175,6 +176,24 @@ def main() -> None:
         f"[{values.mean() - margin:.3f}, {values.mean() + margin:.3f}]"
     )
     print("The interval measures evaluation noise, not distance from the optimum.")
+
+
+def _probability_tables(policy):
+    """Extract the policy's action distributions without sampling or taking argmax."""
+    tables = []
+    for name, cards in (("test", ()), ("buy", (2, 3))):
+        rule = policy[name]
+        if isinstance(rule, CategoricalPolicy):
+            scores = np.asarray(rule.parameters["logits"], dtype=np.float64)
+            weights = np.exp(scores - np.max(scores, axis=-1, keepdims=True))
+            probabilities = weights / weights.sum(axis=-1, keepdims=True)
+        else:
+            assert isinstance(rule, dict)
+            probabilities = np.zeros((*cards, 2))
+            for assignment in product(*(range(card) for card in cards)):
+                probabilities[(*assignment, rule[assignment])] = 1.0
+        tables.append(probabilities)
+    return tables
 
 
 if __name__ == "__main__":

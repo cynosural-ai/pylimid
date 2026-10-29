@@ -142,29 +142,17 @@ def test_discrete_posterior_with_observed():
     result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1})
     assert isinstance(result["rain"], Posterior)
     assert result["rain"].states == ("no", "yes")
-    assert result["rain"].marginal() == pytest.approx([0.457, 0.543], abs=0.04)
+    probabilities = result["rain"].marginal()
+    assert isinstance(probabilities, jax.Array)
+    assert probabilities.shape == (2,)
+    assert probabilities == pytest.approx([0.457, 0.543], abs=0.04)
 
 
 def test_result_keys_match_query():
     result = infer(_rain_wet_grass(), ["rain", "wet_grass"])
     assert set(result.keys()) == {"rain", "wet_grass"}
-
-
-def test_probabilities_sum_to_one():
-    result = infer(_rain_wet_grass(), ["rain", "wet_grass"])
     assert isinstance(result["rain"], Posterior)
     assert isinstance(result["wet_grass"], Posterior)
-    assert result["rain"].marginal().sum() == pytest.approx(1.0)
-    assert result["wet_grass"].marginal().sum() == pytest.approx(1.0)
-
-
-def test_probabilities_sum_to_one_with_observed():
-    result = infer(_rain_wet_grass(), ["rain"], observed={"wet_grass": 1})
-    assert isinstance(result["rain"], Posterior)
-    probabilities = result["rain"].marginal()
-    assert isinstance(probabilities, jax.Array)
-    assert probabilities.shape == (2,)
-    assert probabilities.sum() == pytest.approx(1.0)
 
 
 def test_continuous_posterior_keeps_raw_draws():

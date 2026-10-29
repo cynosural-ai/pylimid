@@ -54,7 +54,7 @@ The [posterior implementation](../../pylimid/inference/posterior.py) owns these 
 
 ## Verification
 
-- [Distribution checks](../../tests/test_distributions.py) cover categorical cardinalities, numerical count declarations and discrete event shapes.
-- [Forward count tests](../../tests/test_counts.py) cover numerical values, downstream distributions and utilities, observed-count likelihoods and rejection of count-indexed policy tables.
+- [Distribution checks](../../tests/integration/test_distributions.py) cover categorical cardinalities, numerical count declarations and discrete event shapes.
+- [Forward count tests](../../tests/integration/test_counts.py) cover numerical values, downstream distributions and utilities, observed-count likelihoods and rejection of count-indexed policy tables.
 - [Bounded-count posterior tests](../../tests/inference/test_bounded_counts.py) compare Binomial and Beta-Binomial masses and moments with explicit probability sums. They cover categorical-parent updates, mixed continuous/discrete posteriors, joint utility draws, zero-trial counts and rejection of unsupported count domains.
 - [Posterior tests](../../tests/inference/test_posterior.py) cover categorical versus numerical summaries, array shapes and numerical intervals.

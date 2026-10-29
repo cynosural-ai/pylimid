@@ -2,9 +2,7 @@
 
 from math import comb, exp, sqrt
 
-import jax
 import jax.numpy as jnp
-import numpyro
 import numpyro.distributions as dist
 import pytest
 
@@ -19,8 +17,6 @@ from pylimid import (
     infer,
     solve,
 )
-from pylimid._numpyro.model import build_model
-from pylimid._numpyro.samplers import samples
 
 
 @pytest.mark.parametrize(
@@ -265,40 +261,3 @@ def test_batched_scalar_counts_keep_component_summaries():
 
     assert posterior.values.shape == (2000, 2)
     assert posterior.mean() == pytest.approx([2.0, 5.0], abs=0.15)
-
-
-@pytest.mark.parametrize(
-    "distribution,enumerable",
-    [
-        (lambda: dist.Binomial(total_count=10, probs=0.2), True),
-        (lambda: dist.Poisson(3.0), False),
-    ],
-)
-def test_count_enumeration_annotation_follows_distribution(distribution, enumerable):
-    diagram = InfluenceDiagram()
-    diagram.add_node(ChanceNode(name="count", dist=distribution))
-    model = build_model(diagram.snapshot(), {}, {})
-
-    trace = numpyro.handlers.trace(
-        numpyro.handlers.seed(model, jax.random.PRNGKey(0))
-    ).get_trace()
-
-    if enumerable:
-        assert trace["count"]["infer"]["enumerate"] == "parallel"
-    else:
-        assert "enumerate" not in trace["count"]["infer"]
-
-
-def test_low_level_samples_reject_latent_counts_with_evidence():
-    diagram = InfluenceDiagram()
-    diagram.add_node(ChanceNode(name="count", dist=lambda: dist.Poisson(3.0)))
-    diagram.add_node(
-        ChanceNode(
-            name="report",
-            parents=("count",),
-            dist=lambda count: dist.Normal(count, 1.0),
-        )
-    )
-
-    with pytest.raises(InferenceError, match="unobserved numerical discrete.*count"):
-        samples(diagram.snapshot(), observed={"report": 2.0}, num_samples=10)

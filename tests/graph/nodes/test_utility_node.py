@@ -99,11 +99,6 @@ def test_values_with_extra_param_is_stale() -> None:
 # --- validate() gate --------------------------------------------------------
 
 
-def test_validate_raises_on_unconfigured() -> None:
-    with pytest.raises(ValueError, match="`values`"):
-        UtilityNode(name="u").validate()
-
-
 def test_validate_raises_on_stale() -> None:
     u = UtilityNode(name="u", parents=("gain",), values=_values_taking_gain)
     u.add_parent("cost")

@@ -15,6 +15,7 @@ Read the graph principles first, then the notes relevant to the change:
 - [Policy-gradient optimization](solver/algorithms.md): joint expected-utility training, local information, independent evaluation, and analytic verification.
 - [Policy families and mixed information](continuous_information/README.md): categorical and continuous families, fitted rules, and custom parameter models.
 - [Posterior inference with fitted policies](inference/fitted_policy_conditioning.md): conditioning through categorical and continuous action distributions, with mixed decision information.
+- [Test organization](testing.md): package ownership, integration scenarios, and shared test helpers.
 
 These notes explain the reasoning behind the current implementation. Public signatures and behavior belong in the API reference and docstrings rather than a second implementation-status table here.
 
